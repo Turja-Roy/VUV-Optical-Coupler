@@ -62,26 +62,26 @@ print(f"fused silica n({WAVELENGTH_NM} nm) = {n_glass:.6f}")
 # Fetching Data #
 #################
 
-l1_candidates = pd.read_csv('./data/l1_candidates.csv')
-l2_candidates = pd.read_csv('./data/l2_candidates.csv')
-# lenses_candidates = pd.read_csv('./data/Thorlabs_Lenses.csv')
+# l1_candidates = pd.read_csv('./data/l1_candidates.csv')
+# l2_candidates = pd.read_csv('./data/l2_candidates.csv')
+lenses_candidates = pd.read_csv('./data/ThorLabs_Lenses.csv')
 
 lens1, lens2, lenses = {}, {}, {}
 
-for _, row in l1_candidates.iterrows():
-    lens1[row['Item #']] = {'dia': row['Diameter (mm)'], 'f_mm': row['Focal Length (mm)'],
-                             'R_mm': row['Radius of Curvature (mm)'], 't_mm': row['Center Thickness (mm)'],
-                             'BFL_mm': row['Back Focal Length (mm)']}
-for _, row in l2_candidates.iterrows():
-    lens2[row['Item #']] = {'dia': row['Diameter (mm)'], 'f_mm': row['Focal Length (mm)'],
-                             'R_mm': row['Radius of Curvature (mm)'], 't_mm': row['Center Thickness (mm)'],
-                             'BFL_mm': row['Back Focal Length (mm)']}
-# for _, row in lenses_candidates.iterrows():
-#     lenses[row['Part Number']] = {'dia': row['Diameter (mm)'], 'f_mm': row['Focal Length (mm)'],
+# for _, row in l1_candidates.iterrows():
+#     lens1[row['Item #']] = {'dia': row['Diameter (mm)'], 'f_mm': row['Focal Length (mm)'],
 #                              'R_mm': row['Radius of Curvature (mm)'], 't_mm': row['Center Thickness (mm)'],
 #                              'BFL_mm': row['Back Focal Length (mm)']}
+# for _, row in l2_candidates.iterrows():
+#     lens2[row['Item #']] = {'dia': row['Diameter (mm)'], 'f_mm': row['Focal Length (mm)'],
+#                              'R_mm': row['Radius of Curvature (mm)'], 't_mm': row['Center Thickness (mm)'],
+#                              'BFL_mm': row['Back Focal Length (mm)']}
+for _, row in lenses_candidates.iterrows():
+    lenses[row['Item #']] = {'dia': row['Diameter (mm)'], 'f_mm': row['Focal Length (mm)'],
+                             'R_mm': row['Radius of Curvature (mm)'], 't_mm': row['Center Thickness (mm)'],
+                             'BFL_mm': row['Back Focal Length (mm)']}
 
-lenses = lens1 | lens2
+# lenses = lens1 | lens2
 
 # pd.DataFrame(lenses).T.style
 
