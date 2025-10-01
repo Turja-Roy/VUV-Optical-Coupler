@@ -28,7 +28,7 @@ MAX_ANGLE_DEG = 33                          # Maximum ray angle at window edge
 SOURCE_RADIUS_MM = SOURCE_ARC_DIAM_MM/2.0   # Source radius for ray generation
 
 # Position offset for lenses
-SOURCE_TO_LENS_OFFSET = WINDOW_DISTANCE_MM  # Lenses start after the window
+SOURCE_TO_LENS_OFFSET = WINDOW_DISTANCE_MM + 1  # Lenses start after the window
 
 # Rays
 N_RAYS = 1000
@@ -420,7 +420,7 @@ def run_grid(name1, name2, coarse_steps=9, refine_steps=11, n_coarse=3000, n_ref
     # Generate ray set once per pair for fair comparison
     origins_coarse, dirs_coarse = sample_rays(n_coarse)
     # coarse search ranges: place lens1 roughly near its focal length, lens2 downstream
-    z_l1_min = max(0.5, f1 * 0.5)
+    z_l1_min = SOURCE_TO_LENS_OFFSET
     z_l1_max = f1 * 1.5
     best = {'coupling': -1}
     for z_l1 in np.linspace(z_l1_min, z_l1_max, coarse_steps):
