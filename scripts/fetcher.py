@@ -79,5 +79,6 @@ def particular_combo(name1, name2):
     for a in lenses:
         for b in lenses:
             combos.append((a, b))
+    combos = [combos[0]]
 
     return combos, lenses
