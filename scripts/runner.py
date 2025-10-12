@@ -1,4 +1,5 @@
 import numpy as np
+from tqdm import tqdm
 from .PlanoConvex import PlanoConvex
 from . import consts as C
 from .visualizers import plot_system_rays
@@ -26,8 +27,8 @@ def evaluate_config(z_l1, z_l2, origins, dirs, d1, d2, z_fiber, n_rays):
 # Coarse + refine grid search per lens pair
 
 
-def run_grid(lenses, name1, name2, coarse_steps=9,
-             refine_steps=11, n_coarse=3000, n_refine=8000):
+def run_grid(run_date, lenses, name1, name2, coarse_steps=9, refine_steps=11,
+             n_coarse=3000, n_refine=8000):
     d1 = lenses[name1]
     d2 = lenses[name2]
     f1 = d1['f_mm']
@@ -37,6 +38,7 @@ def run_grid(lenses, name1, name2, coarse_steps=9,
     # coarse search ranges:
     # place lens1 roughly near its focal length, lens2 downstream
     z_l1_min = C.SOURCE_TO_LENS_OFFSET
+    # z_l1_max = f1 * 2.0
     z_l1_max = f1 * 1.5
 
     if z_l1_max <= z_l1_min:
@@ -47,6 +49,7 @@ def run_grid(lenses, name1, name2, coarse_steps=9,
         # allow lens2 to vary relative to lens1;
         # keep fiber at z_l2 + f2 (imaging plane assumption)
         z_l2_min = z_l1 + f2 * 0.5
+        # z_l2_min = z_l1
         z_l2_max = z_l1 + f2 * 2.5
         for z_l2 in np.linspace(z_l2_min, z_l2_max, coarse_steps):
             z_fiber = z_l2 + f2
@@ -85,6 +88,26 @@ def run_grid(lenses, name1, name2, coarse_steps=9,
                 'f2_mm': f2, 'total_len_mm': best['z_fiber']})
 
     # Visualize this combination
-    plot_system_rays(lenses, best)
+    plot_system_rays(lenses, best, run_date)
 
     return best
+
+
+def run_combos(lenses, combos, run_date):
+    results = []
+
+    for (a, b) in tqdm(combos):
+        print(f"\nEvaluating {a} + {b} ...")
+        res = run_grid(run_date, lenses, a, b, coarse_steps=7, refine_steps=9,
+                       n_coarse=2000, n_refine=6000)
+
+        if res is None:
+            print("Lens 1 focal length too short for placement.")
+            continue
+        else:
+            print(f"best coupling={res['coupling']:.4f} at z_l1={
+                  res['z_l1']:.2f}, z_l2={res['z_l2']:.2f}")
+
+        results.append(res)
+
+    return results

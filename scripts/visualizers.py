@@ -5,7 +5,7 @@ from .raytrace_helpers import sample_rays
 from . import consts as C
 
 
-def plot_system_rays(lenses, best_result, n_plot_rays=1000):
+def plot_system_rays(lenses, best_result, run_date, n_plot_rays=1000):
     """
     Plot ray tracing through the optical system.
     """
@@ -120,9 +120,9 @@ def plot_system_rays(lenses, best_result, n_plot_rays=1000):
     plt.tight_layout()
 
     # Save plot
-    if not __import__("os").path.exists('./plots_' + C.DATE_STR):
-        __import__("os").makedirs('./plots_' + C.DATE_STR)
-    plt.savefig(f"./plots_{C.DATE_STR}/C-{best_result['coupling']:.4f}_L1-{
+    if not __import__("os").path.exists('./plots/' + run_date):
+        __import__("os").makedirs('./plots/' + run_date)
+    plt.savefig(f"./plots/{run_date}/C-{best_result['coupling']:.4f}_L1-{
                 best_result['lens1']}_L2-{best_result['lens2']}.png")
     plt.close(fig)
     # plt.show()
