@@ -5,6 +5,9 @@ from . import consts as C
 from .visualizers import plot_system_rays
 from .raytrace_helpers import sample_rays, trace_system
 
+import logging
+from pathlib import Path
+
 
 # Evaluate a single configuration
 # (given lens vertex positions and a fixed fiber z)
@@ -93,20 +96,51 @@ def run_grid(run_date, lenses, name1, name2, coarse_steps=9, refine_steps=11,
     return best
 
 
+def _setup_logger(run_date: str):
+    """
+    Return a module logger that appends to logs/run_<run_date>.log.
+    If a FileHandler for that file already exists on the logger, reuse it.
+    """
+    logger = logging.getLogger("raytrace")
+
+    logs_dir = Path.cwd() / "logs"
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    logfile = logs_dir / f"run_{run_date}.log"
+
+    # If a FileHandler for this logfile already exists, reuse logger as-is.
+    for h in logger.handlers:
+        if isinstance(h, logging.FileHandler) and getattr(h, "baseFilename", None) == str(logfile):
+            return logger
+
+    # Configure logger when adding the first handler
+    logger.setLevel(logging.INFO)
+
+    # FileHandler defaults to append mode, so no need to pass mode='a'
+    fh = logging.FileHandler(logfile, encoding="utf-8")
+    fmt = logging.Formatter("%(asctime)s %(levelname)s: %(message)s",
+                            datefmt="%Y-%m-%d %H:%M:%S")
+    fh.setFormatter(fmt)
+    logger.addHandler(fh)
+
+    return logger
+
+
 def run_combos(lenses, combos, run_date):
     results = []
 
+    logger = _setup_logger(run_date)
+
     for (a, b) in tqdm(combos):
-        print(f"\nEvaluating {a} + {b} ...")
+        logger.info(f"\nEvaluating {a} + {b} ...")
         res = run_grid(run_date, lenses, a, b, coarse_steps=7, refine_steps=9,
                        n_coarse=2000, n_refine=6000)
 
         if res is None:
-            print("Lens 1 focal length too short for placement.")
+            logger.warning("Lens 1 focal length too short for placement.")
             continue
         else:
-            print(f"best coupling={res['coupling']:.4f} at z_l1={
-                  res['z_l1']:.2f}, z_l2={res['z_l2']:.2f}")
+            logger.info(f"best coupling={res['coupling']:.4f} at z_l1={
+                      res['z_l1']:.2f}, z_l2={res['z_l2']:.2f}")
 
         results.append(res)
 

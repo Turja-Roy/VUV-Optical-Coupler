@@ -30,9 +30,9 @@ def main():
         if 'continue' in sys.argv:
             batch_continue = True
         date_args = [arg for arg in sys.argv if re.match(r'\d{4}-\d{2}-\d{2}', arg)]
-        print(date_args)
         if date_args != []:
             run_date = date_args[0]
+        print('Run date: ' + run_date)
         combos, lenses = find_combos('select')
     else:                                                               # All lens combos
         method = 'combine'
