@@ -30,8 +30,9 @@ def evaluate_config(z_l1, z_l2, origins, dirs, d1, d2, z_fiber, n_rays):
 # Coarse + refine grid search per lens pair
 
 
-def run_grid(run_date, lenses, name1, name2, coarse_steps=9, refine_steps=11,
-             n_coarse=3000, n_refine=8000):
+def run_grid(run_date, lenses, name1, name2,
+             coarse_steps=C.COARSE_STEPS, refine_steps=C.REFINE_STEPS,
+             n_coarse=C.N_COARSE, n_refine=C.N_REFINE):
     d1 = lenses[name1]
     d2 = lenses[name2]
     f1 = d1['f_mm']
