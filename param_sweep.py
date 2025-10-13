@@ -17,18 +17,18 @@ def test_param_sensitivity():
     lenses = fetch_lens_data('combine')
     
     # Choose a representative lens pair
-    lens1 = 'LA4001'
-    lens2 = 'LA4966'
+    lens1 = 'LA4022'
+    lens2 = 'LA4034'
     
     # Test configurations with different parameter combinations
     param_sets = [
         # Test different ray counts with same grid size
         (7, 9, 500, 1000),     # Baseline grid, lower rays
         (7, 9, 2000, 6000),    # Baseline grid, medium rays
-        # (7, 9, 5000, 8000),    # Baseline grid, higher rays
+        (9, 11, 5000, 8000),    # Baseline grid, higher rays
         
         # Test different grid sizes with medium rays
-        # (5, 7, 5000, 10000),     # Coarser grid
+        (9, 11, 5000, 10000),     # Coarser grid
         # (9, 13, 5000, 10000),    # Medium grid
         # (11, 15, 5000, 10000),   # Finer grid
         

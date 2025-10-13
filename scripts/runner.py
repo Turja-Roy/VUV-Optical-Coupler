@@ -12,6 +12,12 @@ from pathlib import Path
 # Evaluate a single configuration
 # (given lens vertex positions and a fixed fiber z)
 def evaluate_config(z_l1, z_l2, origins, dirs, d1, d2, z_fiber, n_rays):
+    # Validate positions before evaluating
+    if z_l1 < C.SOURCE_TO_LENS_OFFSET:
+        return 0.0, np.zeros(n_rays, dtype=bool)  # Invalid configuration
+    if z_l2 <= z_l1 + 0.1:  # Minimum spacing between lenses
+        return 0.0, np.zeros(n_rays, dtype=bool)  # Invalid configuration
+        
     lens1 = PlanoConvex(vertex_z_front=z_l1,
                         R_front_mm=d1['R_mm'],
                         thickness_mm=d1['t_mm'],
@@ -71,8 +77,9 @@ def run_grid(run_date, lenses, name1, name2,
     dz1 = max(0.05, (z_l1_max - z_l1_min) / (coarse_steps-1))
     dz2 = max(0.05, ((z2c - (z1c + f2*0.5)) +
               ((z1c + f2*2.5) - z2c)) / (coarse_steps-1))
-    z1_min = max(0.0, z1c - dz1*2)
+    z1_min = max(C.SOURCE_TO_LENS_OFFSET, z1c - dz1*2)
     z1_max = z1c + dz1*2
+    # Ensure z2 is after z1 with enough space for the lens
     z2_min = max(z1_min + 0.1, z2c - dz2*2)
     z2_max = z2c + dz2*2
     origins_ref, dirs_ref = sample_rays(n_refine)
