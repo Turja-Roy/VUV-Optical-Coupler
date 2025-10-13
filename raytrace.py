@@ -5,7 +5,7 @@ import pandas as pd
 import regex as re
 from scripts import consts as C
 from scripts.fetcher import find_combos, particular_combo, write_results
-from scripts.runner import run_combos
+from scripts.runner import run_combos, run_grid
 from scripts.visualizers import plot_spot_diagram
 
 
@@ -52,18 +52,23 @@ def main():
         completed = len(existing_files)
         remaining = int(np.ceil((len(combos) - completed * 100) / 100))
 
+        # Update results with completed batches
+        for i in range(completed):
+            df = pd.read_csv(f'./results/{run_date}/batch_{method}_{i+1}.csv')
+            results.extend(df.to_dict('records'))  # get list of row dicts
+
         # Check if the last batch is completed
-        check_df = pd.read_csv(f'./results/{run_date}/batch_{completed}.csv')
+        check_df = pd.read_csv(f'./results/{run_date}/batch_{method}_{completed}.csv')
         if len(check_df) < 100:
-            combos = combos[completed * 100 - len(check_df):]
+            combos = combos[:len(combos) - (completed-1)*100 - len(check_df)]
             print(f"Resuming from batch {completed} with {len(combos)} combos remaining...")
 
             # Run for only the remaining combos in the last batch
-            incomplete_batch_results = run_combos(lenses, combos[:100 - len(check_df)], run_date)
+            incomplete_batch_results = run_combos(lenses, combos, run_date)
+            # print(incomplete_batch_results)
             write_results(method, incomplete_batch_results, run_date, batch=True, batch_num=completed, contd_batch=True)
 
             results.extend(incomplete_batch_results)
-            combos = combos[100 - len(check_df):]
 
         else:
             combos = combos[completed * 100:]
@@ -98,7 +103,8 @@ def main():
               len(combos)} combos (this may take from a few minutes to hours)...")
 
         results = run_combos(lenses, combos, run_date)
-        write_results(method, results, run_date)
+
+    write_results(method, results, run_date)
 
     # pick best overall
     best = results[np.argmax([r['coupling'] for r in results])]
@@ -106,7 +112,9 @@ def main():
     print(f"Configuration: z_l1 = {best['z_l1']}, z_l2 = {best['z_l2']}, z_fiber = {best['z_fiber']}")
 
     # Generate spot diagram for best combo
-    plot_spot_diagram(best, lenses)
+    # Running the best combo again before plotting to get landing points
+    best = run_grid(run_date, lenses, best['lens1'], best['lens2'])
+    plot_spot_diagram(best, lenses, run_date)
 
 
 if __name__ == "__main__":

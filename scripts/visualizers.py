@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+
 from .PlanoConvex import PlanoConvex
 from .raytrace_helpers import sample_rays
 from . import consts as C
@@ -128,12 +129,12 @@ def plot_system_rays(lenses, best_result, run_date, n_plot_rays=1000):
     # plt.show()
 
 
-def plot_spot_diagram(best, lenses):
+def plot_spot_diagram(best, lenses, run_date):
     """
         Spot diagram for best
         (use the origins/dirs that produced the reported best)
     """
-    # accepted_mask = best['accepted']
+    accepted_mask = best['accepted']
     origins = best['origins']
     dirs = best['dirs']
     # compute landing points
@@ -167,3 +168,28 @@ def plot_spot_diagram(best, lenses):
         p = o2 + t * d2
         land_x[i] = p[0]
         land_y[i] = p[1]
+
+    plt.figure(figsize=(6, 6))
+
+    plt.scatter(land_x[~accepted_mask], land_y[~accepted_mask],
+                s=1, color='red', alpha=0.3, label='rejected')
+    plt.scatter(land_x[accepted_mask], land_y[accepted_mask],
+                s=1, color='green', alpha=0.6, label='accepted')
+    circle = plt.Circle((0, 0), C.FIBER_CORE_DIAM_MM/2.0, color='blue',
+                        fill=False, linewidth=1.5, label='fiber core')
+    ax = plt.gca()
+    ax.add_patch(circle)
+    plt.xlabel('x (mm)')
+    plt.ylabel('y (mm)')
+    plt.title(f"Spot diagram: {
+              best['lens1']} + {best['lens2']} (coupling={best['coupling']:.4f})")
+    plt.axis('equal')
+    plt.grid(True)
+    plt.legend()
+
+    # Save spot diagram
+    if not __import__("os").path.exists('./plots/' + run_date):
+        __import__("os").makedirs('./plots/' + run_date)
+    plt.savefig(f"./plots/{run_date}/spot_C-{best['coupling']:.4f}_L1-{
+                best['lens1']}_L2-{best['lens2']}.png", dpi=300, bbox_inches='tight')
+    plt.close()

@@ -85,15 +85,26 @@ def particular_combo(name1, name2):
 
 
 def write_results(method, results, run_date, batch=False, batch_num=None, contd_batch=False):
-    """Write results to CSV file."""
+    """Write results to CSV file. Each result must be a dictionary with scalar values
+    for lens parameters, positions, and coupling efficiency."""
     import os
     from . import consts as C
 
-    rows = [{k: v for k, v in r.items()
-             if k in ['lens1', 'lens2', 'f1_mm', 'f2_mm',
-                      'z_l1', 'z_l2', 'z_fiber',
-                      'total_len_mm', 'coupling', 'accepted']}
-            for r in results]
+    # Validate results is a sequence of dictionaries
+    if not results:
+        return  # nothing to write
+    if not hasattr(results, '__iter__'):
+        raise ValueError("results must be a sequence")
+    
+    # Extract only scalar fields that are safe to write to CSV. Exclude arrays
+    # like 'accepted' which can cause "unhashable type" errors in pandas.
+    scalar_keys = ['lens1', 'lens2', 'f1_mm', 'f2_mm', 'z_l1', 'z_l2',
+                  'z_fiber', 'total_len_mm', 'coupling']
+    rows = []
+    for i, r in enumerate(results):
+        if not isinstance(r, dict):
+            raise ValueError(f"result {i} is {type(r)}, expected dict")
+        rows.append({k: v for k, v in r.items() if k in scalar_keys})
     df = pd.DataFrame(rows).sort_values(
         ['coupling', 'total_len_mm'],
         ascending=[False, True]).reset_index(drop=True)
@@ -103,8 +114,8 @@ def write_results(method, results, run_date, batch=False, batch_num=None, contd_
             os.makedirs('./results/' + run_date)
 
         if contd_batch:  # Append to existing batch file
-            existing_df = pd.read_csv(f"results/{run_date}/batch_{batch_num}.csv")
-            df = pd.concat([existing_df, df]).drop_duplicates().reset_index(drop=True)
+            existing_df = pd.read_csv(f"results/{run_date}/batch_{method}_{batch_num}.csv")
+            df = pd.concat([existing_df, df])
             df.to_csv(f"results/{run_date}/batch_{method}_{batch_num}.csv", index=False)
         else:
             df.to_csv(f"results/{run_date}/batch_{method}_{batch_num}.csv", index=False)

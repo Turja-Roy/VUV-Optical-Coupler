@@ -132,8 +132,7 @@ def run_combos(lenses, combos, run_date):
 
     for (a, b) in tqdm(combos):
         logger.info(f"\nEvaluating {a} + {b} ...")
-        res = run_grid(run_date, lenses, a, b, coarse_steps=7, refine_steps=9,
-                       n_coarse=2000, n_refine=6000)
+        res = run_grid(run_date, lenses, a, b)
 
         if res is None:
             logger.warning("Lens 1 focal length too short for placement.")
