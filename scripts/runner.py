@@ -151,12 +151,27 @@ def run_combos(lenses, combos, run_date, batch_num=None):
 
     # Read all results from temp file and write to a CSV
     results = []
+    
+    filename = 'temp.json' if batch_num is None else f'temp_batch_{batch_num}.json'
+    filepath = f'./results/{run_date}/{filename}'
 
-    filename = 'temp.txt' if batch_num is None else f'temp_batch_{batch_num}.txt'
-
-    with open(f'./results/{run_date}/{filename}', 'r') as f:
-        for line in f:
-            results.append(eval(line.strip()))
-    Path(f'./results/{run_date}/{filename}').unlink()  # delete temp file
+    try:
+        if Path(filepath).exists():
+            import json
+            import numpy as np
+            with open(filepath, 'r') as f:
+                data = json.load(f)
+                # Convert lists back to numpy arrays where needed
+                for result in data:
+                    if 'origins' in result:
+                        result['origins'] = np.array(result['origins'])
+                    if 'dirs' in result:
+                        result['dirs'] = np.array(result['dirs'])
+                    if 'accepted' in result:
+                        result['accepted'] = np.array(result['accepted'])
+                results.extend(data)
+            Path(filepath).unlink()  # delete temp file
+    except Exception as e:
+        logger.error(f"Error reading temporary file {filename}: {str(e)}")
 
     return results
