@@ -121,13 +121,39 @@ def write_results(method, results, run_date, batch=False, batch_num=None):
 
 
 def write_temp(result, run_date, batch_num):
-    """Append a single result (dict) to a temporary txt file."""
+    """Append a single result (dict) to a temporary json file."""
     import os
+    import json
+    import numpy as np
 
     if not os.path.exists('./results/' + run_date):
         os.makedirs('./results/' + run_date)
 
-    filename = 'temp.txt' if batch_num is None else f'temp_batch_{batch_num}.txt'
+    filename = 'temp.json' if batch_num is None else f'temp_batch_{batch_num}.json'
+    filepath = f'./results/{run_date}/{filename}'
 
-    with open(f'./results/{run_date}/{filename}', 'a') as f:
-        f.write(str(result) + '\n')
+    # Convert numpy arrays to lists for JSON serialization
+    serializable_result = {}
+    for k, v in result.items():
+        if isinstance(v, np.ndarray):
+            serializable_result[k] = v.tolist()
+        elif isinstance(v, np.bool_):
+            serializable_result[k] = bool(v)
+        else:
+            serializable_result[k] = v
+
+    # Load existing data if file exists
+    existing_data = []
+    if os.path.exists(filepath):
+        try:
+            with open(filepath, 'r') as f:
+                existing_data = json.load(f)
+        except json.JSONDecodeError:
+            pass  # Start fresh if file is corrupted
+
+    # Append new result
+    existing_data.append(serializable_result)
+
+    # Write back all data
+    with open(filepath, 'w') as f:
+        json.dump(existing_data, f, indent=2)

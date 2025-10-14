@@ -54,16 +54,18 @@ def main():
             f'./results/{run_date}') if f.startswith('batch_') and f.endswith('.csv')])
         remaining = int(np.ceil((len(combos) - completed * 100) / 100))
 
-        # Check if a temp file (.txt) exists for the last incomplete batch
+        # Check if a temp file (.json) exists for the last incomplete batch
         temp_files = [f for f in os.listdir(
-            f'./results/{run_date}') if f.startswith('temp_') and f.endswith('.csv')]
+            f'./results/{run_date}') if f.startswith('temp') and f.endswith('.json')]
 
         if len(temp_files) > 0:
-            # Check the line number to see how many combos were completed
-            completed_combos = 0
+            # Read the JSON file to see how many combos were completed
             with open(f'./results/{run_date}/{temp_files[0]}', 'r') as f:
-                for completed_combos, _ in enumerate(f, start=1):
-                    pass
+                try:
+                    completed_data = __import__("json").load(f)
+                    completed_combos = len(completed_data)
+                except __import__("json").JSONDecodeError:
+                    completed_combos = 0
 
             combos = combos[:len(combos) - (completed-1)*100 - len(completed_combos)]
             print(f"Resuming from batch {completed} with {
