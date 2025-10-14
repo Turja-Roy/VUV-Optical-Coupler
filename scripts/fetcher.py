@@ -84,11 +84,12 @@ def particular_combo(name1, name2):
     return combos, lenses
 
 
-def write_results(method, results, run_date, batch=False, batch_num=None, contd_batch=False):
-    """Write results to CSV file. Each result must be a dictionary with scalar values
-    for lens parameters, positions, and coupling efficiency."""
+def write_results(method, results, run_date, batch=False, batch_num=None):
+    """
+        Write results to CSV file. Each result must be a dictionary with
+        scalar values for lens parameters, positions, and coupling efficiency.
+    """
     import os
-    from . import consts as C
 
     # Validate results is a sequence of dictionaries
     if not results:
@@ -112,14 +113,21 @@ def write_results(method, results, run_date, batch=False, batch_num=None, contd_
     if batch and batch_num is not None:
         if not os.path.exists('./results/' + run_date):
             os.makedirs('./results/' + run_date)
-
-        if contd_batch:  # Append to existing batch file
-            existing_df = pd.read_csv(f"results/{run_date}/batch_{method}_{batch_num}.csv")
-            df = pd.concat([existing_df, df])
-            df.to_csv(f"results/{run_date}/batch_{method}_{batch_num}.csv", index=False)
-        else:
-            df.to_csv(f"results/{run_date}/batch_{method}_{batch_num}.csv", index=False)
+        df.to_csv(f"results/{run_date}/batch_{method}_{batch_num}.csv", index=False)
     else:
         if not os.path.exists('./results/' + run_date):
             os.makedirs('./results/' + run_date)
         df.to_csv(f"results/{run_date}/results_{method}_{run_date}.csv", index=False)
+
+
+def write_temp(result, run_date, batch_num):
+    """Append a single result (dict) to a temporary txt file."""
+    import os
+
+    if not os.path.exists('./results/' + run_date):
+        os.makedirs('./results/' + run_date)
+
+    filename = 'temp.txt' if batch_num is None else f'temp_batch_{batch_num}.txt'
+
+    with open(f'./results/{run_date}/{filename}', 'a') as f:
+        f.write(str(result) + '\n')

@@ -18,98 +18,107 @@ def main():
     """
         Parse command line arguments
         Usage:
-        python raytrace.py [particular <lens1> <lens2> | select [batch] [continue] [YYYY-MM-DD] | combine [batch] [continue]]
+        python raytrace.py [particular <lens1> <lens2> | select | combine] [continue] [<YYYY-MM-DD>]
     """
     if sys.argv[1] == 'particular':                                     # Particular lenses
         method = 'particular'
         combos, lenses = particular_combo(sys.argv[2], sys.argv[3])
-    elif sys.argv[1] == 'select':                                       # Select candidates
-        method = 'select'
-        if 'batch' in sys.argv and 'continue' not in sys.argv:
-            batch_run = True
+
+    elif sys.argv[1] in ['select', 'combine']:                          # Select or combine
+        method = sys.argv[1]
+
         if 'continue' in sys.argv:
             batch_continue = True
+
         date_args = [arg for arg in sys.argv if re.match(r'\d{4}-\d{2}-\d{2}', arg)]
         if date_args != []:
             run_date = date_args[0]
         print('Run date: ' + run_date)
-        combos, lenses = find_combos('select')
-    else:                                                               # All lens combos
-        method = 'combine'
-        if 'batch' in sys.argv: batch_run = True
-        if 'continue' in sys.argv: batch_continue = True
-        combos, lenses = find_combos('combine')
 
+        combos, lenses = find_combos(method)
+        if len(combos) > 100:
+            batch_run = True
+
+    else:                                                               # Invalid arguments
+        print("Invalid arguments. Usage:\n"
+              "python raytrace.py [particular <lens1> <lens2> | select | combine] [continue] [<YYYY-MM-DD>]")
+        return
 
     """
         Run sweep across all combos (coarse+refine)
     """
-    results = []
     print("Total number of lens combos to evaluate:", len(combos))
 
     if batch_continue:  # Continue incomplete run
-        existing_files = [f for f in os.listdir(f'./results/{run_date}') if f.startswith('batch_') and f.endswith('.csv')]
-        completed = len(existing_files)
+        completed = len([f for f in os.listdir(
+            f'./results/{run_date}') if f.startswith('batch_') and f.endswith('.csv')])
         remaining = int(np.ceil((len(combos) - completed * 100) / 100))
 
-        # Update results with completed batches
-        for i in range(completed):
-            df = pd.read_csv(f'./results/{run_date}/batch_{method}_{i+1}.csv')
-            results.extend(df.to_dict('records'))  # get list of row dicts
+        # Check if a temp file (.txt) exists for the last incomplete batch
+        temp_files = [f for f in os.listdir(
+            f'./results/{run_date}') if f.startswith('temp_') and f.endswith('.csv')]
 
-        # Check if the last batch is completed
-        check_df = pd.read_csv(f'./results/{run_date}/batch_{method}_{completed}.csv')
-        if len(check_df) < 100:
-            combos = combos[:len(combos) - (completed-1)*100 - len(check_df)]
-            print(f"Resuming from batch {completed} with {len(combos)} combos remaining...")
+        if len(temp_files) > 0:
+            # Check the line number to see how many combos were completed
+            completed_combos = 0
+            with open(f'./results/{run_date}/{temp_files[0]}', 'r') as f:
+                for completed_combos, _ in enumerate(f, start=1):
+                    pass
 
-            # Run for only the remaining combos in the last batch
-            incomplete_batch_results = run_combos(lenses, combos, run_date)
-            # print(incomplete_batch_results)
-            write_results(method, incomplete_batch_results, run_date, batch=True, batch_num=completed, contd_batch=True)
+            combos = combos[:len(combos) - (completed-1)*100 - len(completed_combos)]
+            print(f"Resuming from batch {completed} with {
+                  len(combos)} combos remaining...")
 
-            results.extend(incomplete_batch_results)
+            batch_results = run_combos(lenses, combos, run_date, batch_num=completed)
+            write_results(method, batch_results, run_date,
+                          batch=True, batch_num=completed)
 
         else:
             combos = combos[completed * 100:]
-            print(f"Resuming from batch {completed + 1} with {len(combos)} combos remaining...")
+            print(f"Resuming from batch {
+                  completed + 1} with {len(combos)} combos remaining...")
 
         # Run the remaining batches
         for i in range(remaining):
             batch_combos = combos[:100]
             print(f"\nStarting batch {completed+i+1}/{completed + remaining}")
 
-            batch_results = run_combos(lenses, batch_combos, run_date)
-            write_results(method, batch_results, run_date, batch=True, batch_num=completed+i+1)
-
+            batch_results = run_combos(lenses, batch_combos, run_date, batch_num=completed+i+1)
+            write_results(method, batch_results, run_date,
+                          batch=True, batch_num=completed+i+1)
             combos = combos[100:]
-            results.extend(batch_results)
 
-    elif batch_run:  # Start batches from beginning
+    elif batch_run:  # Start batches from beginning (override existing)
         n_batches = int(np.ceil(len(combos) / 100))
 
         for i in range(n_batches):
             batch_combos = combos[:100]
             print(f"\nStarting batch {i+1}/{n_batches}")
 
-            batch_results = run_combos(lenses, batch_combos, run_date)
-            write_results(method, batch_results, run_date, batch=True, batch_num=i+1)
+            batch_results = run_combos(lenses, batch_combos, run_date, batch_num=i+1)
+            write_results(method, batch_results, run_date,
+                          batch=True, batch_num=i+1)
 
             combos = combos[100:]
-            results.extend(batch_results)
 
-    else:  # No batches
-        print(f"Running coarse+refined grid sweep for {
-              len(combos)} combos (this may take from a few minutes to hours)...")
+    # Update final result with completed batches
+    results = []
 
-        results = run_combos(lenses, combos, run_date)
+    completed = len([f for f in os.listdir(
+        f'./results/{run_date}') if f.startswith('batch_') and f.endswith('.csv')])
+
+    for i in range(completed):
+        df = pd.read_csv(f'./results/{run_date}/batch_{method}_{i+1}.csv')
+        results.extend(df.to_dict('records'))  # get list of row dicts
 
     write_results(method, results, run_date)
 
     # pick best overall
     best = results[np.argmax([r['coupling'] for r in results])]
-    print('\nBest combo overall:', best['lens1'], best['lens2'], 'coupling =', best['coupling'])
-    print(f"Configuration: z_l1 = {best['z_l1']}, z_l2 = {best['z_l2']}, z_fiber = {best['z_fiber']}")
+    print('\nBest combo overall:', best['lens1'],
+          best['lens2'], 'coupling =', best['coupling'])
+    print(f"Configuration: z_l1 = {best['z_l1']}, z_l2 = {
+          best['z_l2']}, z_fiber = {best['z_fiber']}")
 
     # Generate spot diagram for best combo
     # Running the best combo again before plotting to get landing points

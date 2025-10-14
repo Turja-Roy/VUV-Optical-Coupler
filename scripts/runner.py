@@ -1,5 +1,7 @@
 import numpy as np
 from tqdm import tqdm
+
+from .fetcher import write_temp
 from .PlanoConvex import PlanoConvex
 from . import consts as C
 from .visualizers import plot_system_rays
@@ -98,9 +100,6 @@ def run_grid(run_date, lenses, name1, name2,
     best.update({'lens1': name1, 'lens2': name2, 'f1_mm': f1,
                 'f2_mm': f2, 'total_len_mm': best['z_fiber']})
 
-    # Visualize this combination
-    plot_system_rays(lenses, best, run_date)
-
     return best
 
 
@@ -133,22 +132,31 @@ def _setup_logger(run_date: str):
     return logger
 
 
-def run_combos(lenses, combos, run_date):
-    results = []
-
+def run_combos(lenses, combos, run_date, batch_num=None):
     logger = _setup_logger(run_date)
 
     for (a, b) in tqdm(combos):
         logger.info(f"\nEvaluating {a} + {b} ...")
-        res = run_grid(run_date, lenses, a, b)
+
+        res = run_grid(run_date, lenses, a, b)  # Coarse + refine search
 
         if res is None:
             logger.warning("Lens 1 focal length too short for placement.")
             continue
         else:
+            plot_system_rays(lenses, res, run_date)  # Visualize this combination
+            write_temp(res, run_date, batch_num)
             logger.info(f"best coupling={res['coupling']:.4f} at z_l1={
                       res['z_l1']:.2f}, z_l2={res['z_l2']:.2f}")
 
-        results.append(res)
+    # Read all results from temp file and write to a CSV
+    results = []
+
+    filename = 'temp.txt' if batch_num is None else f'temp_batch_{batch_num}.txt'
+
+    with open(f'./results/{run_date}/{filename}', 'r') as f:
+        for line in f:
+            results.append(eval(line.strip()))
+    Path(f'./results/{run_date}/{filename}').unlink()  # delete temp file
 
     return results
