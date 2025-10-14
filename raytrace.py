@@ -67,7 +67,7 @@ def main():
                 except __import__("json").JSONDecodeError:
                     completed_combos = 0
 
-            combos = combos[:len(combos) - (completed-1)*100 - len(completed_combos)]
+            combos = combos[:len(combos) - (completed-1)*100 - completed_combos]
             print(f"Resuming from batch {completed} with {
                   len(combos)} combos remaining...")
 
