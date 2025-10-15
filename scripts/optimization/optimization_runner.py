@@ -8,8 +8,8 @@ from tqdm import tqdm
 import logging
 from pathlib import Path
 
-from .fetcher import write_temp
-from .visualizers import plot_system_rays
+from ..fetcher import write_temp
+from ..visualizers import plot_system_rays
 
 
 def _setup_logger(run_date: str):
@@ -60,12 +60,12 @@ def run_combos_optimized(lenses, combos, run_date, method='differential_evolutio
     
     # Import the appropriate optimizer
     if method == 'bayesian':
-        from .optimization.bayesian_optimizer import run_bayesian_optimization
+        from .bayesian_optimizer import run_bayesian_optimization
         optimizer_func = lambda rd, l, a, b: run_bayesian_optimization(
             rd, l, a, b, n_calls=50, n_rays=n_rays, alpha=alpha
         )
     else:
-        from .optimization.scipy_optimizer import run_optimization
+        from .scipy_optimizer import run_optimization
         optimizer_func = lambda rd, l, a, b: run_optimization(
             rd, l, a, b, method=method, n_rays=n_rays, alpha=alpha
         )
@@ -127,7 +127,7 @@ def compare_optimizers(lenses, test_combo, run_date, n_rays=1000, alpha=0.7):
     Returns:
     - dictionary with results from each method
     """
-    from .optimization.scipy_optimizer import run_optimization
+    from .scipy_optimizer import run_optimization
     
     methods = ['differential_evolution', 'dual_annealing', 'nelder_mead', 'powell']
     results = {}
@@ -165,7 +165,7 @@ def compare_optimizers(lenses, test_combo, run_date, n_rays=1000, alpha=0.7):
     
     # Try Bayesian if available
     try:
-        from .optimization.bayesian_optimizer import run_bayesian_optimization
+        from .bayesian_optimizer import run_bayesian_optimization
         print(f"\nTesting bayesian optimization...")
         import time
         start = time.time()

@@ -1,9 +1,9 @@
 import numpy as np
 from scipy.optimize import differential_evolution, dual_annealing, minimize
 from tqdm import tqdm
-from .PlanoConvex import PlanoConvex
-from . import consts as C
-from .raytrace_helpers import sample_rays, trace_system
+from ..PlanoConvex import PlanoConvex
+from .. import consts as C
+from ..raytrace_helpers import sample_rays, trace_system
 
 
 def evaluate_config_fast(params, d1, d2, origins, dirs, n_rays, alpha=0.7):

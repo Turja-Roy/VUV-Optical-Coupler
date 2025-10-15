@@ -8,9 +8,9 @@ Install: pip install scikit-optimize
 
 import numpy as np
 from tqdm import tqdm
-from .PlanoConvex import PlanoConvex
-from . import consts as C
-from .raytrace_helpers import sample_rays, trace_system
+from ..PlanoConvex import PlanoConvex
+from .. import consts as C
+from ..raytrace_helpers import sample_rays, trace_system
 
 try:
     from skopt import gp_minimize

@@ -180,7 +180,7 @@ def main():
 
     # Handle compare mode
     if args['mode'] == 'compare':
-        from scripts.optimization import compare_optimizers
+        from scripts.optimization.optimization_runner import compare_optimizers
         combos, lenses = particular_combo(args['lens1'], args['lens2'])
         compare_optimizers(lenses, (args['lens1'], args['lens2']),
                            args['date'], alpha=args['alpha'])
@@ -206,7 +206,7 @@ def main():
         )
     else:
         print(f"Using {args['optimizer']} optimization...")
-        from scripts.optimization import run_combos_optimized
+        from scripts.optimization.optimization_runner import run_combos_optimized
 
         def runner_func(lenses, combos, date, batch_num): return run_combos_optimized(
             lenses, combos, date, method=args['optimizer'],
