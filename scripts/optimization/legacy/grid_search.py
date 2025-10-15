@@ -1,11 +1,11 @@
 import numpy as np
 from tqdm import tqdm
 
-from .fetcher import write_temp
-from .PlanoConvex import PlanoConvex
-from . import consts as C
-from .visualizers import plot_system_rays
-from .raytrace_helpers import sample_rays, trace_system
+from ...fetcher import write_temp
+from ...PlanoConvex import PlanoConvex
+from ... import consts as C
+from ...visualizers import plot_system_rays
+from ...raytrace_helpers import sample_rays, trace_system
 
 import logging
 from pathlib import Path
