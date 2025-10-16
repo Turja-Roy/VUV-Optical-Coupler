@@ -25,10 +25,10 @@ def plot_system_rays(lenses, best_result, run_id, n_plot_rays=1000):
     origins, dirs = sample_rays(n_plot_rays)
 
     # Create lens instances
-    lens1 = PlanoConvex(z_l1, lens1_data['R_mm'], lens1_data['t_mm'],
-                        lens1_data['dia']/2.0)
-    lens2 = PlanoConvex(z_l2, lens2_data['R_mm'], lens2_data['t_mm'],
-                        lens2_data['dia']/2.0)
+    lens1 = PlanoConvex(z_l1, lens1_data['R_mm'], lens1_data['tc_mm'],
+                        lens1_data['te_mm'], lens1_data['dia']/2.0)
+    lens2 = PlanoConvex(z_l2, lens2_data['R_mm'], lens2_data['tc_mm'],
+                        lens2_data['te_mm'], lens2_data['dia']/2.0)
 
     # Plot ray paths
     for i in range(n_plot_rays):
@@ -86,7 +86,7 @@ def plot_system_rays(lenses, best_result, run_id, n_plot_rays=1000):
     x = r * np.cos(t)
     y = r * np.sin(t)
     ax.plot_surface(x, y, z_l1 + np.zeros_like(x), alpha=0.2, color='b')
-    ax.plot_surface(x, y, z_l1 + lens1_data['t_mm'] + np.zeros_like(x),
+    ax.plot_surface(x, y, z_l1 + lens1_data['tc_mm'] + np.zeros_like(x),
                     alpha=0.2, color='b')
 
     # Lens 2 surfaces
@@ -95,7 +95,7 @@ def plot_system_rays(lenses, best_result, run_id, n_plot_rays=1000):
     x = r * np.cos(t)
     y = r * np.sin(t)
     ax.plot_surface(x, y, z_l2 + np.zeros_like(x), alpha=0.2, color='b')
-    ax.plot_surface(x, y, z_l2 + lens2_data['t_mm'] + np.zeros_like(x),
+    ax.plot_surface(x, y, z_l2 + lens2_data['tc_mm'] + np.zeros_like(x),
                     alpha=0.2, color='b')
 
     # Plot fiber face
@@ -145,16 +145,18 @@ def plot_spot_diagram(best, lenses, run_id):
 
         out1 = PlanoConvex(vertex_z_front=best['z_l1'],
                            R_front_mm=lenses[best['lens1']]['R_mm'],
-                           thickness_mm=lenses[best['lens1']]['t_mm'],
-                           ap_rad_mm=lenses[best['lens1']]['dia']
+                           center_thickness_mm=lenses[best['lens1']]['tc_mm'],
+                           edge_thickness_mm=lenses[best['lens1']]['te_mm'],
+                           ap_rad_mm=lenses[best['lens1']]['dia']/2.0
                            ).trace_ray(o, d, 1.0)
         if out1[2] is False:
             continue
         o1, d1 = out1[0], out1[1]
         out2 = PlanoConvex(vertex_z_front=best['z_l2'],
                            R_front_mm=lenses[best['lens2']]['R_mm'],
-                           thickness_mm=lenses[best['lens2']]['t_mm'],
-                           ap_rad_mm=lenses[best['lens2']]['dia']
+                           center_thickness_mm=lenses[best['lens2']]['tc_mm'],
+                           edge_thickness_mm=lenses[best['lens2']]['te_mm'],
+                           ap_rad_mm=lenses[best['lens2']]['dia']/2.0
                            ).trace_ray(o1, d1, 1.0)
         if out2[2] is False:
             continue

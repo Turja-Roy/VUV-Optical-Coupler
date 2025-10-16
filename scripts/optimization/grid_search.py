@@ -22,12 +22,14 @@ def evaluate_config(z_l1, z_l2, origins, dirs, d1, d2, z_fiber, n_rays):
         
     lens1 = PlanoConvex(vertex_z_front=z_l1,
                         R_front_mm=d1['R_mm'],
-                        thickness_mm=d1['t_mm'],
-                        ap_rad_mm=d1['dia'])
+                        center_thickness_mm=d1['tc_mm'],
+                        edge_thickness_mm=d1['te_mm'],
+                        ap_rad_mm=d1['dia']/2.0)
     lens2 = PlanoConvex(vertex_z_front=z_l2,
                         R_front_mm=d2['R_mm'],
-                        thickness_mm=d2['t_mm'],
-                        ap_rad_mm=d2['dia'])
+                        center_thickness_mm=d2['tc_mm'],
+                        edge_thickness_mm=d2['te_mm'],
+                        ap_rad_mm=d2['dia']/2.0)
     accepted = trace_system(origins, dirs, lens1, lens2,
                             z_fiber, C.FIBER_CORE_DIAM_MM/2.0,
                             C.ACCEPTANCE_HALF_RAD)
@@ -50,8 +52,7 @@ def run_grid(run_id, lenses, name1, name2,
     # coarse search ranges:
     # place lens1 roughly near its focal length, lens2 downstream
     z_l1_min = C.SOURCE_TO_LENS_OFFSET
-    # z_l1_max = f1 * 2.0
-    z_l1_max = f1 * 1.5
+    z_l1_max = max(C.SOURCE_TO_LENS_OFFSET + 5.0, f1 * 1.5)
 
     if z_l1_max <= z_l1_min:
         return None

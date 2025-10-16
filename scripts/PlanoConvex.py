@@ -12,15 +12,16 @@ class PlanoConvex:
     """
 
     def __init__(self, vertex_z_front, R_front_mm,
-                 thickness_mm, ap_rad_mm):
+                 center_thickness_mm, edge_thickness_mm, ap_rad_mm):
         """Initialize lens with its parameters."""
         self.vertex_z_front = vertex_z_front
         self.R_front_mm = R_front_mm
-        self.thickness_mm = thickness_mm
+        self.center_thickness_mm = center_thickness_mm
+        self.edge_thickness_mm = edge_thickness_mm
         self.ap_rad_mm = ap_rad_mm
         self.n_glass = N_GLASS
         # Derived quantities
-        self.vertex_z_back = vertex_z_front + thickness_mm
+        self.vertex_z_back = vertex_z_front + center_thickness_mm
         self.center_z_front = vertex_z_front + R_front_mm
 
     def trace_ray(self, o, d, n1):
@@ -54,8 +55,12 @@ class PlanoConvex:
         if d_in is None:
             return None, None, False
 
+        # Calculate local thickness at this radial position
+        r = math.hypot(p[0], p[1])
+        local_thickness = self.center_thickness_mm - (self.center_thickness_mm - self.edge_thickness_mm) * (r / self.ap_rad_mm)
+
         # Go to back surface (planar)
-        o_back = p + (self.thickness_mm/abs(d_in[2])) * d_in
+        o_back = p + (local_thickness/abs(d_in[2])) * d_in
 
         # Check aperture at back
         if math.hypot(o_back[0], o_back[1]) > self.ap_rad_mm:

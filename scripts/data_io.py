@@ -13,13 +13,15 @@ def fetch_lens_data(method):
             lens1[row['Item #']] = {'dia': row['Diameter (mm)'],
                                     'f_mm': row['Focal Length (mm)'],
                                     'R_mm': row['Radius of Curvature (mm)'],
-                                    't_mm': row['Center Thickness (mm)'],
+                                    'tc_mm': row['Center Thickness (mm)'],
+                                    'te_mm': row['Edge Thickness (mm)'],
                                     'BFL_mm': row['Back Focal Length (mm)']}
         for _, row in l2_candidates.iterrows():
             lens2[row['Item #']] = {'dia': row['Diameter (mm)'],
                                     'f_mm': row['Focal Length (mm)'],
                                     'R_mm': row['Radius of Curvature (mm)'],
-                                    't_mm': row['Center Thickness (mm)'],
+                                    'tc_mm': row['Center Thickness (mm)'],
+                                    'te_mm': row['Edge Thickness (mm)'],
                                     'BFL_mm': row['Back Focal Length (mm)']}
         lenses = lens1 | lens2
         return lens1, lens2, lenses
@@ -31,7 +33,8 @@ def fetch_lens_data(method):
             lenses[row['Item #']] = {'dia': row['Diameter (mm)'],
                                      'f_mm': row['Focal Length (mm)'],
                                      'R_mm': row['Radius of Curvature (mm)'],
-                                     't_mm': row['Center Thickness (mm)'],
+                                     'tc_mm': row['Center Thickness (mm)'],
+                                     'te_mm': row['Edge Thickness (mm)'],
                                      'BFL_mm': row['Back Focal Length (mm)']}
         return lenses
 
@@ -66,12 +69,14 @@ def particular_combo(name1, name2):
     lens1[name1] = {'dia': lens1_data['Diameter (mm)'],
                     'f_mm': lens1_data['Focal Length (mm)'],
                     'R_mm': lens1_data['Radius of Curvature (mm)'],
-                    't_mm': lens1_data['Center Thickness (mm)'],
+                    'tc_mm': lens1_data['Center Thickness (mm)'],
+                    'te_mm': lens1_data['Edge Thickness (mm)'],
                     'BFL_mm': lens1_data['Back Focal Length (mm)']}
     lens2[name2] = {'dia': lens2_data['Diameter (mm)'],
                     'f_mm': lens2_data['Focal Length (mm)'],
                     'R_mm': lens2_data['Radius of Curvature (mm)'],
-                    't_mm': lens2_data['Center Thickness (mm)'],
+                    'tc_mm': lens2_data['Center Thickness (mm)'],
+                    'te_mm': lens2_data['Edge Thickness (mm)'],
                     'BFL_mm': lens2_data['Back Focal Length (mm)']}
     lenses = lens1 | lens2
 

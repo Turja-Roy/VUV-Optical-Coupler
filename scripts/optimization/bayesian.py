@@ -21,9 +21,11 @@ def optimize(lenses, name1, name2, n_calls=50, n_rays=1000, alpha=0.7):
     
     origins, dirs = sample_rays(n_rays)
     
+    z_l1_max = max(C.SOURCE_TO_LENS_OFFSET + 5.0, f1 * 1.5)
+    z_l2_max = max(z_l1_max + 5.0, f1 * 1.5 + f2 * 2.5)
     space = [
-        Real(C.SOURCE_TO_LENS_OFFSET, f1 * 1.5, name='z_l1'),
-        Real(C.SOURCE_TO_LENS_OFFSET + 1.0, f1 * 1.5 + f2 * 2.5, name='z_l2')
+        Real(C.SOURCE_TO_LENS_OFFSET, z_l1_max, name='z_l1'),
+        Real(C.SOURCE_TO_LENS_OFFSET + 1.0, z_l2_max, name='z_l2')
     ]
     
     @use_named_args(space)
@@ -32,8 +34,8 @@ def optimize(lenses, name1, name2, n_calls=50, n_rays=1000, alpha=0.7):
             return 1e6
         
         z_fiber = z_l2 + f2
-        lens1 = PlanoConvex(z_l1, d1['R_mm'], d1['t_mm'], d1['dia']/2.0)
-        lens2 = PlanoConvex(z_l2, d2['R_mm'], d2['t_mm'], d2['dia']/2.0)
+        lens1 = PlanoConvex(z_l1, d1['R_mm'], d1['tc_mm'], d1['te_mm'], d1['dia']/2.0)
+        lens2 = PlanoConvex(z_l2, d2['R_mm'], d2['tc_mm'], d2['te_mm'], d2['dia']/2.0)
         
         accepted = trace_system(origins, dirs, lens1, lens2, z_fiber, 
                                C.FIBER_CORE_DIAM_MM/2.0, C.ACCEPTANCE_HALF_RAD)
@@ -48,8 +50,8 @@ def optimize(lenses, name1, name2, n_calls=50, n_rays=1000, alpha=0.7):
     z_fiber_opt = z_l2_opt + f2
     
     origins_final, dirs_final = sample_rays(2000)
-    lens1 = PlanoConvex(z_l1_opt, d1['R_mm'], d1['t_mm'], d1['dia']/2.0)
-    lens2 = PlanoConvex(z_l2_opt, d2['R_mm'], d2['t_mm'], d2['dia']/2.0)
+    lens1 = PlanoConvex(z_l1_opt, d1['R_mm'], d1['tc_mm'], d1['te_mm'], d1['dia']/2.0)
+    lens2 = PlanoConvex(z_l2_opt, d2['R_mm'], d2['tc_mm'], d2['te_mm'], d2['dia']/2.0)
     accepted = trace_system(origins_final, dirs_final, lens1, lens2, z_fiber_opt,
                            C.FIBER_CORE_DIAM_MM/2.0, C.ACCEPTANCE_HALF_RAD)
     

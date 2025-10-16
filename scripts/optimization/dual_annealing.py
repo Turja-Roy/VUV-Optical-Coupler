@@ -13,8 +13,8 @@ def evaluate_config_fast(params, d1, d2, origins, dirs, n_rays, alpha=0.7):
     
     z_fiber = z_l2 + d2['f_mm']
     
-    lens1 = PlanoConvex(z_l1, d1['R_mm'], d1['t_mm'], d1['dia']/2.0)
-    lens2 = PlanoConvex(z_l2, d2['R_mm'], d2['t_mm'], d2['dia']/2.0)
+    lens1 = PlanoConvex(z_l1, d1['R_mm'], d1['tc_mm'], d1['te_mm'], d1['dia']/2.0)
+    lens2 = PlanoConvex(z_l2, d2['R_mm'], d2['tc_mm'], d2['te_mm'], d2['dia']/2.0)
     
     accepted = trace_system(origins, dirs, lens1, lens2, z_fiber, 
                            C.FIBER_CORE_DIAM_MM/2.0, C.ACCEPTANCE_HALF_RAD)
@@ -24,9 +24,11 @@ def evaluate_config_fast(params, d1, d2, origins, dirs, n_rays, alpha=0.7):
 
 
 def get_bounds(f1, f2):
+    z_l1_max = max(C.SOURCE_TO_LENS_OFFSET + 5.0, f1 * 1.5)
+    z_l2_max = max(z_l1_max + 5.0, f1 * 1.5 + f2 * 2.5)
     return [
-        (C.SOURCE_TO_LENS_OFFSET, f1 * 1.5),
-        (C.SOURCE_TO_LENS_OFFSET + 1.0, f1 * 1.5 + f2 * 2.5)
+        (C.SOURCE_TO_LENS_OFFSET, z_l1_max),
+        (C.SOURCE_TO_LENS_OFFSET + 1.0, z_l2_max)
     ]
 
 
@@ -44,8 +46,8 @@ def optimize(lenses, name1, name2, n_rays=1000, alpha=0.7):
     z_fiber = z_l2 + d2['f_mm']
     
     origins_final, dirs_final = sample_rays(2000)
-    lens1 = PlanoConvex(z_l1, d1['R_mm'], d1['t_mm'], d1['dia']/2.0)
-    lens2 = PlanoConvex(z_l2, d2['R_mm'], d2['t_mm'], d2['dia']/2.0)
+    lens1 = PlanoConvex(z_l1, d1['R_mm'], d1['tc_mm'], d1['te_mm'], d1['dia']/2.0)
+    lens2 = PlanoConvex(z_l2, d2['R_mm'], d2['tc_mm'], d2['te_mm'], d2['dia']/2.0)
     
     accepted = trace_system(origins_final, dirs_final, lens1, lens2,
                            z_fiber, C.FIBER_CORE_DIAM_MM/2.0, C.ACCEPTANCE_HALF_RAD)
