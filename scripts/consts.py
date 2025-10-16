@@ -24,9 +24,3 @@ N_GLASS = fused_silica_n(WAVELENGTH_NM)
 
 # Date string
 DATE_STR = __import__("time").strftime("%Y-%m-%d")
-
-# Grid run parameters
-COARSE_STEPS = 7
-REFINE_STEPS = 9
-N_COARSE = 500  # 2000
-N_REFINE = 1000  # 6000
