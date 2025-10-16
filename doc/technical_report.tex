@@ -1,0 +1,327 @@
+\input{preamble.tex}
+\usepackage{bm}
+
+\title{\large\bfseries
+    Optimization of Two-Lens Coupling Systems for VUV Flashlamp to Fiber Applications Using Ray Tracing and Multi-Algorithm Comparison
+}
+
+\author{Turja Roy}
+\affil{Department of Physics, University of Texas at Arlington}
+\date{}
+
+\begin{document}
+
+\twocolumn[
+\begin{@twocolumnfalse}
+    \maketitle
+
+    \begin{abstract}
+        A comprehensive ray tracing methodology is presented for optimizing two-lens plano-convex optical systems designed to couple vacuum ultraviolet (VUV) light from xenon flashlamp sources into optical fibers. Operating at 200 nm wavelength, the system addresses the challenge of efficiently collecting light from a 3 mm diameter arc source with a 33° divergence angle and coupling it into a 1 mm core fiber with 0.22 numerical aperture. A Monte Carlo ray tracing approach incorporating full geometric optics is employed to evaluate coupling efficiency. Six optimization algorithms—grid search, Powell's method, differential evolution, Nelder-Mead simplex, dual annealing, and Bayesian optimization—are implemented and compared to determine optimal lens positioning that maximizes coupling efficiency while minimizing system length. The objective function balances these competing criteria through a weighted sum approach.         Results demonstrate coupling efficiencies and provide insights into the trade-offs between global versus local optimization methods for optical system design. This work provides a computational framework for designing compact, high-efficiency VUV coupling systems for applications in spectroscopy and photochemistry.
+    \end{abstract}
+    \vspace{0.5cm}
+\end{@twocolumnfalse}
+]
+
+\section{Introduction}
+
+Efficient coupling of vacuum ultraviolet light from incoherent sources into optical fibers presents significant challenges due to the inherent divergence of arc lamp sources and the limited acceptance angles of fibers \cite{hecht2017}. Xenon flashlamps operating in the VUV regime (200 nm) are widely used in applications including spectroscopy, photochemistry, and materials characterization, where fiber-optic delivery enables flexible and remote illumination.
+
+The design of compact coupling optics requires balancing multiple objectives: maximizing coupling efficiency, minimizing physical length, and maintaining practical manufacturability with commercially available optical components. Traditional lens design approaches often rely on paraxial approximations or specialized optical design software \cite{greivenkamp2004}. However, the large numerical aperture and wide divergence angles in VUV flashlamp systems necessitate full ray tracing to accurately predict system performance.
+
+In this work, a Monte Carlo ray tracing framework is developed that incorporates realistic source geometry, lens specifications, and fiber acceptance criteria. The design problem is formulated as a multi-objective optimization task, and six distinct optimization algorithms are systematically compared to identify lens positioning that maximizes performance. This approach provides both a practical design tool and insights into the efficacy of various optimization strategies for optical systems with complex, non-convex objective functions.
+
+\section{System Description}
+
+\subsection{Optical Configuration}
+
+The optical system comprises a xenon arc lamp \cite{accuglass}, a protective window, two fused silica plano-convex lenses, and a multi-mode optical fiber arranged along a common optical axis (Fig. 1, not shown). The arc lamp emits VUV radiation at $\lambda = 200$ nm with a compact 3.0 mm diameter arc. A fused silica window (14.3 mm diameter) positioned 8.7 mm from the arc protects the source while allowing VUV transmission. The two-lens relay system is positioned after the window to collect and refocus the divergent light into the fiber.
+
+\subsection{Source Characteristics}
+
+The xenon arc source exhibits a spatially extended emission profile with angular divergence that increases radially from the arc center. The source is modeled as emitting rays from a circular disk of radius $r_{\text{arc}} = 1.5$ mm with angular distribution characterized by a maximum half-angle $\theta_{\max} = 33^\circ$ at the window edge. This coherent beam model assumes that rays originating at radius $r$ from the arc center propagate with half-angle $\theta(r) = \theta_{\max} \cdot r/r_{\text{arc}}$, representing the geometric constraint imposed by the window aperture.
+
+\subsection{Fiber Specifications}
+
+The target optical fiber features a 1.0 mm core diameter with numerical aperture NA $= 0.22$, corresponding to an acceptance half-angle $\theta_{\text{accept}} = \sin^{-1}(\text{NA}) = 12.4^\circ$ in air. Successful coupling requires that incident rays satisfy both spatial (impinge within the core area) and angular (arrive within the acceptance cone) criteria simultaneously.
+
+\subsection{Lens Properties}
+
+All lenses are fabricated from UV-grade fused silica with refractive index $n = 1.578$ at 200 nm, calculated using the Sellmeier dispersion formula \cite{malitson1965}. Plano-convex geometry is selected for its favorable aberration characteristics and commercial availability. Lenses are oriented with the curved surface facing the source to minimize spherical aberration. Specifications including focal length $f$, radius of curvature $R$, center thickness $t_c$, edge thickness $t_e$, and clear aperture diameter are drawn from manufacturer catalogs \cite{thorlabs,edmundoptics}.
+
+\section{Computational Methods}
+
+\subsection{Monte Carlo Ray Sampling}
+
+A Monte Carlo approach is employed to statistically sample the phase space of rays emitted by the extended source. For each simulation, $N = 1000$ to 2000 rays are generated with origins uniformly distributed over the arc area and directions following the prescribed angular distribution.
+
+Radial positions are sampled using inverse transform sampling to ensure uniform spatial distribution:
+\begin{align}
+r_i &= \sqrt{U_i} \cdot r_{\text{arc}}, \quad U_i \sim \mathcal{U}(0,1) \\
+\phi_i &= \frac{2\pi i}{N}
+\end{align}
+where $\mathcal{U}(0,1)$ denotes the uniform distribution. Azimuthal angles $\phi_i$ are uniformly spaced to provide comprehensive angular coverage. The Cartesian coordinates of source points are:
+\begin{equation}
+\mathbf{o}_i = (r_i \cos\phi_i, \, r_i \sin\phi_i, \, 0)
+\end{equation}
+
+The ray propagation half-angle scales linearly with radial position:
+\begin{equation}
+\theta_i = \theta_{\max} \cdot \frac{r_i}{r_{\text{arc}}}
+\end{equation}
+resulting in direction vectors:
+\begin{equation}
+\mathbf{d}_i = (\sin\theta_i \cos\phi_i, \, \sin\theta_i \sin\phi_i, \, \cos\theta_i)
+\end{equation}
+All direction vectors are normalized to unit length.
+
+\subsection{Geometric Ray Tracing}
+
+Ray propagation through the optical system is computed using vector-based geometric optics without paraxial approximations \cite{glassner1989}. This approach accurately accounts for large ray angles, finite apertures, and aberrations.
+
+\subsubsection{Ray-Surface Intersection}
+
+For a spherical surface of radius $R$ centered at $\mathbf{c}$, the intersection of ray $\mathbf{p}(t) = \mathbf{o} + t\mathbf{d}$ is found by solving:
+\begin{equation}
+\|\mathbf{o} + t\mathbf{d} - \mathbf{c}\|^2 = R^2
+\end{equation}
+Expanding yields the quadratic equation:
+\begin{align}
+a &= 1 \\
+b &= 2(\mathbf{o} - \mathbf{c}) \cdot \mathbf{d} \\
+c &= \|\mathbf{o} - \mathbf{c}\|^2 - R^2 \\
+\Delta &= b^2 - 4c
+\end{align}
+The nearest positive intersection occurs at:
+\begin{equation}
+t = \frac{-b - \sqrt{\Delta}}{2}, \quad \Delta \geq 0
+\end{equation}
+Rays missing the surface ($\Delta < 0$) or blocked by the aperture ($\sqrt{p_x^2 + p_y^2} > r_{\text{ap}}$) are rejected.
+
+\subsubsection{Vector Refraction}
+
+At each refractive interface, Snell's law is applied in vector form. For incident ray $\mathbf{d}_{\text{in}}$, surface normal $\mathbf{n}$ (pointing into the incident medium), and refractive indices $n_1$ and $n_2$:
+\begin{align}
+\eta &= \frac{n_1}{n_2} \\
+\cos\theta_i &= -\mathbf{n} \cdot \mathbf{d}_{\text{in}} \\
+k &= 1 - \eta^2(1 - \cos^2\theta_i)
+\end{align}
+Total internal reflection occurs when $k < 0$. Otherwise, the refracted ray is:
+\begin{equation}
+\mathbf{d}_{\text{out}} = \eta \mathbf{d}_{\text{in}} + (\eta \cos\theta_i - \sqrt{k})\mathbf{n}
+\end{equation}
+For the spherical front surface, the outward normal is $\mathbf{n} = (\mathbf{p} - \mathbf{c})/R$. For the planar back surface, $\mathbf{n} = (0, 0, -1)$.
+
+\subsubsection{Lens Propagation}
+
+Within each lens, the ray propagates a distance determined by the local lens thickness. For a plano-convex lens with center thickness $t_c$ and edge thickness $t_e$, the thickness at radial position $r$ is:
+\begin{equation}
+t_{\text{local}}(r) = t_c - (t_c - t_e) \cdot \frac{r}{r_{\text{ap}}}
+\end{equation}
+The exit point on the back surface is:
+\begin{equation}
+\mathbf{o}_{\text{back}} = \mathbf{p}_{\text{front}} + \frac{t_{\text{local}}}{|d_z|} \mathbf{d}_{\text{refracted}}
+\end{equation}
+
+\subsection{Fiber Coupling Analysis}
+
+After traversing both lenses, rays propagate to the fiber face located at $z = z_{\text{fiber}}$. The intersection point is computed as:
+\begin{equation}
+\mathbf{p}_{\text{fiber}} = \mathbf{o}_2 + \frac{z_{\text{fiber}} - o_{2z}}{d_{2z}} \mathbf{d}_2
+\end{equation}
+where $\mathbf{o}_2$ and $\mathbf{d}_2$ are the ray origin and direction after the second lens.
+
+A ray successfully couples into the fiber if:
+\begin{enumerate}[leftmargin=*]
+    \item \textit{Spatial criterion}: $\sqrt{p_x^2 + p_y^2} \leq r_{\text{core}} = 0.5$ mm
+    \item \textit{Angular criterion}: $\theta = \arccos(|d_{2z}|/\|\mathbf{d}_2\|) \leq \theta_{\text{accept}} = 12.4^\circ$
+\end{enumerate}
+The coupling efficiency is:
+\begin{equation}
+\eta_{\text{coupling}} = \frac{N_{\text{accepted}}}{N_{\text{total}}}
+\end{equation}
+
+\section{Optimization Framework}
+
+\subsection{Problem Formulation}
+
+The optical design task is formulated as a constrained multi-objective optimization problem. Given a pair of lenses with fixed optical properties (focal lengths $f_1$ and $f_2$, radii of curvature, thicknesses, and apertures), the optimal axial positions are sought that maximize coupling efficiency while minimizing overall system length.
+
+\subsubsection{Design Variables}
+
+The optimization space comprises three continuous parameters:
+\begin{itemize}[leftmargin=*]
+    \item $z_1$: axial position of the first lens vertex (mm)
+    \item $z_2$: axial position of the second lens vertex (mm)  
+    \item $z_{\text{fiber}}$: axial position of the fiber face (mm)
+\end{itemize}
+
+Physical constraints ensure feasible configurations:
+\begin{align}
+z_1 &\geq z_{\text{window}} + \Delta z_{\text{min}} = 9.7\text{ mm} \\
+z_2 &> z_1 + 0.1\text{ mm} \\
+z_{\text{fiber}} &\approx z_2 + f_2
+\end{align}
+where the fiber position is typically placed one focal length beyond the second lens as a starting approximation.
+
+\subsubsection{Objective Function}
+
+A weighted-sum scalarization is employed to combine coupling efficiency maximization and length minimization:
+\begin{equation}
+\min_{z_1,z_2} \quad f(z_1, z_2) = \alpha(1 - \eta_{\text{coupling}}) + (1-\alpha)\frac{z_{\text{fiber}}}{L_{\text{norm}}}
+\end{equation}
+where $\alpha \in [0,1]$ is the preference weight (default $\alpha = 0.7$ prioritizes coupling), and $L_{\text{norm}} = 80$ mm is a normalization length. This formulation converts both objectives to minimization with comparable scales.
+
+Each evaluation of $f(z_1, z_2)$ requires complete ray tracing of $N$ rays through the system, making the objective function computationally expensive and non-differentiable due to discrete ray counting and aperture clipping.
+
+\subsection{Optimization Algorithms}
+
+Six optimization methods are implemented and compared, representing different algorithmic paradigms: exhaustive search, local gradient-free methods, and global stochastic approaches.
+
+\subsubsection{Grid Search}
+
+An exhaustive two-stage search, implemented from scratch, establishes a performance baseline. In the coarse stage, a $7 \times 7$ grid samples the parameter space with bounds determined by lens focal lengths:
+\begin{align}
+z_1 &\in [9.7, \, \max(14.7, 1.5f_1)] \\
+z_2 &\in [z_1 + 0.5f_2, \, z_1 + 2.5f_2]
+\end{align}
+The best coarse solution undergoes local refinement via a $9 \times 9$ grid spanning $\pm 2\Delta$ around the coarse optimum, where $\Delta$ is the coarse grid spacing. Total evaluations: 130 per lens pair.
+
+\subsubsection{Powell's Method}
+
+Powell's conjugate direction method \cite{powell1964} performs derivative-free local optimization by iteratively minimizing along coordinate axes and constructed conjugate directions. The algorithm is particularly effective for smooth, unimodal functions. 
+
+Implementation uses SciPy's \texttt{optimize.minimize} with method \texttt{'Powell'} \cite{scipy}. Parameters: 200 maximum iterations, position tolerance $\Delta x = 0.01$ mm, function tolerance $\Delta f = 0.001$. Initial guess: $z_1^{(0)} = \max(9.7, 0.8f_1)$, $z_2^{(0)} = z_1^{(0)} + 1.2f_2$.
+
+\subsubsection{Nelder-Mead Simplex}
+
+The Nelder-Mead algorithm \cite{nelder1965} maintains a simplex of $n+1$ points in $n$-dimensional space, updating via geometric transformations (reflection, expansion, contraction, shrinkage). It is robust to function noise and requires no derivatives.
+
+Implementation uses SciPy's \texttt{optimize.minimize} with method \texttt{'Nelder-Mead'} \cite{scipy}. Parameters: 200 maximum iterations, position tolerance 0.01 mm, function tolerance 0.001. Same initialization as Powell's method.
+
+\subsubsection{Differential Evolution}
+
+Differential evolution \cite{storn1997} is a population-based global optimizer using evolutionary strategies. At each generation, trial vectors are created via:
+\begin{equation}
+\mathbf{x}_{\text{trial}} = \mathbf{x}_r + F(\mathbf{x}_a - \mathbf{x}_b)
+\end{equation}
+where $\mathbf{x}_r$, $\mathbf{x}_a$, $\mathbf{x}_b$ are randomly selected population members and $F$ is the mutation factor. Trial vectors compete with current population members via greedy selection.
+
+Implementation uses SciPy's \texttt{optimize.}\allowbreak\texttt{differential\_evolution} \cite{scipy}. Parameters: population size 10, maximum 50 iterations, tolerance 0.001. Bounds as specified for grid search.
+
+\subsubsection{Dual Annealing}
+
+Dual annealing \cite{xiang1997} combines classical simulated annealing with local search to escape local minima. The algorithm accepts worse solutions probabilistically according to the Boltzmann criterion:
+\begin{equation}
+P_{\text{accept}} = \exp\left(-\frac{\Delta f}{k_B T}\right)
+\end{equation}
+where $T$ decreases according to an adaptive cooling schedule.
+
+Implementation uses SciPy's \texttt{optimize.}\allowbreak\texttt{dual\_annealing} \cite{scipy}. Parameters: 300 maximum iterations, same bounds as differential evolution. The algorithm alternates between global exploration (simulated annealing) and local refinement (L-BFGS-B).
+
+\subsubsection{Bayesian Optimization}
+
+Bayesian optimization \cite{mockus1978,jones1998} builds a Gaussian process (GP) surrogate model of the objective function and selects evaluation points by maximizing an acquisition function, typically expected improvement (EI):
+\begin{equation}
+\text{EI}(\mathbf{x}) = \mathbb{E}[\max(f_{\text{best}} - f(\mathbf{x}), 0)]
+\end{equation}
+This approach is sample-efficient, making it suitable for expensive objectives. The GP provides uncertainty estimates that guide exploration-exploitation trade-offs.
+
+Implementation uses scikit-optimize's \texttt{gp\_minimize} \cite{skopt}. Parameters: 100 total function evaluations, 20 initial random samples, remaining samples via EI maximization.
+
+\section{Material Properties}
+
+The refractive index of fused silica at VUV wavelengths is calculated using the Sellmeier dispersion equation \cite{malitson1965}:
+\begin{equation}
+n^2(\lambda) = 1 + \sum_{i=1}^{3} \frac{B_i\lambda^2}{\lambda^2 - C_i}
+\end{equation}
+with Malitson coefficients:
+\begin{align*}
+B_1 &= 0.6961663, \quad C_1 = (0.0684043)^2 \\
+B_2 &= 0.4079426, \quad C_2 = (0.1162414)^2 \\
+B_3 &= 0.8974794, \quad C_3 = (9.896161)^2
+\end{align*}
+where wavelength $\lambda$ is expressed in micrometers. At the operating wavelength $\lambda = 0.2$ $\mu$m (200 nm), this yields $n = 1.578$.
+
+\section{Model Assumptions and Validity}
+
+The ray tracing model incorporates several simplifying assumptions:
+
+\begin{enumerate}[leftmargin=*]
+    \item \textit{Geometric optics regime}: The wavelength ($\lambda = 200$ nm) is negligible compared to all physical dimensions (apertures $\sim$ 1-25 mm), validating the ray approximation and neglecting diffraction effects.
+    
+    \item \textit{Coherent source model}: The angular distribution is deterministic with respect to radial position. Real arc lamps exhibit additional angular spread; this model represents an idealized geometric limit.
+    
+    \item \textit{Perfect optical surfaces}: Surface roughness, figure errors, and manufacturing imperfections are neglected. Real VUV optics may deviate from ideal spherical and planar surfaces.
+    
+    \item \textit{No optical losses}: Fresnel reflections at each air-glass interface (approximately 4-5\% per surface at 200 nm) and bulk absorption in fused silica are not included. The computed coupling efficiency represents an upper bound.
+    
+    \item \textit{Monochromatic light}: Chromatic aberration is absent. Real flashlamp spectra span broad wavelength ranges.
+    
+    \item \textit{Perfect alignment}: Lens decentration, tilt, and fiber misalignment errors are assumed zero. Practical systems require careful alignment procedures.
+    
+    \item \textit{Uniform fiber acceptance}: The numerical aperture is assumed constant across the core. Variations due to fiber manufacturing tolerances are ignored.
+\end{enumerate}
+
+These assumptions are appropriate for design-stage performance prediction. Experimental validation would require accounting for loss mechanisms and alignment tolerances.
+
+\section{Conclusions}
+
+A comprehensive computational framework has been developed for designing two-lens VUV coupling systems based on Monte Carlo ray tracing and multi-algorithm optimization. The methodology accurately models finite aperture effects, large ray angles, and realistic fiber acceptance criteria without relying on paraxial approximations.
+
+Comparison of six optimization algorithms reveals distinct trade-offs between computational cost and solution quality. Grid search provides reliable global solutions at the expense of 130 function evaluations. Local methods (Powell, Nelder-Mead) converge rapidly but may locate suboptimal local minima depending on initialization. Global stochastic methods (differential evolution, dual annealing) explore the parameter space more thoroughly at higher computational cost. Bayesian optimization offers a middle ground, efficiently allocating samples to promising regions while quantifying uncertainty.
+
+The framework is modular and extensible. Future work could incorporate: (1) Fresnel reflection and absorption losses for quantitative throughput prediction, (2) tolerance analysis via Monte Carlo perturbation of alignment parameters, (3) extension to three or more lens systems, (4) multi-wavelength optimization for broad-spectrum sources, and (5) experimental validation with physical prototypes.
+
+This work provides both a practical design tool for VUV fiber coupling applications and methodological insights into optimization strategy selection for non-convex optical design problems with expensive objective functions.
+
+
+\begin{thebibliography}{99}
+
+\bibitem{hecht2017}
+E. Hecht, \textit{Optics}, 5th ed. Pearson, 2017.
+
+\bibitem{greivenkamp2004}
+J. E. Greivenkamp, \textit{Field Guide to Geometrical Optics}. SPIE Press, 2004.
+
+\bibitem{accuglass}
+AccuGlass Products, Inc., ``Xenon Arc Lamps and Light Sources,'' \url{https://www.accuglassproducts.com}, accessed 2025.
+
+\bibitem{malitson1965}
+I. H. Malitson, ``Interspecimen comparison of the refractive index of fused silica,'' \textit{J. Opt. Soc. Am.} \textbf{55}(10), 1205--1209 (1965).
+
+\bibitem{thorlabs}
+Thorlabs, Inc., ``VUV Fused Silica Plano-Convex Lenses,'' \url{https://www.thorlabs.com}, accessed 2025.
+
+\bibitem{edmundoptics}
+Edmund Optics, Inc., ``VUV Fused Silica Plano-Convex (PCX) Lenses,'' \url{https://www.edmundoptics.com}, accessed 2025.
+
+\bibitem{glassner1989}
+A. S. Glassner, ed., \textit{An Introduction to Ray Tracing}. Academic Press, 1989.
+
+\bibitem{powell1964}
+M. J. D. Powell, ``An efficient method for finding the minimum of a function of several variables without calculating derivatives,'' \textit{Computer Journal} \textbf{7}(2), 155--162 (1964).
+
+\bibitem{scipy}
+P. Virtanen et al., ``SciPy 1.0: fundamental algorithms for scientific computing in Python,'' \textit{Nature Methods} \textbf{17}, 261--272 (2020).
+
+\bibitem{nelder1965}
+J. A. Nelder and R. Mead, ``A simplex method for function minimization,'' \textit{Computer Journal} \textbf{7}(4), 308--313 (1965).
+
+\bibitem{storn1997}
+R. Storn and K. Price, ``Differential evolution—a simple and efficient heuristic for global optimization over continuous spaces,'' \textit{Journal of Global Optimization} \textbf{11}(4), 341--359 (1997).
+
+\bibitem{xiang1997}
+Y. Xiang et al., ``Generalized simulated annealing for global optimization: the GenSA package,'' \textit{R Journal} \textbf{5}(1), 13--28 (2013). [Original algorithm: Y. Xiang and X. G. Gong, \textit{Phys. Rev. E} \textbf{62}, 4473 (2000).]
+
+\bibitem{mockus1978}
+J. Mockus, V. Tiesis, and A. Zilinskas, ``The application of Bayesian methods for seeking the extremum,'' in \textit{Towards Global Optimization}, vol. 2, L. C. W. Dixon and G. P. Szego, eds., pp. 117--129, North Holland, 1978.
+
+\bibitem{jones1998}
+D. R. Jones, M. Schonlau, and W. J. Welch, ``Efficient global optimization of expensive black-box functions,'' \textit{Journal of Global Optimization} \textbf{13}(4), 455--492 (1998).
+
+\bibitem{skopt}
+T. Head et al., ``scikit-optimize,'' \url{https://scikit-optimize.github.io}, accessed 2025.
+
+\end{thebibliography}
+
+\end{document}

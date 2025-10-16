@@ -153,4 +153,38 @@ def analyze_combos(results_file, coupling_threshold, lenses, run_id, alpha=0.7, 
     print(f"Generated {len(lens_combos)} combined plots")
     logger.info(f"Generated {len(lens_combos)} combined plots")
     
+    print(f"\n{'='*60}")
+    print("Writing results CSV files by lens combination...")
+    print(f"{'='*60}")
+    logger.info("Writing results CSV files by lens combination")
+    
+    results_dir = Path('./results') / run_id
+    results_dir.mkdir(parents=True, exist_ok=True)
+    
+    for (lens1, lens2), methods_dict in lens_combos.items():
+        rows = []
+        for method, res in methods_dict.items():
+            row = {
+                'lens1': res['lens1'],
+                'lens2': res['lens2'],
+                'method': method,
+                'coupling': res['coupling'],
+                'total_len_mm': res['total_len_mm'],
+                'z_l1': res['z_l1'],
+                'z_l2': res['z_l2'],
+                'z_fiber': res['z_fiber'],
+                'f1_mm': res['f1_mm'],
+                'f2_mm': res['f2_mm'],
+                'time_seconds': res.get('time_seconds', 0.0)
+            }
+            rows.append(row)
+        
+        df = pd.DataFrame(rows).sort_values('coupling', ascending=False)
+        filename = f"{lens1}+{lens2}.csv"
+        df.to_csv(results_dir / filename, index=False)
+        logger.info(f"Wrote {filename} with {len(rows)} methods")
+    
+    print(f"Wrote {len(lens_combos)} CSV files")
+    logger.info(f"Wrote {len(lens_combos)} CSV files")
+    
     return all_results
