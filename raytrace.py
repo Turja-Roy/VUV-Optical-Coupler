@@ -17,6 +17,9 @@ def main():
         run_id = f"compare_{args['date']}_{args['lens1']}+{args['lens2']}"
     elif args['mode'] == 'particular':
         run_id = f"particular_{args['date']}_{args['optimizer']}"
+    elif args['mode'] == 'analyze':
+        threshold_str = f"{args['coupling_threshold']:.2f}".replace('.', '_')
+        run_id = f"analyze_{args['date']}_coupling_{threshold_str}"
     else:
         run_id = f"{args['date']}_{args['method']}_{args['optimizer']}"
 
@@ -24,10 +27,65 @@ def main():
     print("Lens Configuration Optimizer")
     print("="*60)
     print(f"Run ID: {run_id}")
-    print(f"Optimizer: {args['optimizer']}")
-    if args['optimizer'] != 'grid_search':
-        print(f"Alpha (coupling weight): {args['alpha']}")
+    if args['mode'] != 'analyze':
+        print(f"Optimizer: {args['optimizer']}")
+        if args['optimizer'] != 'grid_search':
+            print(f"Alpha (coupling weight): {args['alpha']}")
+    else:
+        print(f"Mode: Analyze high-coupling results")
+        print(f"Coupling threshold: {args['coupling_threshold']}")
+        print(f"Results file: {args['results_file']}")
     print("="*60 + "\n")
+
+    # Handle analyze mode
+    if args['mode'] == 'analyze':
+        from scripts.analysis import analyze_combos
+        
+        _, lenses = find_combos('combine')
+        
+        Path(f'./results/{run_id}').mkdir(parents=True, exist_ok=True)
+        Path(f'./plots/{run_id}').mkdir(parents=True, exist_ok=True)
+        
+        all_results = analyze_combos(
+            args['results_file'],
+            args['coupling_threshold'],
+            lenses,
+            run_id,
+            alpha=args['alpha']
+        )
+        
+        for method, results in all_results.items():
+            if results:
+                print(f"\nSaving {method} results...")
+                write_results(f'analyze_{method}', results, run_id)
+        
+        combined_results = []
+        for method, results in all_results.items():
+            combined_results.extend(results)
+        
+        if combined_results:
+            print(f"\nSaving combined results...")
+            write_results('analyze_combined', combined_results, run_id)
+            
+            print("\n" + "="*60)
+            print("Analysis Complete!")
+            print("="*60)
+            
+            best_by_method = {}
+            for method, results in all_results.items():
+                if results:
+                    best = max(results, key=lambda x: x['coupling'])
+                    best_by_method[method] = best
+                    print(f"\nBest {method}:")
+                    print(f"  Coupling: {best['coupling']:.4f}")
+                    print(f"  Lenses: {best['lens1']} + {best['lens2']}")
+                    print(f"  Length: {best['total_len_mm']:.2f} mm")
+                    print(f"  Time: {best.get('time_seconds', 0):.2f}s")
+            
+            print(f"\nResults saved to: results/{run_id}/")
+            print(f"Plots saved to: plots/{run_id}/")
+        
+        return
 
     # Handle compare mode
     if args['mode'] == 'compare':

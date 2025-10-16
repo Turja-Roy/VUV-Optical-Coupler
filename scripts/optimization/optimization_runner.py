@@ -99,7 +99,7 @@ def run_combos(lenses, combos, run_id, method='differential_evolution',
 
 
 def compare_optimizers(lenses, test_combo, run_id, n_rays=1000, alpha=0.7):
-    methods = ['differential_evolution', 'dual_annealing', 'nelder_mead', 'powell', 'grid_search']
+    methods = ['differential_evolution', 'dual_annealing', 'nelder_mead', 'powell', 'grid_search', 'bayesian']
     results = {}
     
     lens1, lens2 = test_combo
@@ -112,6 +112,7 @@ def compare_optimizers(lenses, test_combo, run_id, n_rays=1000, alpha=0.7):
             import time
             start = time.time()
             
+            res = None
             if method == 'grid_search':
                 from scripts.optimization import grid_search as optimizer
                 res = optimizer.run_grid(run_id, lenses, lens1, lens2)
@@ -127,50 +128,34 @@ def compare_optimizers(lenses, test_combo, run_id, n_rays=1000, alpha=0.7):
             elif method == 'powell':
                 from scripts.optimization import powell as optimizer
                 res = optimizer.optimize(lenses, lens1, lens2, n_rays, alpha)
+            elif method == 'bayesian':
+                from scripts.optimization import bayesian as optimizer
+                res = optimizer.optimize(lenses, lens1, lens2, n_calls=30, n_rays=n_rays, alpha=alpha)
             
             elapsed = time.time() - start
             
-            results[method] = {
-                'coupling': res['coupling'],
-                'total_len_mm': res['total_len_mm'],
-                'z_l1': res['z_l1'],
-                'z_l2': res['z_l2'],
-                'time_seconds': elapsed
-            }
+            if res is not None:
+                results[method] = {
+                    'coupling': res['coupling'],
+                    'total_len_mm': res['total_len_mm'],
+                    'z_l1': res['z_l1'],
+                    'z_l2': res['z_l2'],
+                    'time_seconds': elapsed
+                }
+                
+                print(f"  Coupling: {res['coupling']:.4f}")
+                print(f"  Length: {res['total_len_mm']:.2f} mm")
+                print(f"  Time: {elapsed:.2f} seconds")
+            else:
+                results[method] = None
             
-            print(f"  Coupling: {res['coupling']:.4f}")
-            print(f"  Length: {res['total_len_mm']:.2f} mm")
-            print(f"  Time: {elapsed:.2f} seconds")
-            
+        except ImportError:
+            if method == 'bayesian':
+                print("  Bayesian optimization not available (install scikit-optimize)")
+            results[method] = None
         except Exception as e:
             print(f"  Error: {str(e)}")
             results[method] = None
-    
-    try:
-        from scripts.optimization import bayesian as optimizer
-        print(f"\nTesting bayesian optimization...")
-        import time
-        start = time.time()
-        
-        res = optimizer.optimize(lenses, lens1, lens2, n_calls=30, n_rays=n_rays, alpha=alpha)
-        elapsed = time.time() - start
-        
-        results['bayesian'] = {
-            'coupling': res['coupling'],
-            'total_len_mm': res['total_len_mm'],
-            'z_l1': res['z_l1'],
-            'z_l2': res['z_l2'],
-            'time_seconds': elapsed
-        }
-        
-        print(f"  Coupling: {res['coupling']:.4f}")
-        print(f"  Length: {res['total_len_mm']:.2f} mm")
-        print(f"  Time: {elapsed:.2f} seconds")
-        
-    except ImportError:
-        print("\nBayesian optimization not available (install scikit-optimize)")
-    except Exception as e:
-        print(f"  Error: {str(e)}")
     
     print("\n" + "="*60)
     print("Summary:")

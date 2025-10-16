@@ -15,6 +15,7 @@ Commands:
     compare <lens1> <lens2>       Compare all optimization methods
     select                        Run all L1 x L2 combinations
     combine                       Run all combinations from Combined_Lenses.csv
+    analyze                       Analyze high-coupling results with all methods
 
 Options:
     --opt <method>                Optimization method (default: differential_evolution)
@@ -22,6 +23,8 @@ Options:
                                            nelder_mead, powell, bayesian, grid_search
     --alpha <value>               Weight for coupling vs. length (0-1, default: 0.7)
                                   Higher = prioritize coupling more
+    --coupling-threshold <value>  Minimum coupling for analyze mode (required for analyze)
+    --results-file <path>         Path to results CSV file (required for analyze)
     continue                      Continue incomplete batch run
     <YYYY-MM-DD>                  Specify run date
 
@@ -43,6 +46,9 @@ Examples:
     
     # Continue from specific date
     python raytrace.py combine continue 2025-10-14
+    
+    # Analyze high-coupling results with all methods
+    python raytrace.py analyze --results-file results/2025-10-16/results_*.csv --coupling-threshold 0.2
 """)
 
 
@@ -56,7 +62,9 @@ def parse_arguments():
         'optimizer': 'differential_evolution',
         'alpha': 0.7,
         'continue': False,
-        'date': C.DATE_STR
+        'date': C.DATE_STR,
+        'coupling_threshold': None,
+        'results_file': None
     }
 
     if len(sys.argv) < 2:
@@ -85,12 +93,15 @@ def parse_arguments():
         args['mode'] = 'method'
         args['method'] = sys.argv[1]
 
+    elif sys.argv[1] == 'analyze':
+        args['mode'] = 'analyze'
+
     else:
         print(f"Error: Unknown command '{sys.argv[1]}'")
         print_usage()
         sys.exit(1)
 
-    i = 2 if args['mode'] == 'method' else 4
+    i = 2 if args['mode'] in ['method', 'analyze'] else 4
     while i < len(sys.argv):
         arg = sys.argv[i]
 
@@ -116,6 +127,26 @@ def parse_arguments():
                 print("Error: --alpha requires a value")
                 sys.exit(1)
 
+        elif arg == '--coupling-threshold':
+            if i + 1 < len(sys.argv):
+                try:
+                    args['coupling_threshold'] = float(sys.argv[i + 1])
+                except ValueError:
+                    print("Error: --coupling-threshold must be a number")
+                    sys.exit(1)
+                i += 2
+            else:
+                print("Error: --coupling-threshold requires a value")
+                sys.exit(1)
+
+        elif arg == '--results-file':
+            if i + 1 < len(sys.argv):
+                args['results_file'] = sys.argv[i + 1]
+                i += 2
+            else:
+                print("Error: --results-file requires a file path")
+                sys.exit(1)
+
         elif arg == 'continue':
             args['continue'] = True
             i += 1
@@ -126,6 +157,16 @@ def parse_arguments():
 
         else:
             print(f"Error: Unknown argument '{arg}'")
+            print_usage()
+            sys.exit(1)
+
+    if args['mode'] == 'analyze':
+        if args['coupling_threshold'] is None:
+            print("Error: analyze mode requires --coupling-threshold")
+            print_usage()
+            sys.exit(1)
+        if args['results_file'] is None:
+            print("Error: analyze mode requires --results-file")
             print_usage()
             sys.exit(1)
 
