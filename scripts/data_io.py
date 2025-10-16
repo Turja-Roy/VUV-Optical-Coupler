@@ -89,12 +89,13 @@ def particular_combo(name1, name2):
     return combos, lenses
 
 
-def write_results(method, results, run_id, batch=False, batch_num=None):
+def write_results(method, results, run_id, batch=False, batch_num=None, lens_pair=None):
     """
         Write results to CSV file. Each result must be a dictionary with
         scalar values for lens parameters, positions, and coupling efficiency.
     """
     import os
+    from datetime import datetime
 
     # Validate results is a sequence of dictionaries
     if not results:
@@ -120,7 +121,14 @@ def write_results(method, results, run_id, batch=False, batch_num=None):
     else:
         if not os.path.exists('./results/' + run_id):
             os.makedirs('./results/' + run_id)
-        df.to_csv(f"results/{run_id}/results_{method}_{run_id}.csv", index=False)
+        
+        if lens_pair is not None:
+            timestamp = datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
+            filename = f"results_{timestamp}_{lens_pair[0]}+{lens_pair[1]}.csv"
+        else:
+            filename = f"results_{method}_{run_id}.csv"
+        
+        df.to_csv(f"results/{run_id}/{filename}", index=False)
 
 
 def write_temp(result, run_id, batch_num):

@@ -12,7 +12,7 @@ except ImportError:
     SKOPT_AVAILABLE = False
 
 
-def optimize(lenses, name1, name2, n_calls=50, n_rays=1000, alpha=0.7):
+def optimize(lenses, name1, name2, n_calls=100, n_rays=1000, alpha=0.7):
     if not SKOPT_AVAILABLE:
         raise ImportError("scikit-optimize not installed. Run: pip install scikit-optimize")
     
@@ -22,10 +22,12 @@ def optimize(lenses, name1, name2, n_calls=50, n_rays=1000, alpha=0.7):
     origins, dirs = sample_rays(n_rays)
     
     z_l1_max = max(C.SOURCE_TO_LENS_OFFSET + 5.0, f1 * 1.5)
-    z_l2_max = max(z_l1_max + 5.0, f1 * 1.5 + f2 * 2.5)
+    z_l2_min = C.SOURCE_TO_LENS_OFFSET + 0.5
+    z_l2_max = z_l1_max + f2 * 0.5
+    
     space = [
         Real(C.SOURCE_TO_LENS_OFFSET, z_l1_max, name='z_l1'),
-        Real(C.SOURCE_TO_LENS_OFFSET + 1.0, z_l2_max, name='z_l2')
+        Real(z_l2_min, z_l2_max, name='z_l2')
     ]
     
     @use_named_args(space)
@@ -44,7 +46,7 @@ def optimize(lenses, name1, name2, n_calls=50, n_rays=1000, alpha=0.7):
         return alpha * (1 - coupling) + (1 - alpha) * normalized_length
     
     result = gp_minimize(objective, space, n_calls=n_calls, random_state=42, 
-                        verbose=False, n_initial_points=10)
+                        verbose=False, n_initial_points=20)
     
     z_l1_opt, z_l2_opt = result.x
     z_fiber_opt = z_l2_opt + f2

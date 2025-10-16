@@ -12,7 +12,7 @@ def _setup_logger(run_id):
     
     logs_dir = Path.cwd() / "logs"
     logs_dir.mkdir(parents=True, exist_ok=True)
-    logfile = logs_dir / f"run_{run_id}.log"
+    logfile = logs_dir / f"{run_id}.log"
     
     for h in logger.handlers:
         if isinstance(h, logging.FileHandler) and getattr(h, "baseFilename", None) == str(logfile):

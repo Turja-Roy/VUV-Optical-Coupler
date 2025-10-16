@@ -14,9 +14,9 @@ def main():
 
     # Build run_id based on mode and method
     if args['mode'] == 'compare':
-        run_id = f"{args['date']}_compare"
+        run_id = f"compare_{args['date']}_{args['lens1']}+{args['lens2']}"
     elif args['mode'] == 'particular':
-        run_id = f"{args['date']}_particular_{args['optimizer']}"
+        run_id = f"particular_{args['date']}_{args['optimizer']}"
     else:
         run_id = f"{args['date']}_{args['method']}_{args['optimizer']}"
 
@@ -65,7 +65,8 @@ def main():
                               args['method'], runner_func)
     else:
         results = runner_func(lenses, combos, run_id, None)
-        write_results(args['method'], results, run_id)
+        lens_pair = (args['lens1'], args['lens2']) if args['mode'] == 'particular' else None
+        write_results(args['method'], results, run_id, lens_pair=lens_pair)
 
     # Analyze results
     if results:
