@@ -1,4 +1,4 @@
-from .calcs import fused_silica_n
+from scripts.calcs import fused_silica_n
 
 
 WAVELENGTH_NM = 200.0                       # 200 nm

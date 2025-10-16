@@ -1,29 +1,3 @@
-"""
-Updated raytrace.py with multiple optimization methods.
-
-Usage:
-    # Use differential evolution (recommended, fast and robust)
-    python raytrace.py combine --opt differential_evolution
-
-    # Use Bayesian optimization (requires scikit-optimize)
-    python raytrace.py combine --opt bayesian
-
-    # Use dual annealing
-    python raytrace.py combine --opt dual_annealing
-
-    # Compare all methods on a test case
-    python raytrace.py compare LA4001 LA4647
-
-    # Use legacy grid search
-    python raytrace.py combine --opt grid_search
-
-    # Adjust coupling vs. length priority (0.9 = prioritize coupling more)
-    python raytrace.py combine --opt differential_evolution --alpha 0.9
-
-    # Continue incomplete batch run
-    python raytrace.py combine --opt differential_evolution continue 2025-10-14
-"""
-
 import sys
 import os
 import numpy as np
@@ -308,6 +282,7 @@ def run_batches_continue(combos, lenses, run_date, method, runner_func):
 
     # Check for incomplete batch
     temp_files = list(results_dir.glob('temp*.json'))
+    completed_combos = 0
     if temp_files:
         import json
         with open(temp_files[0], 'r') as f:
@@ -319,27 +294,41 @@ def run_batches_continue(combos, lenses, run_date, method, runner_func):
             except json.JSONDecodeError:
                 completed_combos = 0
 
-        # Continue current batch
-        remaining_combos = combos[completed*100 + completed_combos:]
-    else:
-        # Start next batch
-        remaining_combos = combos[completed*100:]
+    # Start from where we left off
+    start_index = completed * 100 + completed_combos
+    remaining_combos = combos[start_index:]
+    
+    n_total_batches = int(np.ceil(len(combos) / 100))
+    starting_batch = completed + 1 if completed_combos > 0 else completed + 1
 
-    # Run remaining batches
-    n_remaining = int(np.ceil(len(remaining_combos) / 100))
-
-    for i in range(n_remaining):
-        batch_num = completed + i + 1
-        batch_combos = remaining_combos[i*100:(i+1)*100]
+    print(f"Starting from combo {start_index} (batch {starting_batch})")
+    
+    # Process remaining batches
+    current_combo_idx = start_index
+    for batch_num in range(starting_batch, n_total_batches + 1):
+        batch_start = (batch_num - 1) * 100
+        batch_end = min(batch_num * 100, len(combos))
+        
+        # Skip combos already done in this batch
+        if current_combo_idx > batch_start:
+            batch_start = current_combo_idx
+        
+        if batch_start >= batch_end:
+            continue
+            
+        batch_combos = combos[batch_start:batch_end]
+        n_remaining_batches = n_total_batches - batch_num + 1
 
         print(f"\n{'='*60}")
-        print(f"Batch {batch_num} (remaining: {n_remaining - i})")
+        print(f"Batch {batch_num}/{n_total_batches} ({len(batch_combos)} combos, {n_remaining_batches} batches remaining)")
         print(f"{'='*60}")
 
         batch_results = runner_func(lenses, batch_combos, run_date, batch_num)
         write_results(method, batch_results, run_date,
                       batch=True, batch_num=batch_num)
         results.extend(batch_results)
+        
+        current_combo_idx = batch_end
 
     # Write combined results
     write_results(method, results, run_date)

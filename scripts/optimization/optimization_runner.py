@@ -8,8 +8,8 @@ from tqdm import tqdm
 import logging
 from pathlib import Path
 
-from ..fetcher import write_temp
-from ..visualizers import plot_system_rays
+from scripts.fetcher import write_temp
+from scripts.visualizers import plot_system_rays
 
 
 def _setup_logger(run_date: str):

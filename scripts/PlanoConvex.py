@@ -1,7 +1,7 @@
 import math
 import numpy as np
-from .consts import N_GLASS
-from .raytrace_helpers import intersect_ray_sphere, refract_vec
+from scripts.consts import N_GLASS
+from scripts.raytrace_helpers import intersect_ray_sphere, refract_vec
 
 
 class PlanoConvex:

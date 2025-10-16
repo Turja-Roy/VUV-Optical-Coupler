@@ -1,8 +1,8 @@
 import numpy as np
 from scipy.optimize import differential_evolution, dual_annealing, minimize
-from ..PlanoConvex import PlanoConvex
-from .. import consts as C
-from ..raytrace_helpers import sample_rays, trace_system
+from scripts.PlanoConvex import PlanoConvex
+from scripts import consts as C
+from scripts.raytrace_helpers import sample_rays, trace_system
 
 
 def evaluate_config_fast(params, d1, d2, origins, dirs, n_rays, alpha=0.7):
@@ -26,7 +26,7 @@ def evaluate_config_fast(params, d1, d2, origins, dirs, n_rays, alpha=0.7):
 def _get_bounds(f1, f2):
     return [
         (C.SOURCE_TO_LENS_OFFSET, f1 * 1.5),
-        (C.SOURCE_TO_LENS_OFFSET + f2 * 0.5, f1 * 1.5 + f2 * 2.5)
+        (C.SOURCE_TO_LENS_OFFSET + 1.0, f1 * 1.5 + f2 * 2.5)
     ]
 
 

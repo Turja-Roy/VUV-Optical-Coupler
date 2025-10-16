@@ -1,6 +1,6 @@
 import numpy as np
 import math
-from . import consts as C
+from scripts import consts as C
 
 
 def sample_rays(n_rays):

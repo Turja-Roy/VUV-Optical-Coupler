@@ -1,9 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from .PlanoConvex import PlanoConvex
-from .raytrace_helpers import sample_rays
-from . import consts as C
+from scripts.PlanoConvex import PlanoConvex
+from scripts.raytrace_helpers import sample_rays
+from scripts import consts as C
 
 
 def plot_system_rays(lenses, best_result, run_date, n_plot_rays=1000):
