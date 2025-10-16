@@ -7,7 +7,7 @@ project_root = Path(__file__).parent.parent
 sys.path.append(str(project_root))
 
 from scripts.runner import run_grid
-from scripts.fetcher import fetch_lens_data
+from scripts.data_io import fetch_lens_data
 
 def test_param_sensitivity():
     # Set random seed for reproducibility

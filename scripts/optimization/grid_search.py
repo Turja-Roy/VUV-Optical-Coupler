@@ -1,7 +1,7 @@
 import numpy as np
 from tqdm import tqdm
 
-from scripts.fetcher import write_temp
+from scripts.data_io import write_temp
 from scripts.PlanoConvex import PlanoConvex
 from scripts import consts as C
 from scripts.visualizers import plot_system_rays
@@ -38,7 +38,7 @@ def evaluate_config(z_l1, z_l2, origins, dirs, d1, d2, z_fiber, n_rays):
 # Coarse + refine grid search per lens pair
 
 
-def run_grid(run_date, lenses, name1, name2,
+def run_grid(run_id, lenses, name1, name2,
              coarse_steps=C.COARSE_STEPS, refine_steps=C.REFINE_STEPS,
              n_coarse=C.N_COARSE, n_refine=C.N_REFINE):
     d1 = lenses[name1]
@@ -103,16 +103,16 @@ def run_grid(run_date, lenses, name1, name2,
     return best
 
 
-def _setup_logger(run_date: str):
+def _setup_logger(run_id: str):
     """
-    Return a module logger that appends to logs/run_<run_date>.log.
+    Return a module logger that appends to logs/run_<run_id>.log.
     If a FileHandler for that file already exists on the logger, reuse it.
     """
     logger = logging.getLogger("raytrace")
 
     logs_dir = Path.cwd() / "logs"
     logs_dir.mkdir(parents=True, exist_ok=True)
-    logfile = logs_dir / f"run_{run_date}.log"
+    logfile = logs_dir / f"run_{run_id}.log"
 
     # If a FileHandler for this logfile already exists, reuse logger as-is.
     for h in logger.handlers:
@@ -132,20 +132,20 @@ def _setup_logger(run_date: str):
     return logger
 
 
-def run_combos(lenses, combos, run_date, batch_num=None):
-    logger = _setup_logger(run_date)
+def run_combos(lenses, combos, run_id, batch_num=None):
+    logger = _setup_logger(run_id)
 
     for (a, b) in tqdm(combos):
         logger.info(f"\nEvaluating {a} + {b} ...")
 
-        res = run_grid(run_date, lenses, a, b)  # Coarse + refine search
+        res = run_grid(run_id, lenses, a, b)
 
         if res is None:
             logger.warning("Lens 1 focal length too short for placement.")
             continue
         else:
-            plot_system_rays(lenses, res, run_date)  # Visualize this combination
-            write_temp(res, run_date, batch_num)
+            plot_system_rays(lenses, res, run_id)
+            write_temp(res, run_id, batch_num)
             logger.info(f"best coupling={res['coupling']:.4f} at z_l1={
                       res['z_l1']:.2f}, z_l2={res['z_l2']:.2f}")
 
@@ -153,7 +153,7 @@ def run_combos(lenses, combos, run_date, batch_num=None):
     results = []
     
     filename = 'temp.json' if batch_num is None else f'temp_batch_{batch_num}.json'
-    filepath = f'./results/{run_date}/{filename}'
+    filepath = f'./results/{run_id}/{filename}'
 
     try:
         if Path(filepath).exists():

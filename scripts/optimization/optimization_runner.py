@@ -1,24 +1,18 @@
-"""
-Unified runner for all optimization methods.
-This replaces the grid search approach with more efficient optimizers.
-"""
-
 import numpy as np
 from tqdm import tqdm
 import logging
 from pathlib import Path
 
-from scripts.fetcher import write_temp
+from scripts.data_io import write_temp
 from scripts.visualizers import plot_system_rays
 
 
-def _setup_logger(run_date: str):
-    """Setup logger for optimization runs."""
+def _setup_logger(run_id):
     logger = logging.getLogger("raytrace")
     
     logs_dir = Path.cwd() / "logs"
     logs_dir.mkdir(parents=True, exist_ok=True)
-    logfile = logs_dir / f"run_{run_date}.log"
+    logfile = logs_dir / f"run_{run_id}.log"
     
     for h in logger.handlers:
         if isinstance(h, logging.FileHandler) and getattr(h, "baseFilename", None) == str(logfile):
@@ -34,50 +28,43 @@ def _setup_logger(run_date: str):
     return logger
 
 
-def run_combos_optimized(lenses, combos, run_date, method='differential_evolution',
-                         alpha=0.7, n_rays=1000, batch_num=None):
-    """
-    Run optimization for all lens combinations.
+def run_combos(lenses, combos, run_id, method='differential_evolution',
+               alpha=0.7, n_rays=1000, batch_num=None):
+    logger = _setup_logger(run_id)
     
-    Parameters:
-    - lenses: dictionary of lens data
-    - combos: list of (lens1, lens2) tuples
-    - run_date: date string for file naming
-    - method: optimization method to use
-        - 'differential_evolution': robust global optimizer (recommended)
-        - 'dual_annealing': simulated annealing + local search
-        - 'nelder_mead': fast local search
-        - 'powell': another local search method
-        - 'bayesian': Bayesian optimization (requires scikit-optimize)
-    - alpha: weight for coupling vs. length (0.7 = 70% coupling, 30% length)
-    - n_rays: number of rays for optimization
-    - batch_num: batch number for file naming
-    
-    Returns:
-    - list of result dictionaries
-    """
-    logger = _setup_logger(run_date)
-    
-    # Import the appropriate optimizer
-    if method == 'bayesian':
-        from .bayesian_optimizer import run_bayesian_optimization
-        optimizer_func = lambda rd, l, a, b: run_bayesian_optimization(
-            rd, l, a, b, n_calls=50, n_rays=n_rays, alpha=alpha
-        )
+    if method == 'grid_search':
+        from scripts.optimization import grid_search as optimizer
+        optimize_func = lambda l, n1, n2: optimizer.run_grid(run_id, l, n1, n2)
+    elif method == 'differential_evolution':
+        from scripts.optimization import differential_evolution as optimizer
+        optimize_func = lambda l, n1, n2: optimizer.optimize(l, n1, n2, n_rays, alpha)
+    elif method == 'dual_annealing':
+        from scripts.optimization import dual_annealing as optimizer
+        optimize_func = lambda l, n1, n2: optimizer.optimize(l, n1, n2, n_rays, alpha)
+    elif method == 'nelder_mead':
+        from scripts.optimization import nelder_mead as optimizer
+        optimize_func = lambda l, n1, n2: optimizer.optimize(l, n1, n2, n_rays, alpha)
+    elif method == 'powell':
+        from scripts.optimization import powell as optimizer
+        optimize_func = lambda l, n1, n2: optimizer.optimize(l, n1, n2, n_rays, alpha)
+    elif method == 'bayesian':
+        from scripts.optimization import bayesian as optimizer
+        optimize_func = lambda l, n1, n2: optimizer.optimize(l, n1, n2, n_calls=50, n_rays=n_rays, alpha=alpha)
     else:
-        from .scipy_optimizer import run_optimization
-        optimizer_func = lambda rd, l, a, b: run_optimization(
-            rd, l, a, b, method=method, n_rays=n_rays, alpha=alpha
-        )
+        raise ValueError(f"Unknown optimization method: {method}")
     
     for (a, b) in tqdm(combos, desc=f"Optimizing with {method}"):
         logger.info(f"\nOptimizing {a} + {b} using {method}...")
         
         try:
-            res = optimizer_func(run_date, lenses, a, b)
+            res = optimize_func(lenses, a, b)
             
-            plot_system_rays(lenses, res, run_date)
-            write_temp(res, run_date, batch_num)
+            if res is None:
+                logger.warning("Optimization failed or invalid configuration.")
+                continue
+            
+            plot_system_rays(lenses, res, run_id)
+            write_temp(res, run_id, batch_num)
             
             logger.info(f"Coupling={res['coupling']:.4f}, "
                        f"Length={res['total_len_mm']:.2f}mm, "
@@ -87,10 +74,9 @@ def run_combos_optimized(lenses, combos, run_date, method='differential_evolutio
             logger.error(f"Error optimizing {a} + {b}: {str(e)}")
             continue
     
-    # Read results from temp file
     results = []
     filename = 'temp.json' if batch_num is None else f'temp_batch_{batch_num}.json'
-    filepath = f'./results/{run_date}/{filename}'
+    filepath = f'./results/{run_id}/{filename}'
     
     try:
         if Path(filepath).exists():
@@ -112,24 +98,8 @@ def run_combos_optimized(lenses, combos, run_date, method='differential_evolutio
     return results
 
 
-def compare_optimizers(lenses, test_combo, run_date, n_rays=1000, alpha=0.7):
-    """
-    Compare different optimization methods on a single lens combination.
-    Useful for determining which method works best.
-    
-    Parameters:
-    - lenses: lens dictionary
-    - test_combo: tuple of (lens1, lens2) to test
-    - run_date: date string
-    - n_rays: rays per evaluation
-    - alpha: coupling vs. length weight
-    
-    Returns:
-    - dictionary with results from each method
-    """
-    from .scipy_optimizer import run_optimization
-    
-    methods = ['differential_evolution', 'dual_annealing', 'nelder_mead', 'powell']
+def compare_optimizers(lenses, test_combo, run_id, n_rays=1000, alpha=0.7):
+    methods = ['differential_evolution', 'dual_annealing', 'nelder_mead', 'powell', 'grid_search']
     results = {}
     
     lens1, lens2 = test_combo
@@ -142,8 +112,21 @@ def compare_optimizers(lenses, test_combo, run_date, n_rays=1000, alpha=0.7):
             import time
             start = time.time()
             
-            res = run_optimization(run_date, lenses, lens1, lens2,
-                                  method=method, n_rays=n_rays, alpha=alpha)
+            if method == 'grid_search':
+                from scripts.optimization import grid_search as optimizer
+                res = optimizer.run_grid(run_id, lenses, lens1, lens2)
+            elif method == 'differential_evolution':
+                from scripts.optimization import differential_evolution as optimizer
+                res = optimizer.optimize(lenses, lens1, lens2, n_rays, alpha)
+            elif method == 'dual_annealing':
+                from scripts.optimization import dual_annealing as optimizer
+                res = optimizer.optimize(lenses, lens1, lens2, n_rays, alpha)
+            elif method == 'nelder_mead':
+                from scripts.optimization import nelder_mead as optimizer
+                res = optimizer.optimize(lenses, lens1, lens2, n_rays, alpha)
+            elif method == 'powell':
+                from scripts.optimization import powell as optimizer
+                res = optimizer.optimize(lenses, lens1, lens2, n_rays, alpha)
             
             elapsed = time.time() - start
             
@@ -163,15 +146,13 @@ def compare_optimizers(lenses, test_combo, run_date, n_rays=1000, alpha=0.7):
             print(f"  Error: {str(e)}")
             results[method] = None
     
-    # Try Bayesian if available
     try:
-        from .bayesian_optimizer import run_bayesian_optimization
+        from scripts.optimization import bayesian as optimizer
         print(f"\nTesting bayesian optimization...")
         import time
         start = time.time()
         
-        res = run_bayesian_optimization(run_date, lenses, lens1, lens2,
-                                       n_calls=30, n_rays=n_rays, alpha=alpha)
+        res = optimizer.optimize(lenses, lens1, lens2, n_calls=30, n_rays=n_rays, alpha=alpha)
         elapsed = time.time() - start
         
         results['bayesian'] = {

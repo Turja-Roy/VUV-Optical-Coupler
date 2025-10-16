@@ -6,7 +6,7 @@ from scripts.raytrace_helpers import sample_rays
 from scripts import consts as C
 
 
-def plot_system_rays(lenses, best_result, run_date, n_plot_rays=1000):
+def plot_system_rays(lenses, best_result, run_id, n_plot_rays=1000):
     """
     Plot ray tracing through the optical system.
     """
@@ -121,15 +121,14 @@ def plot_system_rays(lenses, best_result, run_date, n_plot_rays=1000):
     plt.tight_layout()
 
     # Save plot
-    if not __import__("os").path.exists('./plots/' + run_date):
-        __import__("os").makedirs('./plots/' + run_date)
-    plt.savefig(f"./plots/{run_date}/C-{best_result['coupling']:.4f}_L1-{
+    if not __import__("os").path.exists('./plots/' + run_id):
+        __import__("os").makedirs('./plots/' + run_id)
+    plt.savefig(f"./plots/{run_id}/C-{best_result['coupling']:.4f}_L1-{
                 best_result['lens1']}_L2-{best_result['lens2']}.png")
     plt.close(fig)
-    # plt.show()
 
 
-def plot_spot_diagram(best, lenses, run_date):
+def plot_spot_diagram(best, lenses, run_id):
     """
         Spot diagram for best
         (use the origins/dirs that produced the reported best)
@@ -188,8 +187,8 @@ def plot_spot_diagram(best, lenses, run_date):
     plt.legend()
 
     # Save spot diagram
-    if not __import__("os").path.exists('./plots/' + run_date):
-        __import__("os").makedirs('./plots/' + run_date)
-    plt.savefig(f"./plots/{run_date}/spot_C-{best['coupling']:.4f}_L1-{
+    if not __import__("os").path.exists('./plots/' + run_id):
+        __import__("os").makedirs('./plots/' + run_id)
+    plt.savefig(f"./plots/{run_id}/spot_C-{best['coupling']:.4f}_L1-{
                 best['lens1']}_L2-{best['lens2']}.png", dpi=300, bbox_inches='tight')
     plt.close()

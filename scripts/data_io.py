@@ -84,7 +84,7 @@ def particular_combo(name1, name2):
     return combos, lenses
 
 
-def write_results(method, results, run_date, batch=False, batch_num=None):
+def write_results(method, results, run_id, batch=False, batch_num=None):
     """
         Write results to CSV file. Each result must be a dictionary with
         scalar values for lens parameters, positions, and coupling efficiency.
@@ -93,12 +93,10 @@ def write_results(method, results, run_date, batch=False, batch_num=None):
 
     # Validate results is a sequence of dictionaries
     if not results:
-        return  # nothing to write
+        return
     if not hasattr(results, '__iter__'):
         raise ValueError("results must be a sequence")
     
-    # Extract only scalar fields that are safe to write to CSV. Exclude arrays
-    # like 'accepted' which can cause "unhashable type" errors in pandas.
     scalar_keys = ['lens1', 'lens2', 'f1_mm', 'f2_mm', 'z_l1', 'z_l2',
                   'z_fiber', 'total_len_mm', 'coupling']
     rows = []
@@ -111,26 +109,26 @@ def write_results(method, results, run_date, batch=False, batch_num=None):
         ascending=[False, True]).reset_index(drop=True)
 
     if batch and batch_num is not None:
-        if not os.path.exists('./results/' + run_date):
-            os.makedirs('./results/' + run_date)
-        df.to_csv(f"results/{run_date}/batch_{method}_{batch_num}.csv", index=False)
+        if not os.path.exists('./results/' + run_id):
+            os.makedirs('./results/' + run_id)
+        df.to_csv(f"results/{run_id}/batch_{method}_{batch_num}.csv", index=False)
     else:
-        if not os.path.exists('./results/' + run_date):
-            os.makedirs('./results/' + run_date)
-        df.to_csv(f"results/{run_date}/results_{method}_{run_date}.csv", index=False)
+        if not os.path.exists('./results/' + run_id):
+            os.makedirs('./results/' + run_id)
+        df.to_csv(f"results/{run_id}/results_{method}_{run_id}.csv", index=False)
 
 
-def write_temp(result, run_date, batch_num):
+def write_temp(result, run_id, batch_num):
     """Append a single result (dict) to a temporary json file."""
     import os
     import json
     import numpy as np
 
-    if not os.path.exists('./results/' + run_date):
-        os.makedirs('./results/' + run_date)
+    if not os.path.exists('./results/' + run_id):
+        os.makedirs('./results/' + run_id)
 
     filename = 'temp.json' if batch_num is None else f'temp_batch_{batch_num}.json'
-    filepath = f'./results/{run_date}/{filename}'
+    filepath = f'./results/{run_id}/{filename}'
 
     # Convert numpy arrays to lists for JSON serialization
     serializable_result = {}
