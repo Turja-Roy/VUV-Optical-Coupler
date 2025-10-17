@@ -1,6 +1,7 @@
 import numpy as np
 import math
 from scripts import consts as C
+from scripts.calcs import transmission_through_medium
 
 
 def sample_rays(n_rays):
@@ -72,7 +73,8 @@ def refract_vec(n_vec, v_in, n1, n2):
 
 
 def trace_system(origins, dirs, lens1, lens2,
-                 z_fiber, fiber_rad, acceptance_half_rad):
+                 z_fiber, fiber_rad, acceptance_half_rad, 
+                 medium='air', pressure_atm=1.0, temp_k=293.15, humidity_fraction=0.01):
     """
     Trace rays through system and check if they make it into the fiber.
 
@@ -82,46 +84,58 @@ def trace_system(origins, dirs, lens1, lens2,
     - z_fiber: z-position of fiber face
     - fiber_rad: fiber core radius
     - acceptance_half_rad: half-acceptance angle in radians
+    - medium: propagation medium ('air', 'argon', 'helium')
+    - pressure_atm: pressure in atmospheres
+    - temp_k: temperature in Kelvin
+    - humidity_fraction: water vapor fraction (0.0-0.1 typical, 0.01 = 1%)
 
     Returns:
     - accepted: boolean array indicating which rays made it into fiber
     """
     n_rays = origins.shape[0]
     accepted = np.zeros(n_rays, dtype=bool)
+    transmission_factors = np.ones(n_rays)
 
     for i in range(n_rays):
         o = origins[i].copy()
         d = dirs[i].copy()
 
-        # Through first lens
+        z_l1 = lens1.z_center
+        d1 = z_l1 - o[2]
+        T1 = transmission_through_medium(d1, C.WAVELENGTH_NM, medium, pressure_atm, temp_k, humidity_fraction)
+
         out1 = lens1.trace_ray(o, d, 1.0)
         if out1[2] is False:
             continue
-        o1, d1 = out1[0], out1[1]
+        o1, d1_out = out1[0], out1[1]
 
-        # Through second lens
-        out2 = lens2.trace_ray(o1, d1, 1.0)
+        z_l2 = lens2.z_center
+        d2 = z_l2 - o1[2]
+        T2 = transmission_through_medium(d2, C.WAVELENGTH_NM, medium, pressure_atm, temp_k, humidity_fraction)
+
+        out2 = lens2.trace_ray(o1, d1_out, 1.0)
         if out2[2] is False:
             continue
-        o2, d2 = out2[0], out2[1]
+        o2, d2_out = out2[0], out2[1]
 
-        # Find intersection with fiber plane
-        if abs(d2[2]) < 1e-9:
-            continue  # parallel to fiber face
-        t = (z_fiber - o2[2]) / d2[2]
+        if abs(d2_out[2]) < 1e-9:
+            continue
+        t = (z_fiber - o2[2]) / d2_out[2]
         if t < 0:
-            continue  # going wrong way
-        p = o2 + t*d2
+            continue
+        p = o2 + t*d2_out
 
-        # Check if within fiber core
+        d3 = abs(z_fiber - o2[2])
+        T3 = transmission_through_medium(d3, C.WAVELENGTH_NM, medium, pressure_atm, temp_k, humidity_fraction)
+
         if math.hypot(p[0], p[1]) > fiber_rad:
             continue
 
-        # Check if within acceptance angle
-        theta = math.acos(abs(d2[2]) / np.linalg.norm(d2))
+        theta = math.acos(abs(d2_out[2]) / np.linalg.norm(d2_out))
         if theta > acceptance_half_rad:
             continue
 
         accepted[i] = True
+        transmission_factors[i] = T1 * T2 * T3
 
-    return accepted
+    return accepted, transmission_factors

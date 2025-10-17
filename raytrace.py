@@ -14,14 +14,14 @@ def main():
 
     # Build run_id based on mode and method
     if args['mode'] == 'compare':
-        run_id = f"compare_{args['date']}_{args['lens1']}+{args['lens2']}"
+        run_id = f"compare_{args['date']}_{args['lens1']}+{args['lens2']}_{args['medium']}"
     elif args['mode'] == 'particular':
-        run_id = f"particular_{args['date']}_{args['optimizer']}"
+        run_id = f"particular_{args['date']}_{args['optimizer']}_{args['medium']}"
     elif args['mode'] == 'analyze':
         threshold_str = f"{args['coupling_threshold']:.2f}".replace('.', '_')
-        run_id = f"analyze_{args['date']}_coupling_{threshold_str}"
+        run_id = f"analyze_{args['date']}_coupling_{threshold_str}_{args['medium']}"
     else:
-        run_id = f"{args['date']}_{args['method']}_{args['optimizer']}"
+        run_id = f"{args['date']}_{args['method']}_{args['optimizer']}_{args['medium']}"
 
     print("\n" + "="*60)
     print("Lens Configuration Optimizer")
@@ -29,10 +29,12 @@ def main():
     print(f"Run ID: {run_id}")
     if args['mode'] != 'analyze':
         print(f"Optimizer: {args['optimizer']}")
+        print(f"Medium: {args['medium']}")
         if args['optimizer'] != 'grid_search':
             print(f"Alpha (coupling weight): {args['alpha']}")
     else:
         print(f"Mode: Analyze high-coupling results")
+        print(f"Medium: {args['medium']}")
         print(f"Coupling threshold: {args['coupling_threshold']}")
         print(f"Results file: {args['results_file']}")
     print("="*60 + "\n")
@@ -51,7 +53,8 @@ def main():
             args['coupling_threshold'],
             lenses,
             run_id,
-            alpha=args['alpha']
+            alpha=args['alpha'],
+            medium=args['medium']
         )
         
         for method, results in all_results.items():
@@ -92,7 +95,7 @@ def main():
         from scripts.optimization.optimization_runner import compare_optimizers
         combos, lenses = particular_combo(args['lens1'], args['lens2'])
         compare_optimizers(lenses, (args['lens1'], args['lens2']),
-                           run_id, alpha=args['alpha'])
+                           run_id, alpha=args['alpha'], medium=args['medium'])
         return
 
     # Get lens combinations
@@ -111,7 +114,8 @@ def main():
 
     def runner_func(lenses, combos, run_id, batch_num): return run_combos(
         lenses, combos, run_id, method=args['optimizer'],
-        alpha=args['alpha'], n_rays=1000, batch_num=batch_num
+        alpha=args['alpha'], n_rays=1000, batch_num=batch_num,
+        medium=args['medium']
     )
 
     # Run optimization
@@ -164,7 +168,8 @@ def main():
             from scripts.optimization.grid_search import run_grid
             best_coupling = run_grid(run_id, lenses,
                                      best_coupling['lens1'],
-                                     best_coupling['lens2'])
+                                     best_coupling['lens2'],
+                                     medium=args['medium'])
 
         plot_spot_diagram(best_coupling, lenses, run_id)
 

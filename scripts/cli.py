@@ -23,6 +23,8 @@ Options:
                                            nelder_mead, powell, bayesian, grid_search
     --alpha <value>               Weight for coupling vs. length (0-1, default: 0.7)
                                   Higher = prioritize coupling more
+    --medium <type>               Medium for light propagation (default: air)
+                                  Options: air, argon, helium
     --coupling-threshold <value>  Minimum coupling for analyze mode (required for analyze)
     --results-file <path>         Path to results CSV file (required for analyze)
     continue                      Continue incomplete batch run
@@ -34,6 +36,9 @@ Examples:
     
     # Prioritize coupling more (90% coupling, 10% length)
     python raytrace.py combine --opt differential_evolution --alpha 0.9
+    
+    # Run in argon (no UV absorption)
+    python raytrace.py particular LA4001 LA4647 --medium argon
     
     # Bayesian optimization (install: pip install scikit-optimize)
     python raytrace.py combine --opt bayesian
@@ -61,6 +66,7 @@ def parse_arguments():
         'method': None,
         'optimizer': 'differential_evolution',
         'alpha': 0.7,
+        'medium': 'air',
         'continue': False,
         'date': C.DATE_STR,
         'coupling_threshold': None,
@@ -125,6 +131,18 @@ def parse_arguments():
                 i += 2
             else:
                 print("Error: --alpha requires a value")
+                sys.exit(1)
+
+        elif arg == '--medium':
+            if i + 1 < len(sys.argv):
+                medium = sys.argv[i + 1]
+                if medium not in ['air', 'argon', 'helium']:
+                    print("Error: --medium must be one of: air, argon, helium")
+                    sys.exit(1)
+                args['medium'] = medium
+                i += 2
+            else:
+                print("Error: --medium requires a value")
                 sys.exit(1)
 
         elif arg == '--coupling-threshold':

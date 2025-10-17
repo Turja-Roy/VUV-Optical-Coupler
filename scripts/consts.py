@@ -22,5 +22,9 @@ SOURCE_TO_LENS_OFFSET = WINDOW_DISTANCE_MM + 1  # Lenses start after the window
 N_RAYS = 1000
 N_GLASS = fused_silica_n(WAVELENGTH_NM)
 
-# Date string
+MEDIUM = 'air'
+PRESSURE_ATM = 1.0
+TEMPERATURE_K = 293.15
+HUMIDITY_FRACTION = 0.01
+
 DATE_STR = __import__("time").strftime("%Y-%m-%d")

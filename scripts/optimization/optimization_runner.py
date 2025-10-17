@@ -29,27 +29,27 @@ def _setup_logger(run_id):
 
 
 def run_combos(lenses, combos, run_id, method='differential_evolution',
-               alpha=0.7, n_rays=1000, batch_num=None):
+               alpha=0.7, n_rays=1000, batch_num=None, medium='air'):
     logger = _setup_logger(run_id)
     
     if method == 'grid_search':
         from scripts.optimization import grid_search as optimizer
-        optimize_func = lambda l, n1, n2: optimizer.run_grid(run_id, l, n1, n2)
+        optimize_func = lambda l, n1, n2: optimizer.run_grid(run_id, l, n1, n2, medium=medium)
     elif method == 'differential_evolution':
         from scripts.optimization import differential_evolution as optimizer
-        optimize_func = lambda l, n1, n2: optimizer.optimize(l, n1, n2, n_rays, alpha)
+        optimize_func = lambda l, n1, n2: optimizer.optimize(l, n1, n2, n_rays, alpha, medium)
     elif method == 'dual_annealing':
         from scripts.optimization import dual_annealing as optimizer
-        optimize_func = lambda l, n1, n2: optimizer.optimize(l, n1, n2, n_rays, alpha)
+        optimize_func = lambda l, n1, n2: optimizer.optimize(l, n1, n2, n_rays, alpha, medium)
     elif method == 'nelder_mead':
         from scripts.optimization import nelder_mead as optimizer
-        optimize_func = lambda l, n1, n2: optimizer.optimize(l, n1, n2, n_rays, alpha)
+        optimize_func = lambda l, n1, n2: optimizer.optimize(l, n1, n2, n_rays, alpha, medium)
     elif method == 'powell':
         from scripts.optimization import powell as optimizer
-        optimize_func = lambda l, n1, n2: optimizer.optimize(l, n1, n2, n_rays, alpha)
+        optimize_func = lambda l, n1, n2: optimizer.optimize(l, n1, n2, n_rays, alpha, medium)
     elif method == 'bayesian':
         from scripts.optimization import bayesian as optimizer
-        optimize_func = lambda l, n1, n2: optimizer.optimize(l, n1, n2, n_calls=50, n_rays=n_rays, alpha=alpha)
+        optimize_func = lambda l, n1, n2: optimizer.optimize(l, n1, n2, n_calls=50, n_rays=n_rays, alpha=alpha, medium=medium)
     else:
         raise ValueError(f"Unknown optimization method: {method}")
     
@@ -98,7 +98,7 @@ def run_combos(lenses, combos, run_id, method='differential_evolution',
     return results
 
 
-def compare_optimizers(lenses, test_combo, run_id, n_rays=1000, alpha=0.7):
+def compare_optimizers(lenses, test_combo, run_id, n_rays=1000, alpha=0.7, medium='air'):
     methods = ['differential_evolution', 'dual_annealing', 'nelder_mead', 'powell', 'grid_search', 'bayesian']
     results = {}
     
@@ -115,22 +115,22 @@ def compare_optimizers(lenses, test_combo, run_id, n_rays=1000, alpha=0.7):
             res = None
             if method == 'grid_search':
                 from scripts.optimization import grid_search as optimizer
-                res = optimizer.run_grid(run_id, lenses, lens1, lens2)
+                res = optimizer.run_grid(run_id, lenses, lens1, lens2, medium=medium)
             elif method == 'differential_evolution':
                 from scripts.optimization import differential_evolution as optimizer
-                res = optimizer.optimize(lenses, lens1, lens2, n_rays, alpha)
+                res = optimizer.optimize(lenses, lens1, lens2, n_rays, alpha, medium)
             elif method == 'dual_annealing':
                 from scripts.optimization import dual_annealing as optimizer
-                res = optimizer.optimize(lenses, lens1, lens2, n_rays, alpha)
+                res = optimizer.optimize(lenses, lens1, lens2, n_rays, alpha, medium)
             elif method == 'nelder_mead':
                 from scripts.optimization import nelder_mead as optimizer
-                res = optimizer.optimize(lenses, lens1, lens2, n_rays, alpha)
+                res = optimizer.optimize(lenses, lens1, lens2, n_rays, alpha, medium)
             elif method == 'powell':
                 from scripts.optimization import powell as optimizer
-                res = optimizer.optimize(lenses, lens1, lens2, n_rays, alpha)
+                res = optimizer.optimize(lenses, lens1, lens2, n_rays, alpha, medium)
             elif method == 'bayesian':
                 from scripts.optimization import bayesian as optimizer
-                res = optimizer.optimize(lenses, lens1, lens2, n_calls=30, n_rays=n_rays, alpha=alpha)
+                res = optimizer.optimize(lenses, lens1, lens2, n_calls=30, n_rays=n_rays, alpha=alpha, medium=medium)
             
             elapsed = time.time() - start
             

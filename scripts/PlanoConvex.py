@@ -20,9 +20,9 @@ class PlanoConvex:
         self.edge_thickness_mm = edge_thickness_mm
         self.ap_rad_mm = ap_rad_mm
         self.n_glass = N_GLASS
-        # Derived quantities
         self.vertex_z_back = vertex_z_front + center_thickness_mm
         self.center_z_front = vertex_z_front + R_front_mm
+        self.z_center = vertex_z_front + center_thickness_mm / 2.0
 
     def trace_ray(self, o, d, n1):
         """

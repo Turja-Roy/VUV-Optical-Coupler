@@ -17,7 +17,7 @@ DEFAULT_N_COARSE = 500
 DEFAULT_N_REFINE = 1000
 
 
-def evaluate_config(z_l1, z_l2, origins, dirs, d1, d2, z_fiber, n_rays):
+def evaluate_config(z_l1, z_l2, origins, dirs, d1, d2, z_fiber, n_rays, medium='air'):
     if z_l1 < C.SOURCE_TO_LENS_OFFSET:
         return 0.0, np.zeros(n_rays, dtype=bool)
     if z_l2 <= z_l1 + 0.1:
@@ -33,17 +33,19 @@ def evaluate_config(z_l1, z_l2, origins, dirs, d1, d2, z_fiber, n_rays):
                         center_thickness_mm=d2['tc_mm'],
                         edge_thickness_mm=d2['te_mm'],
                         ap_rad_mm=d2['dia']/2.0)
-    accepted = trace_system(origins, dirs, lens1, lens2,
+    accepted, transmission = trace_system(origins, dirs, lens1, lens2,
                             z_fiber, C.FIBER_CORE_DIAM_MM/2.0,
-                            C.ACCEPTANCE_HALF_RAD)
-    coupling = np.count_nonzero(accepted) / n_rays
+                            C.ACCEPTANCE_HALF_RAD,
+                            medium, C.PRESSURE_ATM, C.TEMPERATURE_K, C.HUMIDITY_FRACTION)
+    avg_transmission = np.mean(transmission[accepted]) if np.any(accepted) else 0.0
+    coupling = (np.count_nonzero(accepted) / n_rays) * avg_transmission
 
     return coupling, accepted
 
 
 def run_grid(run_id, lenses, name1, name2,
              coarse_steps=DEFAULT_COARSE_STEPS, refine_steps=DEFAULT_REFINE_STEPS,
-             n_coarse=DEFAULT_N_COARSE, n_refine=DEFAULT_N_REFINE):
+             n_coarse=DEFAULT_N_COARSE, n_refine=DEFAULT_N_REFINE, medium='air'):
     d1 = lenses[name1]
     d2 = lenses[name2]
     f1 = d1['f_mm']
@@ -63,7 +65,7 @@ def run_grid(run_id, lenses, name1, name2,
             z_fiber = z_l2 + f2
             coupling, accepted = evaluate_config(z_l1, z_l2,
                                                  origins_coarse, dirs_coarse,
-                                                 d1, d2, z_fiber, n_coarse)
+                                                 d1, d2, z_fiber, n_coarse, medium)
             if coupling > best['coupling']:
                 best = {'z_l1': z_l1, 'z_l2': z_l2, 'z_fiber': z_fiber,
                         'coupling': coupling, 'accepted': accepted,
@@ -84,7 +86,7 @@ def run_grid(run_id, lenses, name1, name2,
             z_fiber = z_l2 + f2
             coupling, accepted = evaluate_config(z_l1, z_l2,
                                                  origins_ref, dirs_ref,
-                                                 d1, d2, z_fiber, n_refine)
+                                                 d1, d2, z_fiber, n_refine, medium)
             if coupling > best['coupling']:
                 best = {'z_l1': z_l1, 'z_l2': z_l2, 'z_fiber': z_fiber,
                         'coupling': coupling, 'accepted': accepted,
@@ -118,13 +120,13 @@ def _setup_logger(run_id: str):
     return logger
 
 
-def run_combos(lenses, combos, run_id, batch_num=None):
+def run_combos(lenses, combos, run_id, batch_num=None, medium='air'):
     logger = _setup_logger(run_id)
 
     for (a, b) in tqdm(combos):
         logger.info(f"\nEvaluating {a} + {b} ...")
 
-        res = run_grid(run_id, lenses, a, b)
+        res = run_grid(run_id, lenses, a, b, medium=medium)
 
         if res is None:
             logger.warning("Lens 1 focal length too short for placement.")
