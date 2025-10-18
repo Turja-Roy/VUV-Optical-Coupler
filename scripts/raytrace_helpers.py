@@ -1,7 +1,7 @@
 import numpy as np
 import math
 from scripts import consts as C
-from scripts.calcs import transmission_through_medium
+from scripts.calcs import transmission_through_medium, medium_refractive_index
 
 
 def sample_rays(n_rays):
@@ -96,6 +96,8 @@ def trace_system(origins, dirs, lens1, lens2,
     accepted = np.zeros(n_rays, dtype=bool)
     transmission_factors = np.ones(n_rays)
 
+    n_medium = medium_refractive_index(C.WAVELENGTH_NM, medium, pressure_atm, temp_k)
+
     for i in range(n_rays):
         o = origins[i].copy()
         d = dirs[i].copy()
@@ -104,7 +106,7 @@ def trace_system(origins, dirs, lens1, lens2,
         d1 = z_l1 - o[2]
         T1 = transmission_through_medium(d1, C.WAVELENGTH_NM, medium, pressure_atm, temp_k, humidity_fraction)
 
-        out1 = lens1.trace_ray(o, d, 1.0)
+        out1 = lens1.trace_ray(o, d, n_medium)
         if out1[2] is False:
             continue
         o1, d1_out = out1[0], out1[1]
@@ -113,7 +115,7 @@ def trace_system(origins, dirs, lens1, lens2,
         d2 = z_l2 - o1[2]
         T2 = transmission_through_medium(d2, C.WAVELENGTH_NM, medium, pressure_atm, temp_k, humidity_fraction)
 
-        out2 = lens2.trace_ray(o1, d1_out, 1.0)
+        out2 = lens2.trace_ray(o1, d1_out, n_medium)
         if out2[2] is False:
             continue
         o2, d2_out = out2[0], out2[1]
