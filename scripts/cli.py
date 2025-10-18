@@ -17,6 +17,7 @@ Commands:
     combine                       Run all combinations from Combined_Lenses.csv
     analyze                       Analyze high-coupling results with all methods
     wavelength-analyze            Analyze wavelength dependence of lens combinations
+    wavelength-analyze-plot       Create plots from wavelength analysis results
 
 Options:
     --opt <method>                Optimization method (default: differential_evolution)
@@ -28,6 +29,10 @@ Options:
                                   Options: air, argon, helium
     --coupling-threshold <value>  Minimum coupling for analyze mode (required for analyze)
     --results-file <path>         Path to results CSV file (required for analyze and wavelength-analyze)
+    --results-dir <path>          Path to results directory (required for wavelength-analyze-plot)
+    --fit <type>                  Curve fitting type for wavelength plots (optional)
+                                  Options: polynomial, spline
+    --aggregate                   Generate aggregated plots with error bars
     --wl-start <nm>               Starting wavelength for wavelength-analyze (default: 180)
     --wl-end <nm>                 Ending wavelength for wavelength-analyze (default: 300)
     --wl-step <nm>                Wavelength step for wavelength-analyze (default: 10)
@@ -65,6 +70,21 @@ Examples:
     
     # Custom wavelength range and finer steps
     python raytrace.py wavelength-analyze --results-file results/2025-10-17/36-681+LA4647.csv --wl-start 200 --wl-end 250 --wl-step 5
+    
+    # Plot wavelength analysis results
+    python raytrace.py wavelength-analyze-plot --results-dir results/wavelength_analyze_2025-10-18
+    
+    # Plot with polynomial curve fitting
+    python raytrace.py wavelength-analyze-plot --results-dir results/wavelength_analyze_2025-10-18 --fit polynomial
+    
+    # Plot with spline curve fitting
+    python raytrace.py wavelength-analyze-plot --results-dir results/wavelength_analyze_2025-10-18 --fit spline
+    
+    # Plot aggregated results with error bars
+    python raytrace.py wavelength-analyze-plot --results-dir results/wavelength_analyze_2025-10-18 --aggregate
+    
+    # Plot aggregated results with polynomial fit
+    python raytrace.py wavelength-analyze-plot --results-dir results/wavelength_analyze_2025-10-18 --aggregate --fit polynomial
 """)
 
 
@@ -82,6 +102,9 @@ def parse_arguments():
         'date': C.DATE_STR,
         'coupling_threshold': None,
         'results_file': None,
+        'results_dir': None,
+        'fit_type': None,
+        'aggregate': False,
         'wl_start': 180,
         'wl_end': 300,
         'wl_step': 10,
@@ -120,12 +143,15 @@ def parse_arguments():
     elif sys.argv[1] == 'wavelength-analyze':
         args['mode'] = 'wavelength-analyze'
 
+    elif sys.argv[1] == 'wavelength-analyze-plot':
+        args['mode'] = 'wavelength-analyze-plot'
+
     else:
         print(f"Error: Unknown command '{sys.argv[1]}'")
         print_usage()
         sys.exit(1)
 
-    i = 2 if args['mode'] in ['method', 'analyze', 'wavelength-analyze'] else 4
+    i = 2 if args['mode'] in ['method', 'analyze', 'wavelength-analyze', 'wavelength-analyze-plot'] else 4
     while i < len(sys.argv):
         arg = sys.argv[i]
 
@@ -231,7 +257,29 @@ def parse_arguments():
                 print("Error: --n-rays requires a value")
                 sys.exit(1)
 
+        elif arg == '--results-dir':
+            if i + 1 < len(sys.argv):
+                args['results_dir'] = sys.argv[i + 1]
+                i += 2
+            else:
+                print("Error: --results-dir requires a directory path")
+                sys.exit(1)
 
+        elif arg == '--fit':
+            if i + 1 < len(sys.argv):
+                fit = sys.argv[i + 1]
+                if fit not in ['polynomial', 'spline']:
+                    print("Error: --fit must be one of: polynomial, spline")
+                    sys.exit(1)
+                args['fit_type'] = fit
+                i += 2
+            else:
+                print("Error: --fit requires a type (polynomial or spline)")
+                sys.exit(1)
+
+        elif arg == '--aggregate':
+            args['aggregate'] = True
+            i += 1
 
         elif arg == 'continue':
             args['continue'] = True
@@ -259,6 +307,12 @@ def parse_arguments():
     if args['mode'] == 'wavelength-analyze':
         if args['results_file'] is None:
             print("Error: wavelength-analyze mode requires --results-file")
+            print_usage()
+            sys.exit(1)
+
+    if args['mode'] == 'wavelength-analyze-plot':
+        if args['results_dir'] is None:
+            print("Error: wavelength-analyze-plot mode requires --results-dir")
             print_usage()
             sys.exit(1)
 

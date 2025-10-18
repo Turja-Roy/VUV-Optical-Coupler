@@ -245,3 +245,297 @@ def plot_wavelength_coupling(lens1, lens2, methods_data, run_id):
     
     plt.savefig(filename, dpi=150, bbox_inches='tight')
     plt.close()
+
+
+def plot_wavelength_per_lens(lens1, lens2, methods_data, plot_dir, fit_type=None):
+    import os
+    method_colors = {
+        'differential_evolution': '#1f77b4',
+        'dual_annealing': '#ff7f0e',
+        'nelder_mead': '#2ca02c',
+        'powell': '#d62728',
+        'grid_search': '#9467bd',
+        'bayesian': '#8c564b'
+    }
+    
+    markers = ['o', 's', '^', 'D', 'v', '<']
+    
+    plt.figure(figsize=(10, 6))
+    
+    for idx, (method, data) in enumerate(sorted(methods_data.items())):
+        wavelengths = np.array(data['wavelengths'])
+        couplings = np.array(data['couplings'])
+        
+        sort_idx = np.argsort(wavelengths)
+        wavelengths = wavelengths[sort_idx]
+        couplings = couplings[sort_idx]
+        
+        color = method_colors.get(method, f'C{idx}')
+        marker = markers[idx % len(markers)]
+        
+        plt.plot(wavelengths, couplings, marker=marker, linestyle='-', 
+                linewidth=2, markersize=8, color=color, label=method, alpha=0.8)
+        
+        if fit_type and len(wavelengths) > 2:
+            if fit_type == 'polynomial':
+                degree = min(3, len(wavelengths) - 1)
+                coeffs = np.polyfit(wavelengths, couplings, degree)
+                poly = np.poly1d(coeffs)
+                wl_fit = np.linspace(wavelengths.min(), wavelengths.max(), 100)
+                coupling_fit = poly(wl_fit)
+                plt.plot(wl_fit, coupling_fit, '--', color=color, 
+                        linewidth=1.5, alpha=0.5, label=f'{method} (fitted)')
+            
+            elif fit_type == 'spline':
+                from scipy.interpolate import UnivariateSpline
+                if len(wavelengths) >= 4:
+                    k = min(3, len(wavelengths) - 1)
+                    spl = UnivariateSpline(wavelengths, couplings, k=k, s=0.001)
+                    wl_fit = np.linspace(wavelengths.min(), wavelengths.max(), 100)
+                    coupling_fit = spl(wl_fit)
+                    plt.plot(wl_fit, coupling_fit, '--', color=color, 
+                            linewidth=1.5, alpha=0.5, label=f'{method} (fitted)')
+    
+    plt.xlabel('Wavelength (nm)', fontsize=12)
+    plt.ylabel('Coupling Efficiency', fontsize=12)
+    plt.title(f'Coupling vs Wavelength: {lens1} + {lens2}', fontsize=14)
+    plt.legend(loc='best', fontsize=10, ncol=2 if len(methods_data) > 4 else 1)
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    
+    if not os.path.exists(plot_dir):
+        os.makedirs(plot_dir)
+    
+    fit_suffix = f'_{fit_type}' if fit_type else ''
+    filename = os.path.join(plot_dir, f'{lens1}+{lens2}_coupling_vs_wavelength{fit_suffix}.png')
+    plt.savefig(filename, dpi=150, bbox_inches='tight')
+    plt.close()
+
+
+def plot_wavelength_per_method(method, lens_combos_data, plot_dir, fit_type=None):
+    import os
+    from matplotlib import cm
+    
+    n_combos = len(lens_combos_data)
+    if n_combos <= 10:
+        colors = cm.get_cmap('tab10')(np.linspace(0, 1, 10))
+    elif n_combos <= 20:
+        colors = cm.get_cmap('tab20')(np.linspace(0, 1, 20))
+    else:
+        colors = cm.get_cmap('hsv')(np.linspace(0, 0.9, n_combos))
+    
+    markers = ['o', 's', '^', 'D', 'v', '<', '>', 'p', '*', 'h']
+    
+    plt.figure(figsize=(12, 8))
+    
+    for idx, (combo_name, data) in enumerate(sorted(lens_combos_data.items())):
+        wavelengths = np.array(data['wavelengths'])
+        couplings = np.array(data['couplings'])
+        
+        sort_idx = np.argsort(wavelengths)
+        wavelengths = wavelengths[sort_idx]
+        couplings = couplings[sort_idx]
+        
+        color = colors[idx]
+        marker = markers[idx % len(markers)]
+        
+        plt.plot(wavelengths, couplings, marker=marker, linestyle='-', 
+                linewidth=2, markersize=7, color=color, label=combo_name, alpha=0.8)
+        
+        if fit_type and len(wavelengths) > 2:
+            if fit_type == 'polynomial':
+                degree = min(3, len(wavelengths) - 1)
+                coeffs = np.polyfit(wavelengths, couplings, degree)
+                poly = np.poly1d(coeffs)
+                wl_fit = np.linspace(wavelengths.min(), wavelengths.max(), 100)
+                coupling_fit = poly(wl_fit)
+                plt.plot(wl_fit, coupling_fit, '--', color=color, 
+                        linewidth=1.5, alpha=0.4)
+            
+            elif fit_type == 'spline':
+                from scipy.interpolate import UnivariateSpline
+                if len(wavelengths) >= 4:
+                    k = min(3, len(wavelengths) - 1)
+                    spl = UnivariateSpline(wavelengths, couplings, k=k, s=0.001)
+                    wl_fit = np.linspace(wavelengths.min(), wavelengths.max(), 100)
+                    coupling_fit = spl(wl_fit)
+                    plt.plot(wl_fit, coupling_fit, '--', color=color, 
+                            linewidth=1.5, alpha=0.4)
+    
+    plt.xlabel('Wavelength (nm)', fontsize=12)
+    plt.ylabel('Coupling Efficiency', fontsize=12)
+    
+    method_display = method.replace('_', ' ').title()
+    plt.title(f'Coupling vs Wavelength - {method_display} Optimization', fontsize=14)
+    
+    ncol = max(1, n_combos // 8)
+    plt.legend(loc='best', fontsize=9, ncol=ncol, framealpha=0.9)
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    
+    if not os.path.exists(plot_dir):
+        os.makedirs(plot_dir)
+    
+    fit_suffix = f'_{fit_type}' if fit_type else ''
+    filename = os.path.join(plot_dir, f'{method}_coupling_vs_wavelength{fit_suffix}.png')
+    plt.savefig(filename, dpi=150, bbox_inches='tight')
+    plt.close()
+
+
+def plot_wavelength_per_lens_aggregated(lens1, lens2, methods_data, plot_dir, fit_type=None):
+    import os
+    
+    all_wavelengths = set()
+    for data in methods_data.values():
+        all_wavelengths.update(data['wavelengths'])
+    wavelengths = np.array(sorted(all_wavelengths))
+    
+    mean_couplings = []
+    std_couplings = []
+    
+    for wl in wavelengths:
+        couplings_at_wl = []
+        for data in methods_data.values():
+            wl_arr = np.array(data['wavelengths'])
+            mask = np.isclose(wl_arr, wl)
+            if np.any(mask):
+                idx = np.where(mask)[0][0]
+                couplings_at_wl.append(data['couplings'][idx])
+        
+        if len(couplings_at_wl) > 0:
+            mean_couplings.append(np.mean(couplings_at_wl))
+            std_couplings.append(np.std(couplings_at_wl))
+        else:
+            mean_couplings.append(np.nan)
+            std_couplings.append(np.nan)
+    
+    mean_couplings = np.array(mean_couplings)
+    std_couplings = np.array(std_couplings)
+    
+    plt.figure(figsize=(10, 6))
+    
+    plt.errorbar(wavelengths, mean_couplings, yerr=std_couplings, 
+                fmt='o-', linewidth=2, markersize=8, capsize=5, capthick=2,
+                color='#1f77b4', ecolor='#1f77b4', alpha=0.8,
+                label=f'Mean ± Std ({len(methods_data)} methods)')
+    
+    if fit_type and len(wavelengths) > 2:
+        valid_mask = ~np.isnan(mean_couplings)
+        wl_valid = wavelengths[valid_mask]
+        coupling_valid = mean_couplings[valid_mask]
+        
+        if len(wl_valid) > 2:
+            if fit_type == 'polynomial':
+                degree = min(3, len(wl_valid) - 1)
+                coeffs = np.polyfit(wl_valid, coupling_valid, degree)
+                poly = np.poly1d(coeffs)
+                wl_fit = np.linspace(wl_valid.min(), wl_valid.max(), 100)
+                coupling_fit = poly(wl_fit)
+                plt.plot(wl_fit, coupling_fit, '--', color='#d62728', 
+                        linewidth=2, alpha=0.7, label=f'Polynomial fit (deg {degree})')
+            
+            elif fit_type == 'spline':
+                from scipy.interpolate import UnivariateSpline
+                if len(wl_valid) >= 4:
+                    k = min(3, len(wl_valid) - 1)
+                    spl = UnivariateSpline(wl_valid, coupling_valid, k=k, s=0.001)
+                    wl_fit = np.linspace(wl_valid.min(), wl_valid.max(), 100)
+                    coupling_fit = spl(wl_fit)
+                    plt.plot(wl_fit, coupling_fit, '--', color='#d62728', 
+                            linewidth=2, alpha=0.7, label='Spline fit')
+    
+    plt.xlabel('Wavelength (nm)', fontsize=12)
+    plt.ylabel('Coupling Efficiency', fontsize=12)
+    plt.title(f'Coupling vs Wavelength (Aggregated): {lens1} + {lens2}', fontsize=14)
+    plt.legend(loc='best', fontsize=10)
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    
+    if not os.path.exists(plot_dir):
+        os.makedirs(plot_dir)
+    
+    fit_suffix = f'_{fit_type}' if fit_type else ''
+    filename = os.path.join(plot_dir, f'{lens1}+{lens2}_aggregated{fit_suffix}.png')
+    plt.savefig(filename, dpi=150, bbox_inches='tight')
+    plt.close()
+
+
+def plot_wavelength_per_method_aggregated(method, lens_combos_data, plot_dir, fit_type=None):
+    import os
+    
+    all_wavelengths = set()
+    for data in lens_combos_data.values():
+        all_wavelengths.update(data['wavelengths'])
+    wavelengths = np.array(sorted(all_wavelengths))
+    
+    mean_couplings = []
+    std_couplings = []
+    
+    for wl in wavelengths:
+        couplings_at_wl = []
+        for data in lens_combos_data.values():
+            wl_arr = np.array(data['wavelengths'])
+            mask = np.isclose(wl_arr, wl)
+            if np.any(mask):
+                idx = np.where(mask)[0][0]
+                couplings_at_wl.append(data['couplings'][idx])
+        
+        if len(couplings_at_wl) > 0:
+            mean_couplings.append(np.mean(couplings_at_wl))
+            std_couplings.append(np.std(couplings_at_wl))
+        else:
+            mean_couplings.append(np.nan)
+            std_couplings.append(np.nan)
+    
+    mean_couplings = np.array(mean_couplings)
+    std_couplings = np.array(std_couplings)
+    
+    plt.figure(figsize=(10, 6))
+    
+    plt.errorbar(wavelengths, mean_couplings, yerr=std_couplings, 
+                fmt='o-', linewidth=2, markersize=8, capsize=5, capthick=2,
+                color='#2ca02c', ecolor='#2ca02c', alpha=0.8,
+                label=f'Mean ± Std ({len(lens_combos_data)} lens combos)')
+    
+    if fit_type and len(wavelengths) > 2:
+        valid_mask = ~np.isnan(mean_couplings)
+        wl_valid = wavelengths[valid_mask]
+        coupling_valid = mean_couplings[valid_mask]
+        
+        if len(wl_valid) > 2:
+            if fit_type == 'polynomial':
+                degree = min(3, len(wl_valid) - 1)
+                coeffs = np.polyfit(wl_valid, coupling_valid, degree)
+                poly = np.poly1d(coeffs)
+                wl_fit = np.linspace(wl_valid.min(), wl_valid.max(), 100)
+                coupling_fit = poly(wl_fit)
+                plt.plot(wl_fit, coupling_fit, '--', color='#d62728', 
+                        linewidth=2, alpha=0.7, label=f'Polynomial fit (deg {degree})')
+            
+            elif fit_type == 'spline':
+                from scipy.interpolate import UnivariateSpline
+                if len(wl_valid) >= 4:
+                    k = min(3, len(wl_valid) - 1)
+                    spl = UnivariateSpline(wl_valid, coupling_valid, k=k, s=0.001)
+                    wl_fit = np.linspace(wl_valid.min(), wl_valid.max(), 100)
+                    coupling_fit = spl(wl_fit)
+                    plt.plot(wl_fit, coupling_fit, '--', color='#d62728', 
+                            linewidth=2, alpha=0.7, label='Spline fit')
+    
+    plt.xlabel('Wavelength (nm)', fontsize=12)
+    plt.ylabel('Coupling Efficiency', fontsize=12)
+    
+    method_display = method.replace('_', ' ').title()
+    plt.title(f'Coupling vs Wavelength (Aggregated) - {method_display}', fontsize=14)
+    
+    plt.legend(loc='best', fontsize=10)
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    
+    if not os.path.exists(plot_dir):
+        os.makedirs(plot_dir)
+    
+    fit_suffix = f'_{fit_type}' if fit_type else ''
+    filename = os.path.join(plot_dir, f'{method}_aggregated{fit_suffix}.png')
+    plt.savefig(filename, dpi=150, bbox_inches='tight')
+    plt.close()

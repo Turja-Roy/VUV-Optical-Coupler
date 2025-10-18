@@ -22,8 +22,131 @@ def main():
         run_id = f"analyze_{args['date']}_coupling_{threshold_str}_{args['medium']}"
     elif args['mode'] == 'wavelength-analyze':
         run_id = f"wavelength_analyze_{args['date']}"
+    elif args['mode'] == 'wavelength-analyze-plot':
+        run_id = Path(args['results_dir']).name
     else:
         run_id = f"{args['date']}_{args['method']}_{args['optimizer']}_{args['medium']}"
+
+    # Handle wavelength-analyze-plot mode
+    if args['mode'] == 'wavelength-analyze-plot':
+        import glob
+        import os
+        
+        print("\n" + "="*60)
+        print("Wavelength Analysis Plotting")
+        print("="*60)
+        print(f"Results directory: {args['results_dir']}")
+        print(f"Plot directory: plots/{run_id}/")
+        if args['fit_type']:
+            print(f"Curve fitting: {args['fit_type']}")
+        print("="*60 + "\n")
+        
+        results_dir = Path(args['results_dir'])
+        if not results_dir.exists():
+            print(f"Error: Results directory '{args['results_dir']}' does not exist")
+            return
+        
+        csv_files = list(results_dir.glob('*_wavelength.csv'))
+        if not csv_files:
+            print(f"Error: No wavelength CSV files found in '{args['results_dir']}'")
+            return
+        
+        print(f"Found {len(csv_files)} wavelength CSV file(s)")
+        
+        from scripts.visualizers import plot_wavelength_per_lens, plot_wavelength_per_method
+        
+        all_data = {}
+        for csv_file in csv_files:
+            df = pd.read_csv(csv_file)
+            lens1 = df['lens1'].iloc[0]
+            lens2 = df['lens2'].iloc[0]
+            combo_name = f"{lens1}+{lens2}"
+            
+            all_data[combo_name] = {}
+            
+            for method in df['method'].unique():
+                method_df = df[df['method'] == method]
+                wavelengths = np.array(method_df['wavelength_nm'])
+                couplings = np.array(method_df['coupling'])
+                sorted_indices = np.argsort(wavelengths)
+                all_data[combo_name][method] = {
+                    'wavelengths': wavelengths[sorted_indices],
+                    'couplings': couplings[sorted_indices]
+                }
+        
+        plot_base_dir = Path(f'./plots/{run_id}')
+        per_lens_dir = plot_base_dir / 'per_lens'
+        per_method_dir = plot_base_dir / 'per_method'
+        
+        if args['aggregate']:
+            from scripts.visualizers import plot_wavelength_per_lens_aggregated, plot_wavelength_per_method_aggregated
+            
+            per_lens_agg_dir = plot_base_dir / 'per_lens_aggregated'
+            per_method_agg_dir = plot_base_dir / 'per_method_aggregated'
+            
+            print("\nGenerating aggregated per-lens-combination plots (with error bars)...")
+            for combo_name, methods_data in all_data.items():
+                lens1, lens2 = combo_name.split('+')
+                plot_wavelength_per_lens_aggregated(lens1, lens2, methods_data, 
+                                                   str(per_lens_agg_dir), args['fit_type'])
+                print(f"  Created aggregated plot for {combo_name}")
+            
+            print("\nGenerating aggregated per-method plots (with error bars)...")
+            all_methods = set()
+            for combo_data in all_data.values():
+                all_methods.update(combo_data.keys())
+            
+            for method in sorted(all_methods):
+                lens_combos_data = {}
+                for combo_name, methods_data in all_data.items():
+                    if method in methods_data:
+                        lens_combos_data[combo_name] = methods_data[method]
+                
+                if lens_combos_data:
+                    plot_wavelength_per_method_aggregated(method, lens_combos_data, 
+                                                         str(per_method_agg_dir), args['fit_type'])
+                    print(f"  Created aggregated plot for {method}")
+            
+            print("\n" + "="*60)
+            print("Aggregated Plotting Complete!")
+            print("="*60)
+            print(f"Per-lens aggregated plots: {per_lens_agg_dir}/")
+            print(f"Per-method aggregated plots: {per_method_agg_dir}/")
+            print()
+        else:
+            from scripts.visualizers import plot_wavelength_per_lens, plot_wavelength_per_method
+            
+            print("\nGenerating per-lens-combination plots...")
+            for combo_name, methods_data in all_data.items():
+                lens1, lens2 = combo_name.split('+')
+                plot_wavelength_per_lens(lens1, lens2, methods_data, 
+                                        str(per_lens_dir), args['fit_type'])
+                print(f"  Created plot for {combo_name}")
+            
+            print("\nGenerating per-method plots...")
+            all_methods = set()
+            for combo_data in all_data.values():
+                all_methods.update(combo_data.keys())
+            
+            for method in sorted(all_methods):
+                lens_combos_data = {}
+                for combo_name, methods_data in all_data.items():
+                    if method in methods_data:
+                        lens_combos_data[combo_name] = methods_data[method]
+                
+                if lens_combos_data:
+                    plot_wavelength_per_method(method, lens_combos_data, 
+                                              str(per_method_dir), args['fit_type'])
+                    print(f"  Created plot for {method}")
+            
+            print("\n" + "="*60)
+            print("Plotting Complete!")
+            print("="*60)
+            print(f"Per-lens plots saved to: {per_lens_dir}/")
+            print(f"Per-method plots saved to: {per_method_dir}/")
+            print()
+        
+        return
 
     print("\n" + "="*60)
     print("Lens Configuration Optimizer")
