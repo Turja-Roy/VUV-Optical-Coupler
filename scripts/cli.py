@@ -5,7 +5,6 @@ from scripts import consts as C
 
 
 def print_usage():
-    """Print usage information."""
     print("""
 Usage:
     python raytrace.py <command> [options]
@@ -89,7 +88,6 @@ Examples:
 
 
 def parse_arguments():
-    """Parse command line arguments."""
     args = {
         'mode': None,
         'lens1': None,
