@@ -16,6 +16,7 @@ Commands:
     select                        Run all L1 x L2 combinations
     combine                       Run all combinations from Combined_Lenses.csv
     analyze                       Analyze high-coupling results with all methods
+    wavelength-analyze            Analyze wavelength dependence of lens combinations
 
 Options:
     --opt <method>                Optimization method (default: differential_evolution)
@@ -26,7 +27,11 @@ Options:
     --medium <type>               Medium for light propagation (default: air)
                                   Options: air, argon, helium
     --coupling-threshold <value>  Minimum coupling for analyze mode (required for analyze)
-    --results-file <path>         Path to results CSV file (required for analyze)
+    --results-file <path>         Path to results CSV file (required for analyze and wavelength-analyze)
+    --wl-start <nm>               Starting wavelength for wavelength-analyze (default: 180)
+    --wl-end <nm>                 Ending wavelength for wavelength-analyze (default: 300)
+    --wl-step <nm>                Wavelength step for wavelength-analyze (default: 10)
+    --n-rays <count>              Number of rays for ray tracing (default: 1000)
     continue                      Continue incomplete batch run
     <YYYY-MM-DD>                  Specify run date
 
@@ -54,6 +59,12 @@ Examples:
     
     # Analyze high-coupling results with all methods
     python raytrace.py analyze --results-file results/2025-10-16/results_*.csv --coupling-threshold 0.2
+    
+    # Run wavelength analysis on specific lens combinations
+    python raytrace.py wavelength-analyze --results-file results/2025-10-17/36-681+LA4647.csv
+    
+    # Custom wavelength range and finer steps
+    python raytrace.py wavelength-analyze --results-file results/2025-10-17/36-681+LA4647.csv --wl-start 200 --wl-end 250 --wl-step 5
 """)
 
 
@@ -70,7 +81,11 @@ def parse_arguments():
         'continue': False,
         'date': C.DATE_STR,
         'coupling_threshold': None,
-        'results_file': None
+        'results_file': None,
+        'wl_start': 180,
+        'wl_end': 300,
+        'wl_step': 10,
+        'n_rays': 1000
     }
 
     if len(sys.argv) < 2:
@@ -102,12 +117,15 @@ def parse_arguments():
     elif sys.argv[1] == 'analyze':
         args['mode'] = 'analyze'
 
+    elif sys.argv[1] == 'wavelength-analyze':
+        args['mode'] = 'wavelength-analyze'
+
     else:
         print(f"Error: Unknown command '{sys.argv[1]}'")
         print_usage()
         sys.exit(1)
 
-    i = 2 if args['mode'] in ['method', 'analyze'] else 4
+    i = 2 if args['mode'] in ['method', 'analyze', 'wavelength-analyze'] else 4
     while i < len(sys.argv):
         arg = sys.argv[i]
 
@@ -165,6 +183,56 @@ def parse_arguments():
                 print("Error: --results-file requires a file path")
                 sys.exit(1)
 
+        elif arg == '--wl-start':
+            if i + 1 < len(sys.argv):
+                try:
+                    args['wl_start'] = int(sys.argv[i + 1])
+                except ValueError:
+                    print("Error: --wl-start must be an integer")
+                    sys.exit(1)
+                i += 2
+            else:
+                print("Error: --wl-start requires a value")
+                sys.exit(1)
+
+        elif arg == '--wl-end':
+            if i + 1 < len(sys.argv):
+                try:
+                    args['wl_end'] = int(sys.argv[i + 1])
+                except ValueError:
+                    print("Error: --wl-end must be an integer")
+                    sys.exit(1)
+                i += 2
+            else:
+                print("Error: --wl-end requires a value")
+                sys.exit(1)
+
+        elif arg == '--wl-step':
+            if i + 1 < len(sys.argv):
+                try:
+                    args['wl_step'] = int(sys.argv[i + 1])
+                except ValueError:
+                    print("Error: --wl-step must be an integer")
+                    sys.exit(1)
+                i += 2
+            else:
+                print("Error: --wl-step requires a value")
+                sys.exit(1)
+
+        elif arg == '--n-rays':
+            if i + 1 < len(sys.argv):
+                try:
+                    args['n_rays'] = int(sys.argv[i + 1])
+                except ValueError:
+                    print("Error: --n-rays must be an integer")
+                    sys.exit(1)
+                i += 2
+            else:
+                print("Error: --n-rays requires a value")
+                sys.exit(1)
+
+
+
         elif arg == 'continue':
             args['continue'] = True
             i += 1
@@ -185,6 +253,12 @@ def parse_arguments():
             sys.exit(1)
         if args['results_file'] is None:
             print("Error: analyze mode requires --results-file")
+            print_usage()
+            sys.exit(1)
+
+    if args['mode'] == 'wavelength-analyze':
+        if args['results_file'] is None:
+            print("Error: wavelength-analyze mode requires --results-file")
             print_usage()
             sys.exit(1)
 

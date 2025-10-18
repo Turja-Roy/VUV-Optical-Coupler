@@ -13,6 +13,38 @@ def fused_silica_n(lambda_nm):
     return __import__("math").sqrt(n2)
 
 
+def medium_refractive_index(wavelength_nm, medium, pressure_atm=1.0, temp_k=293.15):
+    """
+    Calculate wavelength-dependent refractive index of propagation medium.
+    
+    Uses empirical formulas for UV wavelengths (180-300 nm).
+    Based on Edlen equation and NIST data for standard conditions.
+    """
+    lam_um = wavelength_nm / 1000.0
+    
+    if medium == 'air':
+        s = 1.0 / lam_um
+        n_minus_1 = (8342.54 + 2406147.0 / (130.0 - s**2) + 15998.0 / (38.9 - s**2)) * 1e-8
+        n_stp = 1.0 + n_minus_1
+        n = 1.0 + (n_stp - 1.0) * (pressure_atm / 1.0) * (293.15 / temp_k)
+        return n
+    
+    elif medium == 'argon':
+        s = 1.0 / lam_um
+        n_minus_1 = (6432.8 + 2949810.0 / (146.0 - s**2) + 25540.0 / (417.0 - s**2)) * 1e-8
+        n_stp = 1.0 + n_minus_1
+        n = 1.0 + (n_stp - 1.0) * (pressure_atm / 1.0) * (293.15 / temp_k)
+        return n
+    
+    elif medium == 'helium':
+        n_stp = 1.0 + 3.48e-5
+        n = 1.0 + (n_stp - 1.0) * (pressure_atm / 1.0) * (293.15 / temp_k)
+        return n
+    
+    else:
+        return 1.0
+
+
 def o2_cross_section_minschwaner(wavelength_nm):
     if wavelength_nm < 175 or wavelength_nm > 242:
         return 0.0

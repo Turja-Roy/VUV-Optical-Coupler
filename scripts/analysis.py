@@ -188,3 +188,152 @@ def analyze_combos(results_file, coupling_threshold, lenses, run_id, alpha=0.7, 
     logger.info(f"Wrote {len(lens_combos)} CSV files")
     
     return all_results
+
+
+def wavelength_analysis(results_file, run_id, wl_start=180, wl_end=300, wl_step=10, n_rays=1000, alpha=0.7, medium='air'):
+    logger = _setup_logger(run_id)
+    
+    logger.info(f"Loading lens combinations from {results_file}")
+    print(f"\nLoading lens combinations from {results_file}...")
+    
+    df = pd.read_csv(results_file)
+    
+    required_cols = ['lens1', 'lens2']
+    missing_cols = [col for col in required_cols if col not in df.columns]
+    if missing_cols:
+        error_msg = f"Missing required columns: {', '.join(missing_cols)}"
+        logger.error(error_msg)
+        print(f"Error: {error_msg}")
+        return
+    
+    lens_combos = df[['lens1', 'lens2']].drop_duplicates()
+    print(f"Found {len(lens_combos)} lens combinations")
+    logger.info(f"Found {len(lens_combos)} lens combinations")
+    
+    from scripts.data_io import find_combos
+    _, lenses = find_combos('combine')
+    
+    wavelengths = np.arange(wl_start, wl_end + 1, wl_step)
+    methods = ['differential_evolution', 'dual_annealing', 'nelder_mead', 'powell', 'grid_search', 'bayesian']
+    
+    print(f"Parameters: wavelengths={wl_start}-{wl_end}nm (step={wl_step}nm), n_rays={n_rays}, alpha={alpha}, medium={medium}")
+    logger.info(f"Parameters: wavelengths={wl_start}-{wl_end}nm (step={wl_step}nm), n_rays={n_rays}, alpha={alpha}, medium={medium}")
+    
+    try:
+        from scripts.optimization import bayesian
+    except ImportError:
+        print("Warning: Bayesian optimization not available (scikit-optimize not installed)")
+        methods.remove('bayesian')
+    
+    results_dir = Path('./results') / run_id
+    results_dir.mkdir(parents=True, exist_ok=True)
+    
+    print(f"\nRunning wavelength analysis from {wavelengths[0]} to {wavelengths[-1]} nm...")
+    print(f"Total tasks: {len(lens_combos)} combos × {len(methods)} methods × {len(wavelengths)} wavelengths = {len(lens_combos) * len(methods) * len(wavelengths)} optimizations")
+    logger.info(f"Wavelength range: {wavelengths[0]}-{wavelengths[-1]} nm in {len(wavelengths)} steps")
+    logger.info(f"Total optimizations: {len(lens_combos) * len(methods) * len(wavelengths)}")
+    
+    for idx, row in tqdm(lens_combos.iterrows(), total=len(lens_combos), desc="Lens combinations"):
+        lens1, lens2 = row['lens1'], row['lens2']
+        combo_id = f"{lens1}+{lens2}"
+        
+        print(f"\nAnalyzing {combo_id}")
+        logger.info(f"Starting wavelength analysis for {combo_id}")
+        
+        temp_file = results_dir / f"temp_batch_wavelength_{combo_id}.json"
+        completed_runs = set()
+        
+        if temp_file.exists():
+            print(f"  Found existing progress, resuming...")
+            logger.info(f"Resuming from temp file: {temp_file}")
+            import json
+            try:
+                with open(temp_file, 'r') as f:
+                    existing_data = json.load(f)
+                    for entry in existing_data:
+                        key = (entry['method'], entry['wavelength_nm'])
+                        completed_runs.add(key)
+                print(f"  Skipping {len(completed_runs)} already-completed runs")
+                logger.info(f"Found {len(completed_runs)} completed runs")
+            except json.JSONDecodeError:
+                logger.warning("Could not parse temp file, starting fresh")
+        
+        for method in methods:
+            print(f"  Running {method}...")
+            logger.info(f"  Method: {method}")
+            
+            for wavelength in tqdm(wavelengths, desc=f"  {method}", leave=False):
+                if (method, float(wavelength)) in completed_runs:
+                    continue
+                
+                import scripts.consts as C
+                original_wavelength = C.WAVELENGTH_NM
+                C.WAVELENGTH_NM = wavelength
+                
+                try:
+                    res = None
+                    if method == 'differential_evolution':
+                        from scripts.optimization import differential_evolution as optimizer
+                        res = optimizer.optimize(lenses, lens1, lens2, n_rays=n_rays, alpha=alpha, medium=medium)
+                    elif method == 'dual_annealing':
+                        from scripts.optimization import dual_annealing as optimizer
+                        res = optimizer.optimize(lenses, lens1, lens2, n_rays=n_rays, alpha=alpha, medium=medium)
+                    elif method == 'nelder_mead':
+                        from scripts.optimization import nelder_mead as optimizer
+                        res = optimizer.optimize(lenses, lens1, lens2, n_rays=n_rays, alpha=alpha, medium=medium)
+                    elif method == 'powell':
+                        from scripts.optimization import powell as optimizer
+                        res = optimizer.optimize(lenses, lens1, lens2, n_rays=n_rays, alpha=alpha, medium=medium)
+                    elif method == 'grid_search':
+                        from scripts.optimization import grid_search as optimizer
+                        res = optimizer.run_grid(run_id, lenses, lens1, lens2, medium=medium)
+                    elif method == 'bayesian':
+                        from scripts.optimization import bayesian as optimizer
+                        res = optimizer.optimize(lenses, lens1, lens2, n_calls=50, n_rays=n_rays, alpha=alpha, medium=medium)
+                    
+                    if res and res['coupling'] > 0:
+                        result_entry = {
+                            'lens1': lens1,
+                            'lens2': lens2,
+                            'method': method,
+                            'wavelength_nm': float(wavelength),
+                            'coupling': float(res['coupling']),
+                            'total_len_mm': float(res['total_len_mm']),
+                            'z_l1': float(res['z_l1']),
+                            'z_l2': float(res['z_l2']),
+                            'z_fiber': float(res['z_fiber'])
+                        }
+                        
+                        write_temp(result_entry, run_id, f'wavelength_{combo_id}')
+                        logger.info(f"    {wavelength}nm: coupling={res['coupling']:.4f}")
+                    else:
+                        logger.warning(f"    {wavelength}nm: optimization failed")
+                    
+                except Exception as e:
+                    logger.error(f"    {wavelength}nm: Error - {str(e)}")
+                
+                finally:
+                    C.WAVELENGTH_NM = original_wavelength
+        
+        if temp_file.exists():
+            import json
+            with open(temp_file, 'r') as f:
+                all_wavelength_data = json.load(f)
+            
+            if all_wavelength_data:
+                combo_df = pd.DataFrame(all_wavelength_data)
+                combo_filename = f"{combo_id}_wavelength.csv"
+                combo_df.to_csv(results_dir / combo_filename, index=False)
+                logger.info(f"Saved data to {combo_filename}")
+                print(f"  Saved {len(all_wavelength_data)} results to {combo_filename}")
+                
+                temp_file.unlink()
+                logger.info(f"Deleted temp file: {temp_file}")
+    
+    print(f"\n{'='*60}")
+    print(f"Wavelength analysis complete!")
+    print(f"Results saved to: results/{run_id}/")
+    print(f"{'='*60}")
+    
+    logger.info("Wavelength analysis complete")
+

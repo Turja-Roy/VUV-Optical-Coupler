@@ -147,7 +147,7 @@ def plot_combined_methods(lenses, results_by_method, lens1, lens2, run_id, n_plo
         ax.set_title(f"{method}\nCoupling: {result['coupling']:.4f}{time_str}", fontsize=10)
 
     plt.suptitle(f"Method Comparison: {lens1} + {lens2}", fontsize=14, y=0.995)
-    plt.tight_layout(rect=[0, 0, 1, 0.99])
+    plt.tight_layout(rect=(0, 0, 1, 0.99))
 
     plot_dir = f"./plots/{run_id}/{lens1}+{lens2}"
     if not __import__("os").path.exists(plot_dir):
@@ -158,14 +158,9 @@ def plot_combined_methods(lenses, results_by_method, lens1, lens2, run_id, n_plo
 
 
 def plot_spot_diagram(best, lenses, run_id):
-    """
-        Spot diagram for best
-        (use the origins/dirs that produced the reported best)
-    """
     accepted_mask = best['accepted']
     origins = best['origins']
     dirs = best['dirs']
-    # compute landing points
     land_x = np.full(origins.shape[0], np.nan)
     land_y = np.full(origins.shape[0], np.nan)
     for i in range(origins.shape[0]):
@@ -217,9 +212,36 @@ def plot_spot_diagram(best, lenses, run_id):
     plt.grid(True)
     plt.legend()
 
-    # Save spot diagram
     if not __import__("os").path.exists('./plots/' + run_id):
         __import__("os").makedirs('./plots/' + run_id)
     plt.savefig(f"./plots/{run_id}/spot_C-{best['coupling']:.4f}_L1-{
                 best['lens1']}_L2-{best['lens2']}.png", dpi=300, bbox_inches='tight')
+    plt.close()
+
+
+def plot_wavelength_coupling(lens1, lens2, methods_data, run_id):
+    plt.figure(figsize=(10, 6))
+    
+    for method, (wavelengths, couplings) in sorted(methods_data.items()):
+        if method == 'default':
+            plt.plot(wavelengths, couplings, 'o-', linewidth=2, markersize=6)
+        else:
+            plt.plot(wavelengths, couplings, 'o-', linewidth=2, markersize=6, label=method)
+    
+    plt.xlabel('Wavelength (nm)', fontsize=12)
+    plt.ylabel('Coupling Efficiency', fontsize=12)
+    plt.title(f'Coupling vs Wavelength: {lens1} + {lens2}', fontsize=14)
+    
+    if len(methods_data) > 1 or 'default' not in methods_data:
+        plt.legend(loc='best')
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    
+    plot_dir = f"./plots/{run_id}"
+    if not __import__("os").path.exists(plot_dir):
+        __import__("os").makedirs(plot_dir)
+    
+    filename = f"{plot_dir}/wavelength_{lens1}+{lens2}.png"
+    
+    plt.savefig(filename, dpi=150, bbox_inches='tight')
     plt.close()

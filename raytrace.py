@@ -20,6 +20,8 @@ def main():
     elif args['mode'] == 'analyze':
         threshold_str = f"{args['coupling_threshold']:.2f}".replace('.', '_')
         run_id = f"analyze_{args['date']}_coupling_{threshold_str}_{args['medium']}"
+    elif args['mode'] == 'wavelength-analyze':
+        run_id = f"wavelength_analyze_{args['date']}"
     else:
         run_id = f"{args['date']}_{args['method']}_{args['optimizer']}_{args['medium']}"
 
@@ -27,7 +29,14 @@ def main():
     print("Lens Configuration Optimizer")
     print("="*60)
     print(f"Run ID: {run_id}")
-    if args['mode'] != 'analyze':
+    if args['mode'] == 'wavelength-analyze':
+        print(f"Mode: Wavelength Analysis")
+        print(f"Input CSV: {args['results_file']}")
+        print(f"Wavelength range: {args['wl_start']}-{args['wl_end']} nm (step: {args['wl_step']} nm)")
+        print(f"Rays per trace: {args['n_rays']}")
+        print(f"Medium: {args['medium']}")
+        print(f"Alpha (coupling weight): {args['alpha']}")
+    elif args['mode'] != 'analyze':
         print(f"Optimizer: {args['optimizer']}")
         print(f"Medium: {args['medium']}")
         if args['optimizer'] != 'grid_search':
@@ -38,6 +47,25 @@ def main():
         print(f"Coupling threshold: {args['coupling_threshold']}")
         print(f"Results file: {args['results_file']}")
     print("="*60 + "\n")
+
+    # Handle wavelength-analyze mode
+    if args['mode'] == 'wavelength-analyze':
+        from scripts.analysis import wavelength_analysis
+        
+        Path(f'./results/{run_id}').mkdir(parents=True, exist_ok=True)
+        
+        wavelength_analysis(
+            args['results_file'], 
+            run_id,
+            wl_start=args['wl_start'],
+            wl_end=args['wl_end'],
+            wl_step=args['wl_step'],
+            n_rays=args['n_rays'],
+            alpha=args['alpha'],
+            medium=args['medium']
+        )
+        
+        return
 
     # Handle analyze mode
     if args['mode'] == 'analyze':
