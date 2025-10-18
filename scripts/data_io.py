@@ -5,9 +5,13 @@ def fetch_lens_data(method):
     """Fetch lens data from CSV files and return as dictionaries."""
     lens1, lens2, lenses = {}, {}, {}
 
-    if method == 'select':
-        l1_candidates = pd.read_csv('./data/l1_candidates.csv')
-        l2_candidates = pd.read_csv('./data/l2_candidates.csv')
+    if method == 'select' or method == 'select_ext':
+        if method == 'select_ext':
+            l1_candidates = pd.read_csv('./data/l1_candidates_ext.csv')
+            l2_candidates = pd.read_csv('./data/l2_candidates_ext.csv')
+        else:
+            l1_candidates = pd.read_csv('./data/l1_candidates.csv')
+            l2_candidates = pd.read_csv('./data/l2_candidates.csv')
 
         for _, row in l1_candidates.iterrows():
             lens1[row['Item #']] = {'dia': row['Diameter (mm)'],
@@ -41,7 +45,7 @@ def fetch_lens_data(method):
 
 def find_combos(method):
     """Generate all lens combinations to evaluate (based on method)"""
-    if method == 'select':
+    if method == 'select' or method == 'select_ext':
         lens1, lens2, lenses = fetch_lens_data(method)
         combos = []
         for a in lens1:

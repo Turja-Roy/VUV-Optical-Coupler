@@ -12,7 +12,8 @@ Usage:
 Commands:
     particular <lens1> <lens2>    Run optimization for specific lens pair
     compare <lens1> <lens2>       Compare all optimization methods
-    select                        Run all L1 x L2 combinations
+    select                        Run all L1 x L2 combinations (smart filtered)
+    select-ext                    Run all L1 x L2 combinations (extended - all L2 diameters)
     combine                       Run all combinations from Combined_Lenses.csv
     analyze                       Analyze high-coupling results with all methods
     wavelength-analyze            Analyze wavelength dependence of lens combinations
@@ -131,9 +132,9 @@ def parse_arguments():
         args['lens1'] = sys.argv[2]
         args['lens2'] = sys.argv[3]
 
-    elif sys.argv[1] in ['select', 'combine']:
+    elif sys.argv[1] in ['select', 'select-ext', 'combine']:
         args['mode'] = 'method'
-        args['method'] = sys.argv[1]
+        args['method'] = sys.argv[1].replace('-', '_')
 
     elif sys.argv[1] == 'analyze':
         args['mode'] = 'analyze'
