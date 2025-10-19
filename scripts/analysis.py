@@ -235,7 +235,7 @@ def wavelength_analysis(results_file, run_id, wl_start=180, wl_end=300, wl_step=
     
     for idx, row in tqdm(lens_combos.iterrows(), total=len(lens_combos), desc="Lens combinations"):
         lens1, lens2 = row['lens1'], row['lens2']
-        combo_id = f"{lens1}+{lens2}"
+        combo_id = f"{lens1}+{lens2}_{medium}"
         
         print(f"\nAnalyzing {combo_id}")
         logger.info(f"Starting wavelength analysis for {combo_id}")
@@ -301,7 +301,8 @@ def wavelength_analysis(results_file, run_id, wl_start=180, wl_end=300, wl_step=
                             'total_len_mm': float(res['total_len_mm']),
                             'z_l1': float(res['z_l1']),
                             'z_l2': float(res['z_l2']),
-                            'z_fiber': float(res['z_fiber'])
+                            'z_fiber': float(res['z_fiber']),
+                            'medium': medium
                         }
                         
                         write_temp(result_entry, run_id, f'wavelength_{combo_id}')

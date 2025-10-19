@@ -60,19 +60,37 @@ def main():
             df = pd.read_csv(csv_file)
             lens1 = df['lens1'].iloc[0]
             lens2 = df['lens2'].iloc[0]
-            combo_name = f"{lens1}+{lens2}"
             
-            all_data[combo_name] = {}
+            has_medium = 'medium' in df.columns
             
-            for method in df['method'].unique():
-                method_df = df[df['method'] == method]
-                wavelengths = np.array(method_df['wavelength_nm'])
-                couplings = np.array(method_df['coupling'])
-                sorted_indices = np.argsort(wavelengths)
-                all_data[combo_name][method] = {
-                    'wavelengths': wavelengths[sorted_indices],
-                    'couplings': couplings[sorted_indices]
-                }
+            if has_medium:
+                for medium in df['medium'].unique():
+                    medium_filtered = df[df['medium'] == medium]
+                    combo_name = f"{lens1}+{lens2}_{medium}"
+                    all_data[combo_name] = {}
+                    
+                    for method in medium_filtered['method'].unique():
+                        method_filtered = medium_filtered[medium_filtered['method'] == method]
+                        wavelengths = np.array(method_filtered['wavelength_nm'])
+                        couplings = np.array(method_filtered['coupling'])
+                        sorted_indices = np.argsort(wavelengths)
+                        all_data[combo_name][method] = {
+                            'wavelengths': wavelengths[sorted_indices],
+                            'couplings': couplings[sorted_indices]
+                        }
+            else:
+                combo_name = f"{lens1}+{lens2}"
+                all_data[combo_name] = {}
+                
+                for method in df['method'].unique():
+                    method_df = df[df['method'] == method]
+                    wavelengths = np.array(method_df['wavelength_nm'])
+                    couplings = np.array(method_df['coupling'])
+                    sorted_indices = np.argsort(wavelengths)
+                    all_data[combo_name][method] = {
+                        'wavelengths': wavelengths[sorted_indices],
+                        'couplings': couplings[sorted_indices]
+                    }
         
         plot_base_dir = Path(f'./plots/{run_id}')
         per_lens_dir = plot_base_dir / 'per_lens'
