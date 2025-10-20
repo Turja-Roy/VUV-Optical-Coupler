@@ -58,6 +58,7 @@ def main():
         all_data = {}
         for csv_file in csv_files:
             df = pd.read_csv(csv_file)
+            # df = df[df['method'] != 'nelder_mead']  # Exclude 'nelder_mead' method (temporary)
             lens1 = df['lens1'].iloc[0]
             lens2 = df['lens2'].iloc[0]
             

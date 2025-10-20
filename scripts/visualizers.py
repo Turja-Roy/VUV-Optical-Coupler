@@ -303,6 +303,8 @@ def plot_wavelength_per_lens(lens1, lens2, methods_data, plot_dir, fit_type=None
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
     
+    plt.ylim(-0.25, 0.40)  # Fixed y-axis limits for better comparison
+    
     if not os.path.exists(plot_dir):
         os.makedirs(plot_dir)
     
@@ -372,6 +374,8 @@ def plot_wavelength_per_method(method, lens_combos_data, plot_dir, fit_type=None
     plt.legend(loc='best', fontsize=9, ncol=ncol, framealpha=0.9)
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
+    
+    plt.ylim(-0.25, 0.40)  # Fixed y-axis limits for better comparison
     
     if not os.path.exists(plot_dir):
         os.makedirs(plot_dir)
@@ -450,6 +454,8 @@ def plot_wavelength_per_lens_aggregated(lens1, lens2, methods_data, plot_dir, fi
     plt.legend(loc='best', fontsize=10)
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
+    
+    plt.ylim(-0.25, 0.40)  # Fixed y-axis limits for better comparison
     
     if not os.path.exists(plot_dir):
         os.makedirs(plot_dir)
@@ -531,6 +537,8 @@ def plot_wavelength_per_method_aggregated(method, lens_combos_data, plot_dir, fi
     plt.legend(loc='best', fontsize=10)
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
+    
+    plt.ylim(-0.25, 0.40)  # Fixed y-axis limits for better comparison
     
     if not os.path.exists(plot_dir):
         os.makedirs(plot_dir)

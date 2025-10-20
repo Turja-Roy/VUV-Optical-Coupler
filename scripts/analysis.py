@@ -190,7 +190,34 @@ def analyze_combos(results_file, coupling_threshold, lenses, run_id, alpha=0.7, 
     return all_results
 
 
-def wavelength_analysis(results_file, run_id, wl_start=180, wl_end=300, wl_step=10, n_rays=1000, alpha=0.7, medium='air'):
+def evaluate_fixed_config_at_wavelength(lenses, lens1, lens2, z_l1, z_l2, z_fiber, wavelength, n_rays=2000, medium='air'):
+    from scripts.PlanoConvex import PlanoConvex
+    from scripts.raytrace_helpers import sample_rays, trace_system
+    from scripts import consts as C
+    
+    d1, d2 = lenses[lens1], lenses[lens2]
+    
+    original_wavelength = C.WAVELENGTH_NM
+    C.WAVELENGTH_NM = wavelength
+    
+    try:
+        origins, dirs = sample_rays(n_rays)
+        lens1_obj = PlanoConvex(z_l1, d1['R_mm'], d1['tc_mm'], d1['te_mm'], d1['dia']/2.0)
+        lens2_obj = PlanoConvex(z_l2, d2['R_mm'], d2['tc_mm'], d2['te_mm'], d2['dia']/2.0)
+        
+        accepted, transmission = trace_system(origins, dirs, lens1_obj, lens2_obj,
+                                z_fiber, C.FIBER_CORE_DIAM_MM/2.0, C.ACCEPTANCE_HALF_RAD,
+                                medium, C.PRESSURE_ATM, C.TEMPERATURE_K, C.HUMIDITY_FRACTION)
+        
+        avg_transmission = np.mean(transmission[accepted]) if np.any(accepted) else 0.0
+        coupling = (np.count_nonzero(accepted) / n_rays) * avg_transmission
+        
+        return coupling
+    finally:
+        C.WAVELENGTH_NM = original_wavelength
+
+
+def wavelength_analysis(results_file, run_id, wl_start=180, wl_end=300, wl_step=10, n_rays=2000, alpha=0.7, medium='air'):
     logger = _setup_logger(run_id)
     
     logger.info(f"Loading lens combinations from {results_file}")
@@ -216,8 +243,10 @@ def wavelength_analysis(results_file, run_id, wl_start=180, wl_end=300, wl_step=
     wavelengths = np.arange(wl_start, wl_end + 1, wl_step)
     methods = ['differential_evolution', 'dual_annealing', 'nelder_mead', 'powell', 'grid_search', 'bayesian']
     
-    print(f"Parameters: wavelengths={wl_start}-{wl_end}nm (step={wl_step}nm), n_rays={n_rays}, alpha={alpha}, medium={medium}")
-    logger.info(f"Parameters: wavelengths={wl_start}-{wl_end}nm (step={wl_step}nm), n_rays={n_rays}, alpha={alpha}, medium={medium}")
+    print(f"Parameters: wavelengths={wl_start}-{wl_end}nm (step={wl_step}nm), n_rays={n_rays}, medium={medium}")
+    print(f"Strategy: Calibrate at 200nm, then test fixed geometry across wavelengths")
+    logger.info(f"Parameters: wavelengths={wl_start}-{wl_end}nm (step={wl_step}nm), n_rays={n_rays}, medium={medium}")
+    logger.info(f"Strategy: Using fixed 200nm calibration across all wavelengths")
     
     try:
         from scripts.optimization import bayesian
@@ -229,9 +258,11 @@ def wavelength_analysis(results_file, run_id, wl_start=180, wl_end=300, wl_step=
     results_dir.mkdir(parents=True, exist_ok=True)
     
     print(f"\nRunning wavelength analysis from {wavelengths[0]} to {wavelengths[-1]} nm...")
-    print(f"Total tasks: {len(lens_combos)} combos × {len(methods)} methods × {len(wavelengths)} wavelengths = {len(lens_combos) * len(methods) * len(wavelengths)} optimizations")
+    print(f"Total tasks: {len(lens_combos)} combos × {len(methods)} methods = {len(lens_combos) * len(methods)} calibrations")
+    print(f"             + {len(lens_combos)} combos × {len(methods)} methods × {len(wavelengths)} wavelengths = {len(lens_combos) * len(methods) * len(wavelengths)} evaluations")
     logger.info(f"Wavelength range: {wavelengths[0]}-{wavelengths[-1]} nm in {len(wavelengths)} steps")
-    logger.info(f"Total optimizations: {len(lens_combos) * len(methods) * len(wavelengths)}")
+    logger.info(f"Total calibrations: {len(lens_combos) * len(methods)}")
+    logger.info(f"Total evaluations: {len(lens_combos) * len(methods) * len(wavelengths)}")
     
     for idx, row in tqdm(lens_combos.iterrows(), total=len(lens_combos), desc="Lens combinations"):
         lens1, lens2 = row['lens1'], row['lens2']
@@ -241,81 +272,137 @@ def wavelength_analysis(results_file, run_id, wl_start=180, wl_end=300, wl_step=
         logger.info(f"Starting wavelength analysis for {combo_id}")
         
         temp_file = results_dir / f"temp_batch_wavelength_{combo_id}.json"
-        completed_runs = set()
+        calibrations = {}
+        completed_wavelengths = {}
         
         if temp_file.exists():
-            print(f"  Found existing progress, resuming...")
+            print(f"  Found existing progress, loading...")
             logger.info(f"Resuming from temp file: {temp_file}")
             import json
             try:
                 with open(temp_file, 'r') as f:
                     existing_data = json.load(f)
                     for entry in existing_data:
-                        key = (entry['method'], entry['wavelength_nm'])
-                        completed_runs.add(key)
-                print(f"  Skipping {len(completed_runs)} already-completed runs")
-                logger.info(f"Found {len(completed_runs)} completed runs")
-            except json.JSONDecodeError:
-                logger.warning("Could not parse temp file, starting fresh")
+                        method = entry['method']
+                        wl = entry['wavelength_nm']
+                        
+                        if method not in calibrations:
+                            calibrations[method] = {
+                                'z_l1': entry['z_l1'],
+                                'z_l2': entry['z_l2'],
+                                'z_fiber': entry['z_fiber'],
+                                'total_len_mm': entry['total_len_mm']
+                            }
+                        
+                        if method not in completed_wavelengths:
+                            completed_wavelengths[method] = set()
+                        completed_wavelengths[method].add(wl)
+                
+                total_completed = sum(len(wls) for wls in completed_wavelengths.values())
+                print(f"  Loaded {len(calibrations)} calibrations, {total_completed} completed evaluations")
+                logger.info(f"Loaded {len(calibrations)} calibrations, {total_completed} completed evaluations")
+            except (json.JSONDecodeError, KeyError) as e:
+                logger.warning(f"Could not parse temp file: {e}, starting fresh")
+                calibrations = {}
+                completed_wavelengths = {}
         
         for method in methods:
-            print(f"  Running {method}...")
-            logger.info(f"  Method: {method}")
+            if method in calibrations:
+                print(f"  Skipping calibration for {method} (already done)")
+                logger.info(f"  Skipping calibration for {method} (already done)")
+                continue
             
-            for wavelength in tqdm(wavelengths, desc=f"  {method}", leave=False):
-                if (method, float(wavelength)) in completed_runs:
-                    continue
+            print(f"  Calibrating with {method} at 200nm...")
+            logger.info(f"  Calibrating with {method} at 200nm")
+            
+            import scripts.consts as C
+            original_wavelength = C.WAVELENGTH_NM
+            C.WAVELENGTH_NM = 200.0
+            
+            try:
+                res = None
+                if method == 'differential_evolution':
+                    from scripts.optimization import differential_evolution as optimizer
+                    res = optimizer.optimize(lenses, lens1, lens2, n_rays=n_rays, alpha=alpha, medium=medium)
+                elif method == 'dual_annealing':
+                    from scripts.optimization import dual_annealing as optimizer
+                    res = optimizer.optimize(lenses, lens1, lens2, n_rays=n_rays, alpha=alpha, medium=medium)
+                elif method == 'nelder_mead':
+                    from scripts.optimization import nelder_mead as optimizer
+                    res = optimizer.optimize(lenses, lens1, lens2, n_rays=n_rays, alpha=alpha, medium=medium)
+                elif method == 'powell':
+                    from scripts.optimization import powell as optimizer
+                    res = optimizer.optimize(lenses, lens1, lens2, n_rays=n_rays, alpha=alpha, medium=medium)
+                elif method == 'grid_search':
+                    from scripts.optimization import grid_search as optimizer
+                    res = optimizer.run_grid(run_id, lenses, lens1, lens2, medium=medium)
+                elif method == 'bayesian':
+                    from scripts.optimization import bayesian as optimizer
+                    res = optimizer.optimize(lenses, lens1, lens2, n_calls=50, n_rays=n_rays, alpha=alpha, medium=medium)
                 
-                import scripts.consts as C
-                original_wavelength = C.WAVELENGTH_NM
-                C.WAVELENGTH_NM = wavelength
+                if res and res['coupling'] > 0:
+                    calibrations[method] = {
+                        'z_l1': res['z_l1'],
+                        'z_l2': res['z_l2'],
+                        'z_fiber': res['z_fiber'],
+                        'total_len_mm': res['total_len_mm']
+                    }
+                    logger.info(f"    Calibrated: z_l1={res['z_l1']:.2f}, z_l2={res['z_l2']:.2f}, z_fiber={res['z_fiber']:.2f}, coupling@200nm={res['coupling']:.4f}")
+                else:
+                    logger.warning(f"    Calibration failed for {method}")
                 
+            except Exception as e:
+                logger.error(f"    Calibration error with {method}: {str(e)}")
+            
+            finally:
+                C.WAVELENGTH_NM = original_wavelength
+        
+        print(f"  Calibrations ready: {len(calibrations)}/{len(methods)} methods")
+        logger.info(f"  Calibrations ready: {len(calibrations)}/{len(methods)} methods")
+        
+        for method, calib in calibrations.items():
+            completed_for_method = completed_wavelengths.get(method, set())
+            remaining = [wl for wl in wavelengths if float(wl) not in completed_for_method]
+            
+            if len(remaining) == 0:
+                print(f"  Skipping {method} (all wavelengths done)")
+                logger.info(f"  Skipping {method} (all wavelengths done)")
+                continue
+            
+            if len(remaining) < len(wavelengths):
+                print(f"  Testing {method} ({len(remaining)}/{len(wavelengths)} remaining)...")
+            else:
+                print(f"  Testing {method} calibration across wavelengths...")
+            logger.info(f"  Testing {method} calibration: {len(remaining)} wavelengths remaining")
+            
+            for wavelength in tqdm(remaining, desc=f"  {method}", leave=False):
                 try:
-                    res = None
-                    if method == 'differential_evolution':
-                        from scripts.optimization import differential_evolution as optimizer
-                        res = optimizer.optimize(lenses, lens1, lens2, n_rays=n_rays, alpha=alpha, medium=medium)
-                    elif method == 'dual_annealing':
-                        from scripts.optimization import dual_annealing as optimizer
-                        res = optimizer.optimize(lenses, lens1, lens2, n_rays=n_rays, alpha=alpha, medium=medium)
-                    elif method == 'nelder_mead':
-                        from scripts.optimization import nelder_mead as optimizer
-                        res = optimizer.optimize(lenses, lens1, lens2, n_rays=n_rays, alpha=alpha, medium=medium)
-                    elif method == 'powell':
-                        from scripts.optimization import powell as optimizer
-                        res = optimizer.optimize(lenses, lens1, lens2, n_rays=n_rays, alpha=alpha, medium=medium)
-                    elif method == 'grid_search':
-                        from scripts.optimization import grid_search as optimizer
-                        res = optimizer.run_grid(run_id, lenses, lens1, lens2, medium=medium)
-                    elif method == 'bayesian':
-                        from scripts.optimization import bayesian as optimizer
-                        res = optimizer.optimize(lenses, lens1, lens2, n_calls=50, n_rays=n_rays, alpha=alpha, medium=medium)
+                    coupling = evaluate_fixed_config_at_wavelength(
+                        lenses, lens1, lens2,
+                        calib['z_l1'], calib['z_l2'], calib['z_fiber'],
+                        wavelength, n_rays=n_rays, medium=medium
+                    )
                     
-                    if res and res['coupling'] > 0:
-                        result_entry = {
-                            'lens1': lens1,
-                            'lens2': lens2,
-                            'method': method,
-                            'wavelength_nm': float(wavelength),
-                            'coupling': float(res['coupling']),
-                            'total_len_mm': float(res['total_len_mm']),
-                            'z_l1': float(res['z_l1']),
-                            'z_l2': float(res['z_l2']),
-                            'z_fiber': float(res['z_fiber']),
-                            'medium': medium
-                        }
-                        
-                        write_temp(result_entry, run_id, f'wavelength_{combo_id}')
-                        logger.info(f"    {wavelength}nm: coupling={res['coupling']:.4f}")
-                    else:
-                        logger.warning(f"    {wavelength}nm: optimization failed")
+                    result_entry = {
+                        'lens1': lens1,
+                        'lens2': lens2,
+                        'method': method,
+                        'wavelength_nm': float(wavelength),
+                        'coupling': float(coupling),
+                        'total_len_mm': float(calib['total_len_mm']),
+                        'z_l1': float(calib['z_l1']),
+                        'z_l2': float(calib['z_l2']),
+                        'z_fiber': float(calib['z_fiber']),
+                        'medium': medium
+                    }
+                    
+                    write_temp(result_entry, run_id, f'wavelength_{combo_id}')
+                    logger.info(f"    {wavelength}nm: coupling={coupling:.4f}")
                     
                 except Exception as e:
                     logger.error(f"    {wavelength}nm: Error - {str(e)}")
-                
-                finally:
-                    C.WAVELENGTH_NM = original_wavelength
         
+        temp_file = results_dir / f"temp_batch_wavelength_{combo_id}.json"
         if temp_file.exists():
             import json
             with open(temp_file, 'r') as f:
@@ -337,4 +424,3 @@ def wavelength_analysis(results_file, run_id, wl_start=180, wl_end=300, wl_step=
     print(f"{'='*60}")
     
     logger.info("Wavelength analysis complete")
-
