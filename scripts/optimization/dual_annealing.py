@@ -8,7 +8,8 @@ from scripts.raytrace_helpers import sample_rays, trace_system
 def evaluate_config_fast(params, d1, d2, origins, dirs, n_rays, alpha=0.7, medium='air'):
     z_l1, z_l2 = params
     
-    if z_l1 < C.SOURCE_TO_LENS_OFFSET or z_l2 <= z_l1 + 0.1:
+    min_gap = 0.5
+    if z_l1 < C.SOURCE_TO_LENS_OFFSET or z_l2 <= z_l1 + d1['tc_mm'] + min_gap:
         return 1e6
     
     z_fiber = z_l2 + d2['f_mm']
@@ -42,7 +43,7 @@ def optimize(lenses, name1, name2, n_rays=1000, alpha=0.7, medium='air'):
     bounds = get_bounds(d1['f_mm'], d2['f_mm'])
     result = dual_annealing(
         evaluate_config_fast, bounds,
-        args=(d1, d2, origins, dirs, n_rays, alpha, medium), maxiter=300, seed=42
+        args=(d1, d2, origins, dirs, n_rays, alpha, medium), maxiter=300
     )
     
     z_l1, z_l2 = result.x

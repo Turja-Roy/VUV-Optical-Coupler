@@ -32,7 +32,7 @@ def optimize(lenses, name1, name2, n_calls=100, n_rays=1000, alpha=0.7, medium='
     
     @use_named_args(space)
     def objective(z_l1, z_l2):
-        if z_l2 <= z_l1 + 0.1:
+        if z_l2 <= z_l1 + d1['tc_mm'] + 0.5:
             return 1e6
         
         z_fiber = z_l2 + f2

@@ -20,7 +20,7 @@ DEFAULT_N_REFINE = 1000
 def evaluate_config(z_l1, z_l2, origins, dirs, d1, d2, z_fiber, n_rays, medium='air'):
     if z_l1 < C.SOURCE_TO_LENS_OFFSET:
         return 0.0, np.zeros(n_rays, dtype=bool)
-    if z_l2 <= z_l1 + 0.1:
+    if z_l2 <= z_l1 + d1['tc_mm'] + 0.5:
         return 0.0, np.zeros(n_rays, dtype=bool)
         
     lens1 = PlanoConvex(vertex_z_front=z_l1,
