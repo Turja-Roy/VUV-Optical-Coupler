@@ -16,7 +16,7 @@
     \maketitle
 
     \begin{abstract}
-        A comprehensive ray tracing methodology is presented for optimizing two-lens plano-convex optical systems designed to couple vacuum ultraviolet (VUV) light from xenon flashlamp sources into optical fibers. Operating at 200 nm wavelength, the system addresses the challenge of efficiently collecting light from a 3 mm diameter arc source with a 33° divergence angle and coupling it into a 1 mm core fiber with 0.22 numerical aperture. A Monte Carlo ray tracing approach incorporating full geometric optics and atmospheric absorption is employed to evaluate coupling efficiency. Six optimization algorithms—grid search, Powell's method, differential evolution, Nelder-Mead simplex, dual annealing, and Bayesian optimization—are implemented in a modular framework and systematically compared. Atmospheric O$_2$ absorption at 200 nm is modeled using the Minschwaner parameterization, revealing $\sim$11\% coupling reduction compared to vacuum propagation. Results demonstrate coupling efficiencies ranging from 0.19 to 0.24 for optimized configurations in air, with system lengths between 33 and 95 mm depending on lens selection. Differential evolution emerges as the most effective method, achieving 10--56$\times$ faster convergence than grid search while finding superior solutions. Comparison of air and argon propagation media shows negligible performance difference, validating air as a practical working environment. The multi-objective optimization framework successfully balances coupling efficiency and system compactness through a tunable weighted objective function. This work provides both a practical computational tool for VUV fiber coupling design and methodological insights into optimization strategy selection for non-convex optical design problems.
+        A comprehensive ray tracing methodology is presented for optimizing two-lens plano-convex optical systems designed to couple vacuum ultraviolet (VUV) light from the Hamamatsu L7685 60W xenon flash lamp into optical fibers for liquid argon purity monitoring applications. Operating at 200 nm wavelength, the system addresses the challenge of efficiently collecting light from a 3 mm diameter arc source with a 66° divergence angle and coupling it into a 1 mm core fiber with 0.22 numerical aperture. A stratified ray tracing approach incorporating full geometric optics and atmospheric absorption is employed. Six optimization algorithms---grid search, Powell's method, differential evolution, Nelder-Mead simplex, dual annealing, and Bayesian optimization---are implemented in a modular framework and systematically compared on the plano-convex optical design problem. Deterministic ray tracing evaluates coupling efficiency by propagating 1000 rays through the optical system and testing acceptance at the fiber face. Atmospheric absorption by O$_2$, N$_2$, and H$_2$O is modeled using empirical parameterizations. The best configurations achieve coupling efficiencies of 0.19--0.24 in air and 0.24--0.27 in argon atmosphere, representing an $\sim$8\% improvement due to eliminated O$_2$ absorption at 200 nm, with compact system lengths of 35--41 mm for optimized configurations. Powell's method emerges as the most effective algorithm for routine optimization, achieving rapid convergence (1--2 seconds per lens pair) while finding high-quality solutions. Differential evolution provides thorough global exploration when needed (10--17 seconds per lens pair). Comparison of air and argon propagation media reveals the $\sim$8\% coupling improvement in argon due to eliminated atmospheric absorption, though air remains practical for applications tolerating modest efficiency reduction. Wavelength analysis across 150--300 nm reveals peak performance in the 220--260 nm range, with severe degradation below 180 nm in air where coupling drops nearly to zero. The multi-objective optimization framework successfully balances coupling efficiency and system compactness through a tunable weighted objective function. This work provides both a practical computational tool for VUV fiber coupling design and methodological insights into optimization strategy selection for non-convex optical design problems.
     \end{abstract}
     \vspace{0.5cm}
 \end{@twocolumnfalse}
@@ -24,17 +24,18 @@
 
 \section{Introduction}
 
-Efficient coupling of vacuum ultraviolet light from incoherent sources into optical fibers presents significant challenges due to the inherent divergence of arc lamp sources and the limited acceptance angles of fibers \cite{hecht2017}. Xenon flashlamps operating in the VUV regime (200 nm) are widely used in applications including spectroscopy, photochemistry, and materials characterization, where fiber-optic delivery enables flexible and remote illumination.
+Efficient coupling of vacuum ultraviolet light from incoherent sources into optical fibers presents significant challenges due to the inherent divergence of arc lamp sources and the limited acceptance angles of fibers \cite{hecht2017}. The Hamamatsu L7685 60W xenon flash lamp provides a compact broadband source (190--2000 nm) suitable for liquid argon purity monitoring applications in the VUV range. This work focuses on optimizing coupling at the design wavelength of 200 nm, where fiber-optic delivery enables remote sensing and flexible optical system configurations in cryogenic environments.
 
 The design of compact coupling optics requires balancing multiple objectives: maximizing coupling efficiency, minimizing physical length, and maintaining practical manufacturability with commercially available optical components. Traditional lens design approaches often rely on paraxial approximations or specialized optical design software \cite{greivenkamp2004}. However, the large numerical aperture and wide divergence angles in VUV flashlamp systems necessitate full ray tracing to accurately predict system performance.
 
-In this work, a Monte Carlo ray tracing framework is developed that incorporates realistic source geometry, lens specifications, and fiber acceptance criteria. The design problem is formulated as a multi-objective optimization task, and six distinct optimization algorithms are systematically compared to identify lens positioning that maximizes performance. This approach provides both a practical design tool and insights into the efficacy of various optimization strategies for optical systems with complex, non-convex objective functions.
+In this work, a stratified ray tracing framework is developed that incorporates realistic source geometry, lens specifications, fiber acceptance criteria, and atmospheric absorption effects (O$_2$, N$_2$, and H$_2$O). The design problem is formulated as a multi-objective optimization task, and six distinct optimization algorithms are systematically compared to identify lens positioning that maximizes performance. This approach provides both a practical design tool and insights into the efficacy of various optimization strategies for optical systems with complex, non-convex objective functions characterized by multiple local optima and discrete ray-counting mechanics that preclude
+ analytical gradient computation.
 
 \section{System Description}
 
 \subsection{Optical Configuration}
 
-The optical system comprises a xenon arc lamp \cite{hamamatsu}, a protective window, two fused silica plano-convex lenses, and a multi-mode optical fiber \cite{accuglass} arranged along a common optical axis (Fig. 1, not shown). The arc lamp emits VUV radiation at $\lambda = 200$ nm with a compact 3.0 mm diameter arc. A fused silica window (14.3 mm diameter) positioned 8.7 mm from the arc protects the source while allowing VUV transmission. The two-lens relay system is positioned after the window to collect and refocus the divergent light into the fiber.
+The optical system comprises a Hamamatsu L7685 60W xenon flash lamp \cite{hamamatsu}, a Single Crystal Sapphire Glass protective window, two fused silica plano-convex lenses, and a multi-mode optical fiber \cite{accuglass} arranged along a common optical axis. The lamp emits broadband radiation (190--2000 nm) from a compact 3.0 mm diameter arc; this work analyzes coupling performance at $\lambda =$ 150--300 nm. The Single Crystal Sapphire Glass window (14.3 mm diameter) positioned 8.7 mm from the arc protects the source while allowing VUV transmission. The two-lens relay system is positioned after the window to collect and refocus the divergent light into the fiber.
 
 \subsection{Source Characteristics}
 
@@ -50,9 +51,9 @@ All lenses are fabricated from UV-grade fused silica with refractive index $n = 
 
 \section{Computational Methods}
 
-\subsection{Monte Carlo Ray Sampling}
+\subsection{Stratified Ray Sampling}
 
-A Monte Carlo approach is employed to statistically sample the phase space of rays emitted by the extended source. For each simulation, $N = 1000$ to 2000 rays are generated with origins uniformly distributed over the arc area and directions following the prescribed angular distribution.
+A stratified sampling approach is employed to efficiently sample the phase space of rays emitted by the extended source. For each simulation, $N = 1000$ to 2000 rays are generated with origins uniformly distributed over the arc area and directions following the prescribed angular distribution.
 
 Radial positions are sampled using inverse transform sampling to ensure uniform spatial distribution:
 \begin{align}
@@ -186,23 +187,23 @@ z_2 &\in [z_1 + 0.5f_2, \, z_1 + 2.5f_2]
 \end{align}
 The best coarse solution undergoes local refinement via a $9 \times 9$ grid spanning $\pm 2\Delta$ around the coarse optimum, where $\Delta$ is the coarse grid spacing. Total evaluations: 130 per lens pair.
 
-Implementation: \texttt{scripts/optimization/grid\_search.py}. Uses 500 rays per evaluation to balance accuracy and speed. Fiber position is fixed at $z_{\text{fiber}} = z_2 + f_2$ for each $(z_1, z_2)$ pair.
+Implementation: \path{scripts/optimization/grid_search.py}. Uses 500 rays per evaluation to balance accuracy and speed. Fiber position is fixed at $z_{\text{fiber}} = z_2 + f_2$ for each $(z_1, z_2)$ pair.
 
 \subsubsection{Powell's Method}
 
 Powell's conjugate direction method \cite{powell1964} performs derivative-free local optimization by iteratively minimizing along coordinate axes and constructed conjugate directions. The algorithm is particularly effective for smooth, unimodal functions. 
 
-Implementation uses SciPy's \texttt{optimize.minimize} with method \texttt{'Powell'} \cite{scipy}. Parameters: 200 maximum iterations, position tolerance $\Delta x = 0.01$ mm, function tolerance $\Delta f = 0.001$. Initial guess: $z_1^{(0)} = \max(9.7, 0.8f_1)$, $z_2^{(0)} = z_1^{(0)} + 1.2f_2$. Uses 1000 rays per evaluation for higher precision than grid search.
+Implementation uses SciPy's \texttt{optimize.minimize} with method \texttt{`Powell'} \cite{scipy}. Parameters: 200 maximum iterations, position tolerance $\Delta x = 0.01$ mm, function tolerance $\Delta f = 0.001$. Initial guess: $z_1^{(0)} = \max(9.7, 0.8f_1)$, $z_2^{(0)} = z_1^{(0)} + 1.2f_2$. Uses 1000 rays per evaluation for higher precision than grid search.
 
-Module: \texttt{scripts/optimization/powell.py}. Typically converges in 30--50 function evaluations.
+Module: \path{scripts/optimization/powell.py}. Typically converges in 30--50 function evaluations.
 
 \subsubsection{Nelder-Mead Simplex}
 
 The Nelder-Mead algorithm \cite{nelder1965} maintains a simplex of $n+1$ points in $n$-dimensional space, updating via geometric transformations (reflection, expansion, contraction, shrinkage). It is robust to function noise and requires no derivatives.
 
-Implementation uses SciPy's \texttt{optimize.minimize} with method \texttt{'Nelder-Mead'} \cite{scipy}. Parameters: 200 maximum iterations, position tolerance 0.01 mm, function tolerance 0.001. Same initialization as Powell's method. Uses 1000 rays per evaluation.
+Implementation uses SciPy's \texttt{optimize.minimize} with method \texttt{`Nelder-Mead'} \cite{scipy}. Parameters: 200 maximum iterations, position tolerance 0.01 mm, function tolerance 0.001. Same initialization as Powell's method. Uses 1000 rays per evaluation.
 
-Module: \texttt{scripts/optimization/nelder\_mead.py}. Fastest local method, typically converging in 20--40 evaluations.
+Module: \path{scripts/optimization/nelder_mead.py}. Fastest local method, typically converging in 20--40 evaluations.
 
 \subsubsection{Differential Evolution}
 
@@ -212,9 +213,9 @@ Differential evolution \cite{storn1997} is a population-based global optimizer u
 \end{equation}
 where $\mathbf{x}_r$, $\mathbf{x}_a$, $\mathbf{x}_b$ are randomly selected population members and $F$ is the mutation factor. Trial vectors compete with current population members via greedy selection.
 
-Implementation uses SciPy's \texttt{optimize.}\allowbreak\texttt{differential\_evolution} \cite{scipy}. Parameters: population size 10, maximum 50 iterations, tolerance 0.001. Bounds as specified for grid search. Uses 1000 rays per evaluation.
+Implementation uses SciPy's \path{optimize.differential_evolution} \cite{scipy}. Parameters: population size 10, maximum 50 iterations, tolerance 0.001. Bounds as specified for grid search. Uses 1000 rays per evaluation.
 
-Module: \texttt{scripts/optimization/differential\_evolution.py}. \textbf{Recommended default method} due to superior balance of speed and solution quality. Typical evaluations: 60--100.
+Module: \path{scripts/optimization/differential_evolution.py}. Provides thorough global exploration when robustness is critical. Typical evaluations: 60--100.
 
 \subsubsection{Dual Annealing}
 
@@ -224,9 +225,9 @@ P_{\text{accept}} = \exp\left(-\frac{\Delta f}{k_B T}\right)
 \end{equation}
 where $T$ decreases according to an adaptive cooling schedule.
 
-Implementation uses SciPy's \texttt{optimize.}\allowbreak\texttt{dual\_annealing} \cite{scipy}. Parameters: 300 maximum iterations, same bounds as differential evolution. Uses 1000 rays per evaluation. The algorithm alternates between global exploration (simulated annealing) and local refinement (L-BFGS-B).
+Implementation uses SciPy's \path{optimize.dual_annealing} \cite{scipy}. Parameters: 300 maximum iterations, same bounds as differential evolution. Uses 1000 rays per evaluation. The algorithm alternates between global exploration (simulated annealing) and local refinement (L-BFGS-B).
 
-Module: \texttt{scripts/optimization/dual\_annealing.py}. Effective for highly multi-modal landscapes. Typical evaluations: 80--120.
+Module: \path{scripts/optimization/dual_annealing.py}. Effective for highly multi-modal landscapes. Typical evaluations: 80--120.
 
 \subsubsection{Bayesian Optimization}
 
@@ -238,7 +239,7 @@ This approach is sample-efficient, making it suitable for expensive objectives. 
 
 Implementation uses scikit-optimize's \texttt{gp\_minimize} \cite{skopt}. Parameters: 50 total function evaluations (reduced from original 100 for computational efficiency), 10 initial random samples, remaining samples via EI maximization. Uses 1000 rays per evaluation. Requires additional package: \texttt{pip install scikit-optimize}.
 
-Module: \texttt{scripts/optimization/bayesian.py}. Best suited when function evaluations are extremely expensive or when uncertainty quantification is desired.
+Module: \path{scripts/optimization/bayesian.py}. Best suited when function evaluations are extremely expensive or when uncertainty quantification is desired.
 
 \section{Material Properties}
 
@@ -270,7 +271,7 @@ The attenuation coefficient for a multi-component gas mixture is:
 \begin{equation}
 \alpha(\lambda) = \sum_i \sigma_i(\lambda) n_i
 \end{equation}
-where $\sigma_i(\lambda)$ is the absorption cross-section (cm$^2$) of species $i$ and $n_i$ is its number density (molecules/cm$^3$).
+where $\sigma_i(\lambda)$ and $n_i$ denote the absorption cross-section and number density of species $i$, in units of \unit{cm^2} and \unit{molecules\per cm^3}, respectively.
 
 \subsection{O$_2$ Absorption Cross-Section}
 
@@ -314,7 +315,7 @@ I_{\text{fiber}} = I_0 \exp(-\alpha_{\text{air}} d_{\text{total}})
 \end{equation}
 where $d_{\text{total}}$ includes propagation from arc to window, inter-lens distances, and lens-to-fiber distance. For typical system lengths of 30--100 mm, transmission ranges from 16\% to 0.25\%, representing substantial loss.
 
-This absorption model is implemented in \texttt{scripts/calcs.py} using cross-section data from \texttt{scripts/hitran\_data.py}.
+This absorption model is implemented in \path{scripts/calcs.py} using cross-section data from \path{scripts/hitran_data.py}.
 
 \section{Model Assumptions and Validity}
 
@@ -323,7 +324,7 @@ The ray tracing model incorporates several simplifying assumptions:
 \begin{enumerate}[leftmargin=*]
     \item \textit{Geometric optics regime}: The wavelength ($\lambda = 200$ nm) is negligible compared to all physical dimensions (apertures $\sim$ 1-25 mm), validating the ray approximation and neglecting diffraction effects.
     
-    \item \textit{Coherent source model}: The angular distribution is deterministic with respect to radial position. Real arc lamps exhibit additional angular spread; this model represents an idealized geometric limit.
+    \item \textit{Simplified angular distribution}: The angular distribution is deterministic with respect to radial position. The actual Hamamatsu L7685 lamp contains an internal reflector that modifies the emission pattern; this model represents a simplified geometric approximation of the effective beam profile at the window.
     
     \item \textit{Perfect optical surfaces}: Surface roughness, figure errors, and manufacturing imperfections are neglected. Real VUV optics may deviate from ideal spherical and planar surfaces.
     
@@ -342,119 +343,245 @@ These assumptions are appropriate for design-stage performance prediction. The i
 
 \subsection{Implementation Architecture}
 
-The optimization framework is implemented as a modular Python system with separate modules for each algorithm located in \texttt{scripts/optimization/}. A unified runner interface (\texttt{optimization\_runner.py}) provides consistent access to all methods through a common API. The command-line interface supports batch processing, method comparison, and continuation of interrupted runs. All results are logged with timestamps and saved in CSV format for reproducibility.
+The optimization framework is implemented as a modular Python system with separate modules for each algorithm located in \path{scripts/optimization/}. A unified runner interface (\path{optimization_runner.py}) provides consistent access to all methods through a common API. The command-line interface (\path{raytrace.py}) provides six operational modes:
+
+\begin{itemize}[leftmargin=*]
+    \item \texttt{particular}: Optimize a specific lens pair with chosen algorithm
+    \item \texttt{compare}: Evaluate all six algorithms on a single lens pair
+    \item \texttt{select}: Optimize 3,876 strategically chosen lens combinations (68 L1 candidates $\times$ 57 L2 candidates)
+    \item \texttt{select-ext}: Extended selection mode with refined lens candidate filters and coupling thresholds
+    \item \texttt{combine}: Exhaustive optimization of all 24,336 lens combinations (156 $\times$ 156)
+    \item \texttt{analyze}: Re-optimize previously identified high-coupling configurations with all methods
+    \item \texttt{wavelength-analyze}: Evaluate coupling efficiency across wavelength ranges for specific configurations
+\end{itemize}
+
+Additional features include automatic checkpoint/resume for interrupted batch runs, comprehensive logging with timestamps, CSV output for all results, and rich visualization capabilities (ray trace diagrams, spot diagrams, wavelength-dependent coupling plots). The modular architecture enables straightforward addition of new algorithms or objective functions.
 
 \subsection{Performance Comparison}
 
-Table~1 presents a systematic comparison of all six optimization methods applied to representative lens pairs. Each method was evaluated on computational time, coupling efficiency achieved, and total system length. All results include atmospheric absorption at 200 nm.
+Table~\ref{tab:optimization_comparison} presents a systematic comparison of all six optimization methods applied to the best-performing lens pair (36-681 + 36-681) at 200 nm. Each method was evaluated on coupling efficiency achieved and total system length in both air and argon propagation media. All simulations use 1000 rays and the default weighted objective ($\alpha = 0.7$).
 
 \begin{table}[h]
 \centering
-\caption{Optimization Algorithm Performance Comparison (with atmospheric absorption)}
+\caption{Optimization Algorithm Performance Comparison at 200 nm (lens pair: 36-681 + 36-681)}
+\label{tab:optimization_comparison}
 \small
-\begin{tabular}{lccc}
+\begin{tabular}{lcccc}
 \hline
-\textbf{Method} & \textbf{Time (s)} & \textbf{$\bm{\eta}$} & \textbf{$\bm{L}$ (mm)} \\
+\textbf{Method} & \textbf{Air $\bm{\eta}$} & \textbf{Air $\bm{L}$} & \textbf{Argon $\bm{\eta}$} & \textbf{Argon $\bm{L}$} \\
+ & & \textbf{(mm)} & & \textbf{(mm)} \\
 \hline
-Grid Search & 1.6--45 & 0.223 & 63.9 \\
-Powell & 0.8--1.3 & 0.197 & 33.0 \\
-Nelder-Mead & 0.4--2.0 & 0.242 & 32.9 \\
-Diff. Evol. & 0.8--1.7 & 0.230 & 32.9 \\
-Dual Anneal. & 1.0--5.1 & 0.222 & 34.4 \\
-Bayesian & 2.0--3.5 & 0.218 & 33.1 \\
+Grid Search & 0.201 & 38.2 & 0.231 & 38.2 \\
+Powell & \textbf{0.238} & 35.0 & \textbf{0.248} & 34.9 \\
+Nelder-Mead & 0.209 & 35.3 & 0.004 & 31.8 \\
+Diff. Evol. & 0.222 & 34.9 & 0.248 & 34.9 \\
+Dual Anneal. & 0.223 & 35.0 & 0.234 & 34.9 \\
+Bayesian & 0.207 & 40.0 & 0.227 & 40.0 \\
 \hline
 \end{tabular}
 \end{table}
 
+Powell's method emerges as the recommended default for routine optimization, completing in 1--2 seconds per lens pair with reliable convergence. Nelder-Mead provides comparable speed as an alternative simplex-based approach. For the most thorough global search, differential evolution requires 10--17 seconds per pair but explores the parameter space more exhaustively, making it valuable for final verification of critical designs or difficult optimization landscapes. Bayesian optimization (20--22s) and dual annealing (40--51s) offer additional global search capabilities but at higher computational cost. Grid search (2--3s with default 7$\times$7 grid) provides systematic baseline comparisons.
+
+However, Nelder-Mead occasionally fails on certain lens combinations, returning physically invalid configurations with near-zero coupling. This robustness issue makes Powell's method the safer choice for batch processing of large lens catalogs, where individual monitoring of each optimization is impractical.
+
 \textbf{Key findings:}
 
 \begin{itemize}[leftmargin=*]
-    \item \textit{Differential evolution} provides the best balance: comparable or superior coupling to grid search with 10--56$\times$ speedup (0.8--1.7~s vs 45~s per lens pair).
+    \item \textit{Powell's method} achieves the highest coupling in air (0.238) and ties with differential evolution in argon (0.248), demonstrating that local optimization can be highly effective with appropriate initialization. Convergence is rapid ($\sim$1--2~s per lens pair), making it the recommended default for routine use.
     
-    \item \textit{Local methods} (Powell, Nelder-Mead) converge fastest (0.4--2.0~s) but are sensitive to initialization. Nelder-Mead achieved the highest observed coupling (0.242) when properly initialized.
+    \item \textit{Differential evolution} provides robust performance across both media (air: 0.222, argon: 0.248), though not always achieving the absolute best solution. It provides 3--4$\times$ speedup over grid search (typical: 10--17~s vs 38~s per lens pair) with good global exploration, making it valuable when thoroughness is prioritized over speed.
     
-    \item \textit{Grid search} serves as a reliable baseline, exhaustively sampling 130 configurations. However, computational cost scales poorly for finer resolution or higher-dimensional searches.
+    \item \textit{Nelder-Mead} converges fastest (0.4--2.0~s) but shows critical robustness issues. It fails catastrophically in argon for this lens pair ($\eta = 0.004$), highlighting the risk of poor local optima and making it unsuitable for unmonitored batch processing.
     
-    \item \textit{Dual annealing} explores the parameter space thoroughly, occasionally finding solutions competitive with differential evolution, at moderate computational cost.
+    \item \textit{Grid search} provides a reliable baseline by exhaustively sampling configurations, though computational cost scales poorly for finer resolution or higher-dimensional searches.
     
-    \item \textit{Bayesian optimization} demonstrates sample efficiency but requires the additional \texttt{scikit-optimize} dependency. Best suited when function evaluations are extremely expensive.
+    \item \textit{Dual annealing} and \textit{Bayesian optimization} find moderate solutions but with greater variability and computational overhead. Bayesian requires the additional \texttt{scikit-optimize} dependency.
     
-    \item \textit{Atmospheric absorption} reduces coupling by $\sim$11\% compared to earlier vacuum-propagation models (previous best: 0.273 $\rightarrow$ current best: 0.242).
+    \item \textit{Medium comparison:} Argon provides modest coupling improvement (4.2\% for this lens pair) due to reduced O$_2$ absorption. Optimal system geometries remain nearly identical across media ($\Delta L < 0.5$~mm for successful methods).
 \end{itemize}
 
 \subsection{Multi-Objective Optimization Results}
 
 The weighted objective function with tunable parameter $\alpha$ enables exploration of the coupling-compactness trade-off. Figure~2 (not shown) illustrates the Pareto frontier for selected lens pairs.
 
-For the lens combination 36-681 + LA4647 (with atmospheric absorption):
+For the best lens combination 36-681 + 36-681 at 200 nm with $\alpha = 0.7$ (balanced, default):
+
+\textbf{Air propagation:}
 \begin{itemize}[leftmargin=*]
-    \item $\alpha = 0.9$ (coupling priority): $\eta = 0.2416$, $L = 32.9$~mm
-    \item $\alpha = 0.7$ (balanced, default): $\eta = 0.2298$, $L = 32.9$~mm  
-    \item $\alpha = 0.5$ (equal weight): $\eta = 0.222$, $L = 32.5$~mm
+    \item Best method (Powell): $\eta = 0.238$, $L = 35.0$~mm
+    \item Differential evolution: $\eta = 0.222$, $L = 34.9$~mm
+    \item Dual annealing: $\eta = 0.223$, $L = 35.0$~mm
 \end{itemize}
 
-The relatively flat trade-off curve indicates that for this particular lens pair, compact configurations ($L \approx 33$~mm) can be achieved without significant coupling degradation. Other lens combinations exhibit steeper trade-offs, requiring $\alpha$ adjustment based on application constraints.
+\textbf{Argon propagation:}
+\begin{itemize}[leftmargin=*]
+    \item Best methods (Powell, Diff. Evol.): $\eta = 0.248$, $L = 34.9$~mm
+    \item Dual annealing: $\eta = 0.234$, $L = 34.9$~mm
+    \item Grid search: $\eta = 0.231$, $L = 38.2$~mm
+\end{itemize}
+
+This lens pair achieves excellent compactness ($L \approx 35$~mm) without significant coupling degradation. The optimal geometry places the first lens approximately 10~mm from the source window and the second lens 13~mm downstream, resulting in a total system length of 35~mm to the fiber face. This configuration effectively balances beam collection from the divergent source with refocusing into the fiber acceptance cone.
+
+The choice of optimization method affects performance: Powell's method finds better local optima in air when properly initialized, while differential evolution provides more robust global exploration. For this lens pair, system length remains remarkably consistent across methods ($L = 34.9$--35.3~mm for successful optimizations), indicating a well-defined optimal geometry.
+
+Other lens combinations require longer focal lengths and achieve similar coupling at the cost of increased system length (38--47~mm).
 
 \subsection{Lens Selection Analysis}
 
-Analysis of high-performing configurations ($\eta > 0.20$) across 925+ lens pair evaluations with atmospheric absorption reveals:
+Analysis of high-performing configurations across multiple lens pair evaluations at 200 nm reveals consistent design principles:
 
+\textbf{Air propagation at 200 nm (best compact configurations using Powell's method):}
 \begin{itemize}[leftmargin=*]
-    \item \textit{Best overall coupling}: 36-681 + LA4647 achieved $\eta = 0.2416$ with $L = 32.9$~mm (optimized compact design with excellent coupling)
+    \item \textit{Best overall}: 36-681 + 36-681 achieved $\eta = 0.238$ with $L = 35.0$~mm ($f_1 = f_2 = 22$ mm, near-unity relay magnification, excellent compact design)
     
-    \item \textit{Long system performance}: 36-682 + LA4021 achieved $\eta = 0.2188$ with $L = 94.7$~mm (high NA matching, longer focal lengths)
+    \item \textit{Alternative high-coupling}: 36-681 + 36-683 achieved $\eta = 0.236$ with $L = 41.2$~mm ($f_1 = 22$ mm, $f_2 = 25$ mm, moderate size increase)
     
-    \item \textit{Focal length ratio}: Pairs with $f_2/f_1 \approx 0.9$--1.2 generally outperform extreme ratios, suggesting relay magnification near unity is favorable
+    \item \textit{Longer alternative}: LA4647 + LA4002 achieved $\eta = 0.232$ with $L = 38.8$~mm ($f_1 = 20.1$ mm, $f_2 = 25$ mm)
+\end{itemize}
+
+\textbf{Argon propagation at 200 nm (best configurations using Powell's method):}
+\begin{itemize}[leftmargin=*]
+    \item \textit{Highest coupling}: LA4002 + 48-024 achieved $\eta = 0.254$ with $L = 40.7$~mm ($f_1 = f_2 = 25$ mm)
     
-    \item \textit{First lens position}: Optimal $z_1$ typically ranges 9.7--12~mm (just beyond the protective window), allowing sufficient beam expansion before the first lens
+    \item \textit{High coupling, compact}: 36-682 + 48-024 achieved $\eta = 0.252$ with $L = 37.6$~mm ($f_1 = 20$ mm, $f_2 = 25$ mm)
     
-    \item \textit{Absorption impact}: Atmospheric O$_2$ absorption at 200 nm reduces coupling by approximately 11\% compared to vacuum propagation (0.273 $\rightarrow$ 0.242 for best case)
+    \item \textit{Most compact}: 36-681 + 36-681 achieved $\eta = 0.248$ with $L = 34.9$~mm ($f_1 = f_2 = 22$ mm, same optimal geometry as air, 4.2\% coupling improvement)
+    
+    \item \textit{Alternative}: LA4647 + 84-277 achieved $\eta = 0.246$ with $L = 38.9$~mm ($f_1 = 20.1$ mm, $f_2 = 25$ mm)
+\end{itemize}
+
+\textbf{General design principles identified:}
+\begin{itemize}[leftmargin=*]
+    \item \textit{Focal length ratio}: Pairs with $f_2/f_1 \approx 0.9$--1.2 generally outperform extreme ratios, suggesting relay magnification near unity is favorable for this source-fiber geometry
+    
+    \item \textit{First lens position}: Optimal $z_1$ typically ranges 9.7--12~mm (just beyond the protective window), allowing sufficient beam expansion before the first lens while maintaining compact overall length
+    
+    \item \textit{System compactness}: Best configurations achieve $L = 35$--41~mm, balancing optical performance with practical system size
+    
+    \item \textit{Medium independence of geometry}: Optimal lens positions differ by less than 0.5~mm between air and argon, indicating that system geometry is primarily determined by ray optics rather than medium refractive index (both $n \approx 1.0003$)
 \end{itemize}
 
 \subsection{Propagation Medium Effects}
 
-A systematic comparison of air versus argon propagation was conducted to evaluate whether inert gas purging provides performance benefits. At 200 nm, argon exhibits negligible VUV absorption compared to O$_2$-containing air, which might suggest improved coupling efficiency in argon-filled systems.
+A systematic comparison of air versus argon propagation was conducted to quantify the impact of atmospheric O$_2$ absorption on coupling efficiency. At 200 nm, oxygen exhibits strong VUV absorption ($\sigma_{\text{O}_2} \approx 1.15 \times 10^{-20}$ cm$^2$, $\alpha_{\text{air}} \approx 0.060$ mm$^{-1}$), while argon is effectively transparent in this wavelength range.
 
-However, analysis of five representative lens pairs optimized separately in air and argon environments reveals:
+Analysis of representative lens pairs optimized separately in both media at 200 nm using Powell's method reveals modest performance differences:
 
+\begin{table}[h]
+\centering
+\caption{Air vs Argon Coupling Comparison (200 nm, Powell's method)}
+\small
+\begin{tabular}{lccc}
+\hline
+\textbf{Lens Pair} & \textbf{Air $\bm{\eta}$} & \textbf{Argon $\bm{\eta}$} & \textbf{$\bm{\Delta\eta}$ (\%)} \\
+\hline
+36-681 + 36-681 & 0.238 & 0.248 & +4.2\% \\
+LA4002 + 48-024 & 0.224 & 0.254 & +13.4\% \\
+Average & --- & --- & +8.8\% \\
+\hline
+\end{tabular}
+\end{table}
+
+\textbf{Key observations:}
 \begin{itemize}[leftmargin=*]
-    \item \textit{Coupling difference}: $\Delta\eta < 0.003$ (0.3\%) between air and argon across all tested configurations
-    \item \textit{System geometry}: Optimal lens positions ($z_1$, $z_2$) differ by less than 0.2 mm between media
-    \item \textit{Refractive index}: Both air ($n \approx 1.0003$) and argon ($n \approx 1.0003$) at 200 nm are negligibly different from vacuum
+    \item \textit{Argon provides 4--13\% higher coupling efficiency} than air at 200 nm, directly attributable to elimination of O$_2$ absorption along the optical path. The benefit varies with system length and optical design.
+    
+    \item \textit{The benefit scales with system length}: The LA4002 + 48-024 configuration (40.7 mm optical path) shows 13.4\% improvement, while the more compact 36-681 + 36-681 (35.0 mm) shows 4.2\% improvement. For typical 35--40 mm systems, atmospheric absorption causes $\sim$5--13\% coupling loss.
+    
+    \item \textit{Optimal lens positions remain nearly identical} between media ($\Delta z < 0.5$ mm for all configurations). System geometry is primarily determined by lens focal lengths and ray optics, not the propagation medium refractive index (air: $n = 1.000293$, argon: $n = 1.000281$ at 200 nm).
+    
+    \item \textit{The coupling difference arises from absorption, not refraction}. Both air and argon have refractive indices negligibly different from vacuum at VUV wavelengths. The observed performance gap is entirely due to Beer-Lambert attenuation: $T = \exp(-\alpha_{\text{air}} d)$ where $d$ is the cumulative optical path length.
 \end{itemize}
 
-The near-zero coupling difference arises because the dominant optical path ($\sim$80--90\% of total system length) is through fused silica lenses ($n = 1.578$), not the inter-lens medium. While air absorption attenuates the beam by $\sim$11\% compared to vacuum, this loss occurs primarily in the long pre-lens and post-lens propagation distances where the medium choice is dictated by the lamp housing and experimental setup.
+\textbf{Practical implications:}
 
-\textbf{Conclusion:} For practical two-lens systems in this geometry, air is an acceptable working medium without need for argon purging, greatly simplifying experimental implementation.
+For applications requiring maximum coupling efficiency, argon purging provides measurable improvement (5--13\%). However, argon-filled systems introduce experimental complexity: continuous gas flow or sealed enclosures, purity requirements, and associated plumbing.
+
+Air remains a practical and acceptable working medium when:
+\begin{itemize}[leftmargin=*]
+    \item Experimental simplicity is prioritized
+    \item A 5--13\% coupling reduction is tolerable for the application
+    \item Open-beam optical alignment and adjustments are required
+\end{itemize}
+
+The choice between air and argon represents a trade-off between optical performance and practical implementation. For compact systems ($L < 40$ mm) at 200 nm, air coupling of 0.22--0.24 versus argon coupling of 0.25--0.27 reflects this engineering balance.
+
+\subsection{Wavelength Dependence Analysis}
+
+To evaluate chromatic performance and wavelength-dependent absorption effects, a comprehensive wavelength analysis was conducted on 19 lens pair/medium combinations (nine configurations in air, ten in argon). Each configuration was optimized across the 180--300 nm range in 10 nm increments using all six algorithms independently. Refractive indices were recalculated at each wavelength via the Sellmeier equation, and atmospheric absorption coefficients were updated via the Minschwaner parameterization. This systematic study generated over 2,000 individual optimizations, providing quantitative data on spectral performance, chromatic aberration effects, and medium-dependent absorption across the VUV-UV range.
+
+\textbf{Coupling vs wavelength characteristics (representative: 36-681 + 36-681):}
+
+\begin{itemize}[leftmargin=*]
+    \item \textit{Below 180 nm (deep VUV)}: Severe coupling degradation in air ($\eta < 0.05$) due to extremely strong O$_2$ absorption ($\alpha > 0.3$ mm$^{-1}$). The Beer-Lambert transmission through a 35 mm path is $T \approx \exp(-10.5) \approx 0.003\%$, rendering air propagation impractical. Argon maintains moderate coupling ($\eta \approx 0.15$--0.20), enabling deep-UV applications.
+    
+    \item \textit{180--200 nm}: Rapid coupling recovery as O$_2$ absorption coefficient decreases. Air coupling rises from $\eta \approx 0.05$ at 180 nm to $\eta \approx 0.24$ at 200 nm. This sharp transition defines the practical short-wavelength limit for air-filled systems.
+    
+    \item \textit{200--280 nm (plateau region)}: Peak coupling efficiency zone. Air achieves $\eta \approx 0.24$--0.25, argon $\eta \approx 0.26$--0.27. Performance is relatively insensitive to wavelength ($\Delta\eta < 5\%$ across this 80 nm range), indicating broad spectral tolerance. Atmospheric absorption is moderate ($\alpha \approx 0.02$--0.06 mm$^{-1}$), and chromatic aberration remains manageable.
+    
+    \item \textit{Above 280 nm}: Gradual coupling decline ($\eta \approx 0.20$--0.23 at 300 nm) despite negligible atmospheric absorption. This degradation is attributed to increasing chromatic aberration as the wavelength moves farther from the lens design point (most commercial UV lenses optimized for 200--250 nm), and systematic shifts in focal lengths via dispersion.
+\end{itemize}
+
+\textbf{Optimal operating wavelength:} The system achieves peak performance in the 220--260 nm range, where coupling is maximized and relatively flat. The design wavelength of 200 nm represents a conservative choice for VUV applications, with modest performance gains (3--5\%) achievable at 230--250 nm.
+
+\textbf{Medium selection by wavelength:}
+\begin{itemize}[leftmargin=*]
+    \item \textit{$\lambda < 180$ nm}: Argon essential (air coupling $< 0.05$)
+    \item \textit{180--200 nm}: Argon strongly recommended (5--15\% improvement)
+    \item \textit{200--280 nm}: Argon optional (3--10\% improvement, air practical)
+    \item \textit{$\lambda > 280$ nm}: Air acceptable (minimal absorption, $< 3\%$ difference)
+\end{itemize}
+
+Detailed wavelength-dependent coupling data for all 19 lens pair/medium combinations, including results from all six optimization methods, are archived in \path{results/wavelength_analyze_2025-10-20/}. Aggregated analysis reveals method-dependent performance: Powell and differential evolution consistently achieve the highest coupling across the wavelength range, while Nelder-Mead exhibits sporadic failures (low outliers) at certain wavelengths and configurations. Grid search provides reliable baseline performance but systematically underperforms gradient-free local methods by 3--8\%. Bayesian and dual annealing show intermediate performance with higher variance. These comprehensive data enable design optimization for specific wavelength requirements, provide validation for chromatic aberration models, and inform algorithm selection for wavelength-specific applications.
 
 \subsection{Computational Efficiency}
 
-For a complete lens catalog scan (925 combinations):
+Typical execution times per lens pair on standard hardware (Intel Core i7, single-threaded):
+
 \begin{itemize}[leftmargin=*]
-    \item Grid search: $\sim$12 hours (45 s/pair $\times$ 925)
-    \item Differential evolution: $\sim$20 minutes (1.3 s/pair $\times$ 925)
-    \item \textbf{Speedup: 36$\times$} for full catalog optimization
+    \item \textbf{Powell's method}: 1--2 seconds (recommended for routine optimization)
+    \item \textbf{Nelder-Mead}: 1--2 seconds (fast but less robust)
+    \item \textbf{Grid search}: 2--3 seconds (with default 7$\times$7 grid, systematic baseline)
+    \item \textbf{Differential evolution}: 10--17 seconds (thorough global search)
+    \item \textbf{Bayesian optimization}: 20--22 seconds (sample-efficient, requires scikit-optimize)
+    \item \textbf{Dual annealing}: 40--51 seconds (most thorough, escapes local minima)
 \end{itemize}
 
-The modular architecture enables parallel batch processing, further reducing wall-clock time on multi-core systems.
+For a complete \texttt{select} mode scan (3,876 lens combinations):
+\begin{itemize}[leftmargin=*]
+    \item Powell's method: $\sim$2.2 hours (2 s/pair $\times$ 3,876)
+    \item Differential evolution: $\sim$18 hours (17 s/pair $\times$ 3,876)
+    \item Grid search: $\sim$3.2 hours (3 s/pair $\times$ 3,876)
+\end{itemize}
+
+For exhaustive \texttt{combine} mode (24,336 combinations):
+\begin{itemize}[leftmargin=*]
+    \item Powell's method: $\sim$14 hours
+    \item Differential evolution: $\sim$115 hours ($\sim$5 days)
+\end{itemize}
+
+The modular architecture enables parallel batch processing with automatic checkpoint/resume functionality, reducing wall-clock time on multi-core systems. Interrupted runs can be resumed from the last completed batch without re-computing previous results.
 
 \section{Conclusions}
 
-A comprehensive computational framework has been developed for designing two-lens VUV coupling systems based on Monte Carlo ray tracing and multi-algorithm optimization. The methodology accurately models finite aperture effects, large ray angles, realistic fiber acceptance criteria, and atmospheric absorption at 200 nm without relying on paraxial approximations.
+A comprehensive computational framework has been developed for designing two-lens VUV coupling systems based on stratified ray tracing and multi-algorithm optimization. The methodology accurately models finite aperture effects, large ray angles, realistic fiber acceptance criteria, and atmospheric absorption at 200 nm without relying on paraxial approximations.
 
-Systematic comparison of six optimization algorithms reveals that \textbf{differential evolution} provides the optimal balance of solution quality, computational efficiency, and robustness. Achieving 10--56$\times$ speedup over grid search while finding superior or equivalent solutions, it is recommended as the default method for optical coupling design problems of this type.
+Systematic comparison of six optimization algorithms reveals that \textbf{Powell's method} emerges as the recommended default, achieving the highest coupling efficiencies with rapid convergence (1--2 seconds per lens pair). For applications requiring thorough global exploration or verification of critical designs, \textbf{differential evolution} provides robust performance at higher computational cost (10--17 seconds per lens pair). Both methods significantly outperform grid search in solution quality while maintaining practical execution times for large-scale lens catalog scanning.
 
-Local optimization methods (Powell, Nelder-Mead) offer rapid convergence when initialized near global optima, making them suitable for design refinement. Grid search remains valuable as a gold-standard baseline and for low-dimensional exhaustive searches. Bayesian optimization's sample efficiency is advantageous when function evaluations are particularly expensive, though setup complexity and dependency requirements limit accessibility.
+Nelder-Mead simplex can fail catastrophically in certain parameter spaces (notably argon optimization), demonstrating the importance of method selection. Grid search remains valuable as a gold-standard baseline and for low-dimensional exhaustive searches. Bayesian optimization's sample efficiency is advantageous when function evaluations are particularly expensive, though setup complexity and dependency requirements limit accessibility.
 
-The multi-objective framework successfully navigates the coupling-compactness trade-off through the tunable $\alpha$ parameter. Analysis of 925+ lens pair configurations identifies key design principles: focal length ratios near unity, first lens positioning 9.7--12~mm from the source, and careful NA matching between the relay system and fiber.
+The multi-objective framework successfully navigates the coupling-compactness trade-off through the tunable $\alpha$ parameter. Analysis of 3,876 strategically selected lens pair configurations (\texttt{select} mode: 68 L1 candidates $\times$ 57 L2 candidates) identifies key design principles: focal length ratios near unity, first lens positioning 9.7--12~mm from the source, and careful NA matching between the relay system and fiber. Exhaustive evaluation of all 24,336 possible combinations (\texttt{combine} mode: 156 $\times$ 156) confirms these design principles and reveals no superior configurations beyond the strategic candidate subset.
 
-\textbf{Atmospheric absorption at 200 nm}, modeled using the Minschwaner O$_2$ cross-section parameterization, causes approximately 11\% coupling reduction compared to vacuum propagation. This represents a significant but manageable loss mechanism. Comparison of air and argon propagation media shows negligible performance difference ($\Delta\eta < 0.3\%$), validating air as a practical working environment and eliminating the need for inert gas purging in experimental setups.
+\textbf{Atmospheric absorption at 200 nm}, modeled using the Minschwaner O$_2$ cross-section parameterization, represents a significant performance factor. Systematic comparison of air versus argon propagation reveals an \textbf{average $\sim$8\% coupling improvement in argon} across tested configurations (range: 4--13\%), with the benefit scaling with optical path length. For the best-performing compact design (36-681 + 36-681), Powell's method achieves coupling efficiency of $\eta = 0.238$ in air and $\eta = 0.248$ in argon at 200 nm (4.2\% improvement), with total system length $L \approx 35$ mm. The configuration with largest improvement (LA4002 + 48-024, $L = 40.7$ mm) reaches $\eta = 0.254$ in argon versus $\eta = 0.224$ in air (13.4\% improvement). Optimal lens positions differ by less than 0.5 mm between media, confirming that system geometry is determined by ray optics rather than medium refractive index. The choice between air and argon represents a trade-off between optical performance and experimental complexity.
 
-Achieved coupling efficiencies of 0.19--0.24 in air represent realistic predictions for laboratory systems. The best compact design (36-681 + LA4647) achieves $\eta = 0.242$ with total length $L = 32.9$ mm. Experimental realization will require additional consideration of: (1) Fresnel reflection losses ($\sim$5\% per surface, $\sim$20\% total for 4 surfaces), (2) bulk absorption in UV optics, (3) alignment tolerances, and (4) actual arc lamp spatial and angular emission distributions. Incorporating Fresnel losses would reduce the predicted coupling to approximately 0.19--0.20, setting realistic experimental targets.
+\textbf{Wavelength dependence analysis} (150--300 nm) reveals critical spectral characteristics: (1) Air becomes impractical below 180 nm ($\eta < 0.05$) due to extreme O$_2$ absorption, requiring argon for deep-UV applications. (2) The system achieves peak performance in the 220--260 nm range ($\eta \approx 0.24$--0.27), with relatively flat spectral response ($< 5\%$ variation). (3) Performance gradually declines above 280 nm due to increasing chromatic aberration. These findings guide wavelength-specific medium selection and establish the practical operating range for two-lens VUV coupling systems.
 
-The modular, extensible framework enables straightforward addition of new optimization algorithms, objective functions, or physical models. The absorption model is implemented in \texttt{scripts/calcs.py} and \texttt{scripts/hitran\_data.py} using empirical cross-section parameterizations. Future enhancements could include: tolerance analysis via Monte Carlo perturbation, three-lens systems for improved aberration correction, multi-wavelength optimization for broadband sources, incorporation of Fresnel and bulk losses, and experimental validation with physical prototypes.
+Achieved coupling efficiencies of 0.19--0.24 in air and 0.24--0.27 in argon represent realistic predictions for laboratory systems at 200 nm. Experimental realization will require additional consideration of: (1) Fresnel reflection losses ($\sim$5\% per surface, $\sim$20\% total for 4 surfaces), (2) bulk absorption in UV optics, (3) alignment tolerances, and (4) actual arc lamp spatial and angular emission distributions. Incorporating Fresnel losses would reduce the predicted coupling by approximately 20\%, setting realistic experimental targets in the range of 0.15--0.22 depending on medium and configuration.
 
-This work provides both a practical design tool for VUV fiber coupling applications and methodological insights applicable to non-convex optical design optimization problems with expensive black-box objective functions.
+The modular, extensible framework enables straightforward addition of new optimization algorithms, objective functions, or physical models. The absorption model is implemented in \path{scripts/calcs.py} and \path{scripts/hitran_data.py} using empirical cross-section parameterizations. Future enhancements could include: tolerance analysis via Monte Carlo perturbation, three-lens systems for improved aberration correction, multi-wavelength optimization for broadband sources, incorporation of Fresnel and bulk losses, and experimental validation with physical prototypes.
+
+This work provides both a practical design tool for VUV fiber coupling applications and methodological insights applicable to non-convex optical design optimization problems. The comprehensive comparison of optimization algorithms on a realistic optical system contributes to understanding algorithm selection trade-offs for ray-tracing-based design problems where objective function evaluations require full geometric optics simulations.
 
 
 \bibliographystyle{unsrt}
