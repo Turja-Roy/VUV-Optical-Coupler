@@ -13,13 +13,20 @@ def _plot_rays_on_axis(ax, lenses, result, n_plot_rays=1000):
     z_fiber = result['z_fiber']
     lens1_data = lenses[result['lens1']]
     lens2_data = lenses[result['lens2']]
+    
+    # Parse orientation to determine flipped flags
+    orientation = result.get('orientation', 'ScffcF')
+    if orientation == 'SfccfF':
+        flipped1, flipped2 = True, False
+    else:  # Default to 'ScffcF'
+        flipped1, flipped2 = False, True
 
     origins, dirs = sample_rays(n_plot_rays)
 
     lens1 = PlanoConvex(z_l1, lens1_data['R_mm'], lens1_data['tc_mm'],
-                        lens1_data['te_mm'], lens1_data['dia']/2.0)
+                        lens1_data['te_mm'], lens1_data['dia']/2.0, flipped=flipped1)
     lens2 = PlanoConvex(z_l2, lens2_data['R_mm'], lens2_data['tc_mm'],
-                        lens2_data['te_mm'], lens2_data['dia']/2.0)
+                        lens2_data['te_mm'], lens2_data['dia']/2.0, flipped=flipped2)
 
     for i in range(n_plot_rays):
         points = []
@@ -97,8 +104,9 @@ def plot_system_rays(lenses, best_result, run_id, n_plot_rays=1000, method=None)
 
     _plot_rays_on_axis(ax, lenses, best_result, n_plot_rays)
 
+    orientation = best_result.get('orientation', 'ScffcF')
     plt.title(f"Ray Trace: {
-              best_result['lens1']} + {best_result['lens2']}, Coupling: {best_result['coupling']:.4f}")
+              best_result['lens1']} + {best_result['lens2']}, Coupling: {best_result['coupling']:.4f}, {orientation}")
 
     plt.tight_layout()
 
@@ -161,6 +169,14 @@ def plot_spot_diagram(best, lenses, run_id):
     accepted_mask = best['accepted']
     origins = best['origins']
     dirs = best['dirs']
+    
+    # Parse orientation to determine flipped flags
+    orientation = best.get('orientation', 'ScffcF')
+    if orientation == 'SfccfF':
+        flipped1, flipped2 = True, False
+    else:  # Default to 'ScffcF'
+        flipped1, flipped2 = False, True
+    
     land_x = np.full(origins.shape[0], np.nan)
     land_y = np.full(origins.shape[0], np.nan)
     for i in range(origins.shape[0]):
@@ -171,7 +187,8 @@ def plot_spot_diagram(best, lenses, run_id):
                            R_front_mm=lenses[best['lens1']]['R_mm'],
                            center_thickness_mm=lenses[best['lens1']]['tc_mm'],
                            edge_thickness_mm=lenses[best['lens1']]['te_mm'],
-                           ap_rad_mm=lenses[best['lens1']]['dia']/2.0
+                           ap_rad_mm=lenses[best['lens1']]['dia']/2.0,
+                           flipped=flipped1
                            ).trace_ray(o, d, 1.0)
         if out1[2] is False:
             continue
@@ -180,7 +197,8 @@ def plot_spot_diagram(best, lenses, run_id):
                            R_front_mm=lenses[best['lens2']]['R_mm'],
                            center_thickness_mm=lenses[best['lens2']]['tc_mm'],
                            edge_thickness_mm=lenses[best['lens2']]['te_mm'],
-                           ap_rad_mm=lenses[best['lens2']]['dia']/2.0
+                           ap_rad_mm=lenses[best['lens2']]['dia']/2.0,
+                           flipped=flipped2
                            ).trace_ray(o1, d1, 1.0)
         if out2[2] is False:
             continue
@@ -206,8 +224,9 @@ def plot_spot_diagram(best, lenses, run_id):
     ax.add_patch(circle)
     plt.xlabel('x (mm)')
     plt.ylabel('y (mm)')
+    orientation = best.get('orientation', 'ScffcF')
     plt.title(f"Spot diagram: {
-              best['lens1']} + {best['lens2']} (coupling={best['coupling']:.4f})")
+              best['lens1']} + {best['lens2']} (coupling={best['coupling']:.4f}, {orientation})")
     plt.axis('equal')
     plt.grid(True)
     plt.legend()

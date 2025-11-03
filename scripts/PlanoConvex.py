@@ -7,12 +7,20 @@ from scripts.raytrace_helpers import intersect_ray_sphere, refract_vec
 class PlanoConvex:
     """
     A plano-convex lens with spherical front surface.
-    Front surface is convex (center of curvature on +z side).
-    Back surface is planar.
+    
+    If flipped=False (default):
+        Front surface is convex (center of curvature on +z side).
+        Back surface is planar.
+        Light path: curved -> flat
+        
+    If flipped=True:
+        Front surface is planar.
+        Back surface is convex (center of curvature on -z side).
+        Light path: flat -> curved
     """
 
     def __init__(self, vertex_z_front, R_front_mm,
-                 center_thickness_mm, edge_thickness_mm, ap_rad_mm):
+                 center_thickness_mm, edge_thickness_mm, ap_rad_mm, flipped=False):
         """Initialize lens with its parameters."""
         self.vertex_z_front = vertex_z_front
         self.R_front_mm = R_front_mm
@@ -20,9 +28,17 @@ class PlanoConvex:
         self.edge_thickness_mm = edge_thickness_mm
         self.ap_rad_mm = ap_rad_mm
         self.n_glass = N_GLASS
+        self.flipped = flipped
         self.vertex_z_back = vertex_z_front + center_thickness_mm
-        self.center_z_front = vertex_z_front + R_front_mm
         self.z_center = vertex_z_front + center_thickness_mm / 2.0
+        
+        if not flipped:
+            # Normal orientation: curved face first
+            self.center_z_front = vertex_z_front + R_front_mm
+        else:
+            # Flipped orientation: flat face first, curved face at back
+            # Center of curvature is on the +z side of the back surface
+            self.center_z_back = self.vertex_z_back + R_front_mm
 
     def trace_ray(self, o, d, n1):
         """
@@ -36,6 +52,15 @@ class PlanoConvex:
         Returns:
         - (o_out, d_out, success)
         """
+        if not self.flipped:
+            # Normal orientation: curved face first, flat face second
+            return self._trace_curved_flat(o, d, n1)
+        else:
+            # Flipped orientation: flat face first, curved face second
+            return self._trace_flat_curved(o, d, n1)
+    
+    def _trace_curved_flat(self, o, d, n1):
+        """Trace through lens with curved face first (normal orientation)."""
         # Front surface (sphere)
         c = np.array([0, 0, self.center_z_front])  # center
         t = intersect_ray_sphere(o, d, c, self.R_front_mm)
@@ -72,3 +97,50 @@ class PlanoConvex:
             return None, None, False
 
         return o_back, d_out, True
+    
+    def _trace_flat_curved(self, o, d, n1):
+        """Trace through lens with flat face first (flipped orientation)."""
+        # Front surface (planar)
+        # Find intersection with flat face at vertex_z_front
+        if abs(d[2]) < 1e-9:
+            return None, None, False
+        
+        t_front = (self.vertex_z_front - o[2]) / d[2]
+        if t_front < 0:
+            return None, None, False
+        
+        p_front = o + t_front * d
+        
+        # Check aperture at front
+        if math.hypot(p_front[0], p_front[1]) > self.ap_rad_mm:
+            return None, None, False
+        
+        # Refract into glass (planar surface, normal = +z for incoming ray)
+        # Normal points in -z direction (out of glass), but ray is entering
+        d_in = refract_vec(np.array([0, 0, -1]), d, n1, self.n_glass)
+        if d_in is None:
+            return None, None, False
+        
+        # Back surface (sphere) - center is on -z side of vertex_z_back
+        c = np.array([0, 0, self.center_z_back])
+        t = intersect_ray_sphere(p_front, d_in, c, self.R_front_mm)
+        if t is None:
+            return None, None, False
+        
+        p_back = p_front + t * d_in
+        
+        # Check aperture at back
+        if math.hypot(p_back[0], p_back[1]) > self.ap_rad_mm:
+            return None, None, False
+        
+        # Surface normal (points out of glass toward +z)
+        # For a sphere centered at center_z_back (which is > vertex_z_back),
+        # the outward normal from the back surface points away from center
+        n = (p_back - c) / self.R_front_mm
+        
+        # Refract out of glass
+        d_out = refract_vec(n, d_in, self.n_glass, n1)
+        if d_out is None:
+            return None, None, False
+        
+        return p_back, d_out, True

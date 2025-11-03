@@ -175,6 +175,7 @@ def analyze_combos(results_file, coupling_threshold, lenses, run_id, alpha=0.7, 
                 'z_fiber': res['z_fiber'],
                 'f1_mm': res['f1_mm'],
                 'f2_mm': res['f2_mm'],
+                'orientation': res.get('orientation', 'ScffcF'),
                 'time_seconds': res.get('time_seconds', 0.0)
             }
             rows.append(row)
@@ -190,20 +191,28 @@ def analyze_combos(results_file, coupling_threshold, lenses, run_id, alpha=0.7, 
     return all_results
 
 
-def evaluate_fixed_config_at_wavelength(lenses, lens1, lens2, z_l1, z_l2, z_fiber, wavelength, n_rays=2000, medium='air'):
+def evaluate_fixed_config_at_wavelength(lenses, lens1, lens2, z_l1, z_l2, z_fiber, wavelength, n_rays=2000, medium='air', orientation='ScffcF'):
     from scripts.PlanoConvex import PlanoConvex
     from scripts.raytrace_helpers import sample_rays, trace_system
     from scripts import consts as C
     
     d1, d2 = lenses[lens1], lenses[lens2]
     
+    # Parse orientation to determine flipped flags
+    # ScffcF: lens1 curved-first (False), lens2 flat-first (True)
+    # SfccfF: lens1 flat-first (True), lens2 curved-first (False)
+    if orientation == 'SfccfF':
+        flipped1, flipped2 = True, False
+    else:  # Default to 'ScffcF'
+        flipped1, flipped2 = False, True
+    
     original_wavelength = C.WAVELENGTH_NM
     C.WAVELENGTH_NM = wavelength
     
     try:
         origins, dirs = sample_rays(n_rays)
-        lens1_obj = PlanoConvex(z_l1, d1['R_mm'], d1['tc_mm'], d1['te_mm'], d1['dia']/2.0)
-        lens2_obj = PlanoConvex(z_l2, d2['R_mm'], d2['tc_mm'], d2['te_mm'], d2['dia']/2.0)
+        lens1_obj = PlanoConvex(z_l1, d1['R_mm'], d1['tc_mm'], d1['te_mm'], d1['dia']/2.0, flipped=flipped1)
+        lens2_obj = PlanoConvex(z_l2, d2['R_mm'], d2['tc_mm'], d2['te_mm'], d2['dia']/2.0, flipped=flipped2)
         
         accepted, transmission = trace_system(origins, dirs, lens1_obj, lens2_obj,
                                 z_fiber, C.FIBER_CORE_DIAM_MM/2.0, C.ACCEPTANCE_HALF_RAD,
@@ -291,7 +300,8 @@ def wavelength_analysis(results_file, run_id, wl_start=180, wl_end=300, wl_step=
                                 'z_l1': entry['z_l1'],
                                 'z_l2': entry['z_l2'],
                                 'z_fiber': entry['z_fiber'],
-                                'total_len_mm': entry['total_len_mm']
+                                'total_len_mm': entry['total_len_mm'],
+                                'orientation': entry.get('orientation', 'ScffcF')
                             }
                         
                         if method not in completed_wavelengths:
@@ -345,9 +355,10 @@ def wavelength_analysis(results_file, run_id, wl_start=180, wl_end=300, wl_step=
                         'z_l1': res['z_l1'],
                         'z_l2': res['z_l2'],
                         'z_fiber': res['z_fiber'],
-                        'total_len_mm': res['total_len_mm']
+                        'total_len_mm': res['total_len_mm'],
+                        'orientation': res.get('orientation', 'ScffcF')
                     }
-                    logger.info(f"    Calibrated: z_l1={res['z_l1']:.2f}, z_l2={res['z_l2']:.2f}, z_fiber={res['z_fiber']:.2f}, coupling@200nm={res['coupling']:.4f}")
+                    logger.info(f"    Calibrated: z_l1={res['z_l1']:.2f}, z_l2={res['z_l2']:.2f}, z_fiber={res['z_fiber']:.2f}, coupling@200nm={res['coupling']:.4f}, orientation={res.get('orientation', 'ScffcF')}")
                 else:
                     logger.warning(f"    Calibration failed for {method}")
                 
@@ -380,7 +391,8 @@ def wavelength_analysis(results_file, run_id, wl_start=180, wl_end=300, wl_step=
                     coupling = evaluate_fixed_config_at_wavelength(
                         lenses, lens1, lens2,
                         calib['z_l1'], calib['z_l2'], calib['z_fiber'],
-                        wavelength, n_rays=n_rays, medium=medium
+                        wavelength, n_rays=n_rays, medium=medium,
+                        orientation=calib.get('orientation', 'ScffcF')
                     )
                     
                     result_entry = {
@@ -393,6 +405,7 @@ def wavelength_analysis(results_file, run_id, wl_start=180, wl_end=300, wl_step=
                         'z_l1': float(calib['z_l1']),
                         'z_l2': float(calib['z_l2']),
                         'z_fiber': float(calib['z_fiber']),
+                        'orientation': calib.get('orientation', 'ScffcF'),
                         'medium': medium
                     }
                     
