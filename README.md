@@ -47,10 +47,12 @@ objective = α × (1 - coupling) + (1 - α) × (normalized_length)
 
 ### Additional Capabilities
 
+- **Tolerance Analysis**: Assess manufacturing sensitivity to longitudinal displacements
 - **Wavelength Analysis**: Study coupling efficiency across 180-300nm range
+- **Web Dashboard**: Interactive browser-based results viewer with filtering and plotting
 - **Medium Selection**: Air, argon, or helium propagation
 - **Resume Support**: Automatic checkpoint/resume for interrupted batch runs
-- **Rich Visualization**: Ray trace diagrams, spot diagrams, wavelength plots
+- **Rich Visualization**: Ray trace diagrams, spot diagrams, wavelength plots, tolerance curves
 - **Batch Processing**: Automatic splitting and parallel processing of large lens catalogs
 
 ## Performance
@@ -138,6 +140,92 @@ python -m scripts.db_query stats
 python test_database.py
 ```
 
+## Web Dashboard
+
+Interactive browser-based interface for viewing, filtering, and analyzing optimization results.
+
+### Starting the Dashboard
+
+```bash
+# Auto-detect database or use CSV files
+python raytrace.py dashboard
+
+# Custom port
+python raytrace.py dashboard --port 8080
+
+# Specify database file
+python raytrace.py dashboard --db results/integration_test.db
+```
+
+The dashboard will start a local web server and display:
+```
+Dashboard running at http://localhost:5000
+Press Ctrl+C to stop
+```
+
+Open the URL in your browser to access the interface.
+
+### Features
+
+**Statistics Overview**:
+- Total optimization results
+- Number of runs
+- Best coupling efficiency achieved
+- Average coupling across all results
+
+**Interactive Filtering**:
+- Filter by coupling efficiency range (min/max)
+- Filter by medium (air, argon, helium)
+- Filter by specific lens pairs
+- Export filtered results as CSV
+
+**Data Visualization**:
+- Results table with sorting (click column headers)
+- Coupling efficiency distribution histogram
+- Lens pair comparison plots (compare different optimization methods)
+
+**Data Sources**:
+- Automatically reads from SQLite database if available
+- Falls back to CSV files in `results/` directory
+- Scans all subdirectories for optimization results
+- Skips tolerance and wavelength analysis files
+
+### Usage Examples
+
+```bash
+# View results from a specific database
+python raytrace.py dashboard --db results/optimization.db
+
+# Run on a different port (e.g., if 5000 is in use)
+python raytrace.py dashboard --port 8888
+
+# View CSV results without database
+python raytrace.py dashboard  # Auto-detects and loads CSV files
+```
+
+### API Endpoints
+
+The dashboard provides REST API endpoints for programmatic access:
+
+- `GET /api/results?min_coupling=0.2&medium=air` - Query filtered results
+- `GET /api/stats` - Summary statistics
+- `GET /api/lens_pairs` - List unique lens combinations
+- `GET /api/plot/coupling_histogram` - Coupling distribution plot (PNG)
+- `GET /api/plot/compare/<lens1>/<lens2>` - Method comparison plots (PNG)
+- `GET /api/export?min_coupling=0.2` - Export filtered results as CSV
+
+**Example API usage**:
+```bash
+# Get results with coupling > 0.20 in JSON format
+curl "http://localhost:5000/api/results?min_coupling=0.2"
+
+# Download coupling histogram
+curl "http://localhost:5000/api/plot/coupling_histogram" -o histogram.png
+
+# Export filtered results to CSV
+curl "http://localhost:5000/api/export?min_coupling=0.22&medium=argon" -o high_coupling.csv
+```
+
 ## Installation
 
 ### Requirements
@@ -145,12 +233,17 @@ python test_database.py
 - Python 3.7+
 - Required packages:
   ```bash
-  pip install numpy scipy pandas matplotlib tqdm regex
+  pip install numpy scipy pandas matplotlib tqdm regex flask
   ```
 - Optional (for Bayesian optimization):
   ```bash
   pip install scikit-optimize
   ```
+- Optional (for web dashboard):
+  ```bash
+  pip install flask
+  ```
+  *Note: Flask is included in the required packages above*
 
 ### Quick Start
 
@@ -320,6 +413,68 @@ python raytrace.py wavelength-analyze-plot \
   --aggregate
 ```
 
+#### Tolerance Analysis
+
+Assess manufacturing sensitivity by analyzing how coupling efficiency varies with small displacements in lens positions.
+
+```bash
+# Analyze tolerance for a specific lens pair
+python raytrace.py tolerance LA4001 LA4647 --opt powell
+
+# Use high-resolution tolerance profile from config
+python raytrace.py tolerance LA4001 LA4647 --profile tolerance_test
+
+# Custom tolerance parameters
+python raytrace.py tolerance LA4001 LA4647 \
+  --z-range 1.0 \
+  --n-samples 41 \
+  --n-rays 5000
+
+# Test in argon environment
+python raytrace.py tolerance LA4001 LA4647 --opt powell --medium argon
+```
+
+**What it does**:
+- First optimizes the lens pair to find best configuration
+- Systematically perturbs each lens position (z_l1, z_l2) independently
+- Measures coupling efficiency at each position
+- Generates tolerance curves showing sensitivity to misalignment
+
+**Output files**:
+- `tolerance_L1_<lens1>+<lens2>.csv` - L1 position sweep data
+- `tolerance_L2_<lens1>+<lens2>.csv` - L2 position sweep data
+- `tolerance_summary_<lens1>+<lens2>.csv` - Summary statistics
+- `tolerance_<lens1>+<lens2>.png` - Tolerance curve plot
+
+**Configuration options** (in YAML config files):
+```yaml
+tolerance:
+  z_range_mm: 1.0      # ±1.0mm range around optimal position
+  n_samples: 41        # Number of positions to test (41 = 0.05mm steps)
+  n_rays: 5000         # Rays per position (higher = more accurate)
+```
+
+**Interpreting results**:
+- Steep slopes indicate high sensitivity to that lens position
+- Flat regions indicate tolerance to small displacements
+- Asymmetric curves reveal directional sensitivity
+- Use results to set manufacturing tolerances
+
+**Example workflow**:
+```bash
+# 1. Find best configuration
+python raytrace.py particular LA4001 LA4647 --opt differential_evolution
+
+# 2. Analyze tolerance with high resolution
+python raytrace.py tolerance LA4001 LA4647 --profile tolerance_test
+
+# 3. Review tolerance curves
+ls plots/*tolerance*/tolerance_LA4001+LA4647.png
+
+# 4. Check numerical results
+cat results/*tolerance*/tolerance_summary_LA4001+LA4647.csv
+```
+
 ### Command Reference
 
 ```
@@ -331,6 +486,8 @@ Commands:
   analyze                       Re-analyze high-coupling results
   wavelength-analyze            Study wavelength dependence
   wavelength-analyze-plot       Create plots from wavelength data
+  tolerance <lens1> <lens2>     Analyze manufacturing tolerance sensitivity
+  dashboard                     Start interactive web dashboard
 
 Options:
   --opt <method>                Optimization method (default: powell)
@@ -344,11 +501,17 @@ Options:
   --wl-start <nm>               Wavelength analysis start (default: 180)
   --wl-end <nm>                 Wavelength analysis end (default: 300)
   --wl-step <nm>                Wavelength analysis step (default: 10)
+  --z-range <mm>                Tolerance analysis range (default: 0.5)
+  --n-samples <count>           Tolerance analysis samples (default: 21)
   --coupling-threshold <value>  Minimum coupling for analyze mode
   --results-file <path>         Input CSV file for analyze/wavelength modes
   --results-dir <path>          Results directory for plotting
   --fit <type>                  Curve fit type: polynomial, spline
   --aggregate                   Generate aggregated plots with error bars
+  --port <number>               Dashboard port (default: 5000)
+  --db <path>                   Database file for dashboard
+  --profile <name>              Use preset configuration profile
+  --config <path>               Use custom YAML configuration file
   continue                      Resume incomplete batch run
   <YYYY-MM-DD>                  Specify run date for continue mode
 ```
@@ -373,13 +536,27 @@ raytrace-xe-flashlamp-fiber/
 │   ├── analysis.py                # Analysis and wavelength studies
 │   ├── calcs.py                   # Physics calculations (refraction, absorption)
 │   ├── cli.py                     # Command-line interface
+│   ├── config_loader.py           # YAML configuration file handler
 │   ├── consts.py                  # Physical constants and system parameters
 │   ├── data_io.py                 # File I/O and result management
+│   ├── database.py                # SQLite database backend
+│   ├── db_query.py                # Database query CLI
 │   ├── hitran_data.py             # HITRAN absorption data handling
 │   ├── PlanoConvex.py             # Plano-convex lens class
 │   ├── raytrace_helpers.py        # Core ray tracing functions
+│   ├── raytrace_helpers_vectorized.py  # Vectorized ray tracing (10-15x faster)
 │   ├── runner.py                  # Batch processing and continuation
-│   └── visualizers.py             # Plotting and visualization
+│   ├── tolerance_analysis.py      # Manufacturing tolerance testing
+│   ├── visualizers.py             # Plotting and visualization
+│   └── web_dashboard.py           # Flask-based interactive web dashboard
+│
+├── configs/                       # YAML configuration files
+│   ├── default.yaml               # Default parameters
+│   ├── quick_test.yaml            # Fast testing profile
+│   ├── argon_batch.yaml           # Argon medium batch profile
+│   ├── wavelength_study.yaml      # Wavelength analysis profile
+│   ├── tolerance_test.yaml        # High-resolution tolerance profile
+│   └── integration_test.yaml      # Database integration testing
 │
 ├── data/                          # Lens catalogs
 │   ├── Combined_Lenses.csv        # Full lens catalog (156 lenses)
@@ -388,15 +565,18 @@ raytrace-xe-flashlamp-fiber/
 │   └── *.csv, *.xlsx              # Vendor lens data
 │
 ├── results/                       # Output directory
-│   └── <run_id>/                  # Results organized by run ID
-│       ├── batch_*.csv            # Intermediate batch results
-│       ├── results_*.csv          # Final combined results
-│       └── temp_*.json            # Checkpoint files
+│   ├── <run_id>/                  # Results organized by run ID
+│   │   ├── batch_*.csv            # Intermediate batch results
+│   │   ├── results_*.csv          # Final combined results
+│   │   ├── tolerance_*.csv        # Tolerance analysis data
+│   │   └── temp_*.json            # Checkpoint files
+│   └── *.db                       # SQLite database files
 │
 ├── plots/                         # Generated plots
 │   └── <run_id>/
 │       ├── C-<coupling>_L1-*_L2-*.png      # Ray trace diagrams
 │       ├── spot_*.png                       # Spot diagrams
+│       ├── tolerance_*.png                  # Tolerance curves
 │       └── wavelength_analyze_*/            # Wavelength analysis plots
 │
 ├── logs/                          # Execution logs
@@ -640,6 +820,49 @@ python raytrace.py particular 36-681 LA4647 --opt powell --medium argon
 # Compare coupling efficiencies in logs
 grep "Coupling=" logs/particular_2025-10-18_powell_air.log
 grep "Coupling=" logs/particular_2025-10-18_powell_argon.log
+```
+
+### Workflow 5: Manufacturing Tolerance Assessment
+
+```bash
+# Step 1: Optimize a promising lens pair
+python raytrace.py particular LA4001 LA4647 --opt differential_evolution
+
+# Step 2: Run high-resolution tolerance analysis
+python raytrace.py tolerance LA4001 LA4647 --profile tolerance_test
+
+# Step 3: View tolerance curves
+ls plots/2025-10-24_None_powell_air/tolerance_LA4001+LA4647.png
+
+# Step 4: Check tolerance summary statistics
+cat results/2025-10-24_None_powell_air/tolerance_summary_LA4001+LA4647.csv
+
+# Step 5: Compare tolerances in different media
+python raytrace.py tolerance LA4001 LA4647 --opt powell --medium argon \
+  --z-range 1.0 --n-samples 41
+```
+
+### Workflow 6: Interactive Results Analysis with Dashboard
+
+```bash
+# Step 1: Run batch optimization with database enabled
+# (Ensure database.enabled: true in configs/default.yaml)
+python raytrace.py select --opt powell --alpha 0.9
+
+# Step 2: Start the dashboard
+python raytrace.py dashboard --db results/optimization.db
+
+# Step 3: Open browser to http://localhost:5000
+# - Filter results by coupling > 0.22
+# - View coupling distribution histogram
+# - Compare different lens pairs
+# - Export filtered results as CSV
+
+# Alternative: Use CSV files directly (no database)
+python raytrace.py dashboard  # Auto-detects CSV files
+
+# Step 4: Export high-performing results via API
+curl "http://localhost:5000/api/export?min_coupling=0.22" -o best_results.csv
 ```
 
 ## Troubleshooting

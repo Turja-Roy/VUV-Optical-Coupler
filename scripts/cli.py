@@ -19,6 +19,7 @@ Commands:
     wavelength-analyze            Analyze wavelength dependence of lens combinations
     wavelength-analyze-plot       Create plots from wavelength analysis results
     tolerance <lens1> <lens2>     Analyze manufacturing tolerance sensitivity
+    dashboard                     Start web dashboard for viewing results
 
 Options:
     --config <file>               Load configuration from YAML file
@@ -43,6 +44,8 @@ Options:
     --n-rays <count>              Number of rays for ray tracing (default: 1000)
     --z-range <mm>                Range for tolerance analysis z-displacement (default: 0.5)
     --n-samples <count>           Number of tolerance test samples (default: 21)
+    --port <number>               Port for dashboard server (default: 5000)
+    --db <path>                   Path to database for dashboard (default: auto-detect)
     continue                      Continue incomplete batch run
     <YYYY-MM-DD>                  Specify run date
 
@@ -106,6 +109,12 @@ Examples:
     
     # Plot aggregated results with polynomial fit
     python raytrace.py wavelength-analyze-plot --results-dir results/wavelength_analyze_2025-10-18 --aggregate --fit polynomial
+    
+    # Start web dashboard
+    python raytrace.py dashboard
+    
+    # Dashboard with custom port and database
+    python raytrace.py dashboard --port 8080 --db results/custom.db
 """)
 
 
@@ -132,7 +141,9 @@ def parse_arguments():
         'z_range': 0.5,
         'n_samples': 21,
         'config_file': None,
-        'profile': None
+        'profile': None,
+        'port': 5000,
+        'db_path': None
     }
 
     if len(sys.argv) < 2:
@@ -178,13 +189,16 @@ def parse_arguments():
 
     elif sys.argv[1] == 'wavelength-analyze-plot':
         args['mode'] = 'wavelength-analyze-plot'
+    
+    elif sys.argv[1] == 'dashboard':
+        args['mode'] = 'dashboard'
 
     else:
         print(f"Error: Unknown command '{sys.argv[1]}'")
         print_usage()
         sys.exit(1)
 
-    i = 2 if args['mode'] in ['method', 'analyze', 'wavelength-analyze', 'wavelength-analyze-plot'] else 4
+    i = 2 if args['mode'] in ['method', 'analyze', 'wavelength-analyze', 'wavelength-analyze-plot', 'dashboard'] else 4
     while i < len(sys.argv):
         arg = sys.argv[i]
 
@@ -353,6 +367,26 @@ def parse_arguments():
         elif arg == '--aggregate':
             args['aggregate'] = True
             i += 1
+        
+        elif arg == '--port':
+            if i + 1 < len(sys.argv):
+                try:
+                    args['port'] = int(sys.argv[i + 1])
+                except ValueError:
+                    print("Error: --port must be an integer")
+                    sys.exit(1)
+                i += 2
+            else:
+                print("Error: --port requires a value")
+                sys.exit(1)
+        
+        elif arg == '--db':
+            if i + 1 < len(sys.argv):
+                args['db_path'] = sys.argv[i + 1]
+                i += 2
+            else:
+                print("Error: --db requires a file path")
+                sys.exit(1)
 
         elif arg == 'continue':
             args['continue'] = True

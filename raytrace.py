@@ -34,6 +34,28 @@ def main():
     else:
         run_id = f"{args['date']}_{args['method']}_{args['optimizer']}_{args['medium']}"
 
+    # Handle dashboard mode
+    if args['mode'] == 'dashboard':
+        from scripts.web_dashboard import start_dashboard
+        
+        print("\n" + "="*60)
+        print("Starting Web Dashboard")
+        print("="*60)
+        print(f"Port: {args['port']}")
+        if args['db_path']:
+            print(f"Database: {args['db_path']}")
+        else:
+            print(f"Database: Auto-detect")
+        print(f"Results directory: ./results")
+        print("="*60)
+        
+        start_dashboard(
+            port=args['port'],
+            db_path=args['db_path'],
+            results_dir='./results'
+        )
+        return
+
     # Handle wavelength-analyze-plot mode
     if args['mode'] == 'wavelength-analyze-plot':
         import glob
