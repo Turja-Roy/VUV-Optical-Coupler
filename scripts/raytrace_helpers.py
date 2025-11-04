@@ -5,6 +5,35 @@ from scripts.calcs import transmission_through_medium, medium_refractive_index
 
 
 def sample_rays(n_rays):
+    """
+    Sample rays using stratified quasi-random sampling.
+    
+    This is NOT pure Monte Carlo sampling. The sampling strategy is:
+    - Radial positions: Random uniform area sampling (sqrt for uniform density)
+    - Angular positions: Deterministic uniform spacing around circle
+    - Ray directions: Deterministically calculated from radial position
+    
+    This hybrid approach provides better coverage than pure random sampling
+    while maintaining some randomization for statistical validity.
+    
+    Parameters
+    ----------
+    n_rays : int
+        Number of rays to generate
+    
+    Returns
+    -------
+    origins : ndarray, shape (n_rays, 3)
+        Ray starting points on the source arc (x, y, z) in mm
+    directions : ndarray, shape (n_rays, 3)
+        Ray direction unit vectors (x, y, z)
+    
+    Notes
+    -----
+    The source is modeled as a 3mm diameter arc with rays emanating
+    in a cone up to 33° from the optical axis. Ray angle increases
+    linearly with radial position from the source center.
+    """
     arc_radius = C.SOURCE_ARC_DIAM_MM / 2.0
 
     r = np.sqrt(np.random.rand(n_rays)) * arc_radius  # radial positions

@@ -369,7 +369,7 @@ Deterministic ray tracing with quasi-random sampling:
 - Full refraction at each lens surface (Snell's law)
 - Acceptance testing at fiber based on NA and position
 
-**Note**: Despite the historical filename `raytrace_monte-carlo.py`, this uses stratified sampling rather than pure Monte Carlo. Only radial positions are randomized; angular positions and ray directions are deterministic.
+**Note**: The code uses stratified sampling rather than pure Monte Carlo. Only radial positions are randomized; angular positions and ray directions are deterministic. Historical files have been renamed from `raytrace_monte-carlo.*` to `raytrace_stratified.*` to reflect this.
 
 ### Atmospheric Absorption
 
