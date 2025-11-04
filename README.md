@@ -142,7 +142,7 @@ python test_database.py
 
 ## Web Dashboard
 
-Interactive browser-based interface for viewing, filtering, and analyzing optimization results. **Now supports config files!**
+Interactive browser-based interface for viewing, filtering, and analyzing optimization results.
 
 ### Starting the Dashboard
 
@@ -316,7 +316,6 @@ optimization:
     maxiter: 500
     ftol: 0.0001
 
-# NEW: Analyze mode configuration
 analyze:
   n_rays: 1000
   coupling_threshold: 0.22
@@ -325,7 +324,6 @@ analyze:
     - powell
     - dual_annealing
 
-# NEW: Wavelength analysis configuration
 wavelength:
   wl_start: 190
   wl_end: 250
@@ -335,7 +333,6 @@ wavelength:
     - differential_evolution
     - powell
 
-# NEW: Dashboard configuration
 dashboard:
   port: 8080
   db_path: results/optimization.db
@@ -366,10 +363,10 @@ python raytrace.py dashboard --config my_config.yaml --port 5000
 | Mode | Config Support | Config Sections Used |
 |------|----------------|---------------------|
 | `particular`, `compare`, `select`, `combine` | ✅ Full | `rays`, `medium`, `optimization` |
-| `analyze` | ✅ Full (NEW) | `analyze` |
-| `wavelength-analyze` | ✅ Full (NEW) | `wavelength` |
+| `analyze` | ✅ Full | `analyze` |
+| `wavelength-analyze` | ✅ Full | `wavelength` |
 | `tolerance` | ✅ Full | `tolerance` |
-| `dashboard` | ✅ Full (NEW) | `dashboard` |
+| `dashboard` | ✅ Full | `dashboard` |
 | `wavelength-analyze-plot` | CLI only | N/A |
 
 See `configs/default.yaml` for all available configuration options and detailed documentation.
@@ -434,7 +431,7 @@ python raytrace.py combine --opt powell continue 2025-10-14
 
 #### Analyze High-Coupling Results
 
-Re-optimize promising results with multiple methods to find absolute best configurations. **Now supports config files!**
+Re-optimize promising results with multiple methods to find absolute best configurations.
 
 ```bash
 # CLI-only usage
@@ -470,7 +467,7 @@ The `methods` list controls which optimizers to test on each lens pair. Results 
 
 #### Wavelength Dependence Analysis
 
-Study how coupling varies with wavelength. **Now supports config files!**
+Study how coupling varies with wavelength.
 
 ```bash
 # CLI-only usage
@@ -1001,7 +998,7 @@ dashboard:
   db_path: results/optimization.db
 ```
 
-### Workflow 7: Complete Project Using Config Files (NEW)
+### Workflow 7: Complete Project Using Config Files
 
 Manage an entire project with a single comprehensive config file.
 

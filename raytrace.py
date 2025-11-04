@@ -406,7 +406,7 @@ def main():
         results = run_combos(
             lenses, combos, run_id, method=args['optimizer'],
             alpha=args['alpha'], n_rays=args['n_rays'],
-            batch_num=None, medium=args['medium']
+            batch_num=None, medium=args['medium'], db=db
         )
         
         if not results or len(results) == 0:
@@ -458,7 +458,7 @@ def main():
     def runner_func(lenses, combos, run_id, batch_num): return run_combos(
         lenses, combos, run_id, method=args['optimizer'],
         alpha=args['alpha'], n_rays=1000, batch_num=batch_num,
-        medium=args['medium']
+        medium=args['medium'], db=db
     )
 
     # Run optimization

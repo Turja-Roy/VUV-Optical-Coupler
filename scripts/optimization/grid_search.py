@@ -138,8 +138,26 @@ def _setup_logger(run_id: str):
     return logger
 
 
-def run_combos(lenses, combos, run_id, batch_num=None, medium='air'):
+def run_combos(lenses, combos, run_id, batch_num=None, medium='air', db=None):
     logger = _setup_logger(run_id)
+    
+    # Initialize database run if provided and not already exists
+    if db is not None:
+        import scripts.consts as C
+        existing_run = db.get_run(run_id)
+        if not existing_run:
+            config = {'method': 'grid_search'}
+            db.insert_run(
+                run_id=run_id,
+                method='grid_search',
+                medium=medium,
+                n_rays=C.N_RAYS,
+                wavelength_nm=C.WAVELENGTH_NM,
+                pressure_atm=C.PRESSURE_ATM,
+                temperature_k=C.TEMPERATURE_K,
+                humidity_fraction=C.HUMIDITY_FRACTION,
+                config=config
+            )
 
     for (a, b) in tqdm(combos):
         logger.info(f"\nEvaluating {a} + {b} ...")
@@ -152,6 +170,15 @@ def run_combos(lenses, combos, run_id, batch_num=None, medium='air'):
         else:
             plot_system_rays(lenses, res, run_id)
             write_temp(res, run_id, batch_num)
+            
+            # Save to database immediately if enabled
+            if db is not None:
+                try:
+                    result_with_method = dict(res, method='grid_search')
+                    db.insert_result(run_id, result_with_method)
+                except Exception as e:
+                    logger.error(f"Failed to write to database: {e}")
+            
             logger.info(f"best coupling={res['coupling']:.4f} at z_l1={
                       res['z_l1']:.2f}, z_l2={res['z_l2']:.2f}")
 

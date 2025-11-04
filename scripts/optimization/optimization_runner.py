@@ -29,8 +29,26 @@ def _setup_logger(run_id):
 
 
 def run_combos(lenses, combos, run_id, method='differential_evolution',
-               alpha=0.7, n_rays=1000, batch_num=None, medium='air'):
+               alpha=0.7, n_rays=1000, batch_num=None, medium='air', db=None):
     logger = _setup_logger(run_id)
+    
+    # Initialize database run if provided and not already exists
+    if db is not None:
+        import scripts.consts as C
+        existing_run = db.get_run(run_id)
+        if not existing_run:
+            config = {'alpha': alpha, 'method': method}
+            db.insert_run(
+                run_id=run_id,
+                method=method,
+                medium=medium,
+                n_rays=n_rays,
+                wavelength_nm=C.WAVELENGTH_NM,
+                pressure_atm=C.PRESSURE_ATM,
+                temperature_k=C.TEMPERATURE_K,
+                humidity_fraction=C.HUMIDITY_FRACTION,
+                config=config
+            )
     
     if method == 'grid_search':
         from scripts.optimization import grid_search as optimizer
@@ -65,6 +83,14 @@ def run_combos(lenses, combos, run_id, method='differential_evolution',
             
             plot_system_rays(lenses, res, run_id)
             write_temp(res, run_id, batch_num)
+            
+            # Save to database immediately if enabled
+            if db is not None:
+                try:
+                    result_with_method = dict(res, method=method)
+                    db.insert_result(run_id, result_with_method)
+                except Exception as e:
+                    logger.error(f"Failed to write to database: {e}")
             
             logger.info(f"Coupling={res['coupling']:.4f}, "
                        f"Length={res['total_len_mm']:.2f}mm, "

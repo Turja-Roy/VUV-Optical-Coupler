@@ -26,7 +26,7 @@ N_GLASS = fused_silica_n(WAVELENGTH_NM)
 USE_VECTORIZED_TRACING = True  # Use vectorized ray tracing (10-15x faster)
 
 # Database settings
-USE_DATABASE = False  # Enable SQLite database for storing results
+USE_DATABASE = True  # Enable SQLite database for storing results
 DATABASE_PATH = './results/optimization.db'  # Path to database file
 
 MEDIUM = 'air'

@@ -100,6 +100,9 @@ def write_results(method, results, run_id, batch=False, batch_num=None, lens_pai
     """
         Write results to CSV file and optionally to database. Each result must be a 
         dictionary with scalar values for lens parameters, positions, and coupling efficiency.
+        
+        Note: If results are being saved per-test in optimization functions, this will
+        skip database insertion to avoid duplicates and only write CSV files.
     """
     import os
     from datetime import datetime
@@ -125,8 +128,10 @@ def write_results(method, results, run_id, batch=False, batch_num=None, lens_pai
         ['coupling', 'total_len_mm'],
         ascending=[False, True]).reset_index(drop=True)
 
-    # Write to database if enabled
-    if use_database and db is not None:
+    # Write to database if enabled AND it's a final aggregation (not a batch)
+    # Per-test writes are now handled in the optimization functions themselves
+    # This only writes to DB for analyze mode or final aggregations
+    if use_database and db is not None and not batch:
         try:
             # Ensure run exists in database first
             # Check if run already exists
@@ -147,9 +152,12 @@ def write_results(method, results, run_id, batch=False, batch_num=None, lens_pai
                     config=config
                 )
             
-            # Add method to each result dict for database storage
-            results_with_method = [dict(r, method=method) for r in rows]
-            db.insert_results_batch(run_id, results_with_method)
+            # For analyze mode, check if results need to be written to database
+            # (per-test writes don't happen in analyze mode)
+            if 'analyze' in method:
+                # Add method to each result dict for database storage
+                results_with_method = [dict(r, method=method) for r in rows]
+                db.insert_results_batch(run_id, results_with_method)
         except Exception as e:
             print(f"Warning: Failed to write to database: {e}")
     

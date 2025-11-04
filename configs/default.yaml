@@ -74,7 +74,7 @@ output:
 
 # Database settings
 database:
-  enabled: false  # Enable SQLite database for storing results
+  enabled: true  # Enable SQLite database for storing results
   path: ./results/optimization.db  # Path to database file
 
 # Tolerance analysis settings
