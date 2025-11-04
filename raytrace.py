@@ -274,6 +274,63 @@ def main():
         compare_optimizers(lenses, (args['lens1'], args['lens2']),
                            run_id, alpha=args['alpha'], medium=args['medium'])
         return
+    
+    # Handle tolerance analysis mode
+    if args['mode'] == 'tolerance':
+        from scripts.tolerance_analysis import analyze_tolerance, save_tolerance_results
+        from scripts.visualizers import plot_tolerance_results
+        
+        print("\n" + "="*70)
+        print("TOLERANCE ANALYSIS MODE")
+        print("="*70)
+        print(f"Lens pair: {args['lens1']} + {args['lens2']}")
+        print(f"Optimizer: {args['optimizer']}")
+        print(f"Medium: {args['medium']}")
+        print("="*70)
+        
+        # First, run optimization to get baseline configuration
+        combos, lenses = particular_combo(args['lens1'], args['lens2'])
+        
+        print("\nStep 1: Finding optimal configuration...")
+        from scripts.optimization.optimization_runner import run_combos
+        
+        results = run_combos(
+            lenses, combos, run_id, method=args['optimizer'],
+            alpha=args['alpha'], n_rays=args['n_rays'],
+            batch_num=None, medium=args['medium']
+        )
+        
+        if not results or len(results) == 0:
+            print("Error: Optimization failed, no results returned")
+            return
+        
+        # Get best result
+        best_result = max(results, key=lambda x: x['coupling'])
+        
+        print("\nStep 2: Running tolerance analysis...")
+        tolerance_results = analyze_tolerance(
+            lenses, best_result,
+            n_rays=args['n_rays'],
+            n_samples=args['n_samples'],
+            z_range_mm=args['z_range'],
+            medium=args['medium']
+        )
+        
+        # Save results
+        print("\nStep 3: Saving results...")
+        save_tolerance_results(tolerance_results, run_id)
+        
+        # Generate plots
+        print("\nStep 4: Generating plots...")
+        plot_tolerance_results(tolerance_results, run_id)
+        
+        print("\n" + "="*70)
+        print("TOLERANCE ANALYSIS COMPLETE")
+        print("="*70)
+        print(f"Results saved to: results/{run_id}/")
+        print(f"Plots saved to: plots/{run_id}/")
+        
+        return
 
     # Get lens combinations
     if args['mode'] == 'particular':

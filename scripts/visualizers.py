@@ -566,3 +566,106 @@ def plot_wavelength_per_method_aggregated(method, lens_combos_data, plot_dir, fi
     filename = os.path.join(plot_dir, f'{method}_aggregated{fit_suffix}.png')
     plt.savefig(filename, dpi=150, bbox_inches='tight')
     plt.close()
+
+
+def plot_tolerance_results(results, run_id, output_dir='./plots'):
+    """
+    Generate plots for tolerance analysis results.
+    
+    Parameters:
+    -----------
+    results : dict
+        Results dictionary from analyze_tolerance()
+    run_id : str
+        Identifier for this run
+    output_dir : str
+        Base directory for plots
+    """
+    import os
+    from pathlib import Path
+    
+    params = results['parameters']
+    lens_pair = f"{params['lens1']}+{params['lens2']}"
+    
+    # Create output directory
+    output_path = Path(output_dir) / run_id
+    output_path.mkdir(parents=True, exist_ok=True)
+    
+    # Extract data
+    baseline = results['baseline']
+    z_l1_disp = results['z_l1_sensitivity']['displacements']
+    z_l1_coup = results['z_l1_sensitivity']['couplings']
+    z_l1_metrics = results['z_l1_sensitivity']['metrics']
+    
+    z_l2_disp = results['z_l2_sensitivity']['displacements']
+    z_l2_coup = results['z_l2_sensitivity']['couplings']
+    z_l2_metrics = results['z_l2_sensitivity']['metrics']
+    
+    # Create figure with two subplots
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+    
+    # Plot L1 sensitivity
+    ax1.plot(z_l1_disp, z_l1_coup, 'o-', linewidth=2, markersize=6, 
+             color='#1f77b4', label='Coupling efficiency')
+    ax1.axhline(y=baseline, color='green', linestyle='--', linewidth=1.5, 
+                label=f'Baseline ({baseline:.4f})')
+    ax1.axhline(y=baseline - 0.01, color='red', linestyle=':', linewidth=1.5, 
+                label='1% drop threshold')
+    ax1.axvline(x=0, color='gray', linestyle='-', linewidth=1, alpha=0.5)
+    
+    # Mark worst displacement
+    ax1.plot(z_l1_metrics['worst_displacement'], 
+             baseline - z_l1_metrics['max_drop'],
+             'rx', markersize=12, markeredgewidth=2, 
+             label=f"Worst case (Δz={z_l1_metrics['worst_displacement']:.3f} mm)")
+    
+    # Mark tolerance range if available
+    if z_l1_metrics['tolerance_1pct'] is not None:
+        tol = z_l1_metrics['tolerance_1pct']
+        ax1.axvspan(-tol, tol, alpha=0.2, color='green', 
+                    label=f'1% tolerance (±{tol:.3f} mm)')
+    
+    ax1.set_xlabel('L1 Displacement (mm)', fontsize=11)
+    ax1.set_ylabel('Coupling Efficiency', fontsize=11)
+    ax1.set_title(f'L1 Position Sensitivity\n{params["lens1"]}', fontsize=12, fontweight='bold')
+    ax1.grid(True, alpha=0.3)
+    ax1.legend(loc='best', fontsize=9)
+    
+    # Plot L2 sensitivity
+    ax2.plot(z_l2_disp, z_l2_coup, 'o-', linewidth=2, markersize=6, 
+             color='#ff7f0e', label='Coupling efficiency')
+    ax2.axhline(y=baseline, color='green', linestyle='--', linewidth=1.5, 
+                label=f'Baseline ({baseline:.4f})')
+    ax2.axhline(y=baseline - 0.01, color='red', linestyle=':', linewidth=1.5, 
+                label='1% drop threshold')
+    ax2.axvline(x=0, color='gray', linestyle='-', linewidth=1, alpha=0.5)
+    
+    # Mark worst displacement
+    ax2.plot(z_l2_metrics['worst_displacement'], 
+             baseline - z_l2_metrics['max_drop'],
+             'rx', markersize=12, markeredgewidth=2, 
+             label=f"Worst case (Δz={z_l2_metrics['worst_displacement']:.3f} mm)")
+    
+    # Mark tolerance range if available
+    if z_l2_metrics['tolerance_1pct'] is not None:
+        tol = z_l2_metrics['tolerance_1pct']
+        ax2.axvspan(-tol, tol, alpha=0.2, color='green', 
+                    label=f'1% tolerance (±{tol:.3f} mm)')
+    
+    ax2.set_xlabel('L2 Displacement (mm)', fontsize=11)
+    ax2.set_ylabel('Coupling Efficiency', fontsize=11)
+    ax2.set_title(f'L2 Position Sensitivity\n{params["lens2"]}', fontsize=12, fontweight='bold')
+    ax2.grid(True, alpha=0.3)
+    ax2.legend(loc='best', fontsize=9)
+    
+    # Add overall title
+    fig.suptitle(f'Tolerance Analysis: {lens_pair} ({params["orientation"]})', 
+                 fontsize=14, fontweight='bold', y=0.98)
+    
+    plt.tight_layout(rect=[0, 0, 1, 0.96])
+    
+    # Save plot
+    filename = output_path / f"tolerance_{lens_pair}.png"
+    plt.savefig(filename, dpi=150, bbox_inches='tight')
+    print(f"Saved tolerance plot: {filename}")
+    plt.close(fig)

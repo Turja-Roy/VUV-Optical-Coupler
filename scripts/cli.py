@@ -18,6 +18,7 @@ Commands:
     analyze                       Analyze high-coupling results with all methods
     wavelength-analyze            Analyze wavelength dependence of lens combinations
     wavelength-analyze-plot       Create plots from wavelength analysis results
+    tolerance <lens1> <lens2>     Analyze manufacturing tolerance sensitivity
 
 Options:
     --config <file>               Load configuration from YAML file
@@ -40,6 +41,8 @@ Options:
     --wl-end <nm>                 Ending wavelength for wavelength-analyze (default: 300)
     --wl-step <nm>                Wavelength step for wavelength-analyze (default: 10)
     --n-rays <count>              Number of rays for ray tracing (default: 1000)
+    --z-range <mm>                Range for tolerance analysis z-displacement (default: 0.5)
+    --n-samples <count>           Number of tolerance test samples (default: 21)
     continue                      Continue incomplete batch run
     <YYYY-MM-DD>                  Specify run date
 
@@ -76,6 +79,12 @@ Examples:
     
     # Analyze high-coupling results with all methods
     python raytrace.py analyze --results-file results/2025-10-16/results_*.csv --coupling-threshold 0.2
+    
+    # Analyze manufacturing tolerance sensitivity
+    python raytrace.py tolerance LA4001 LA4647 --opt powell
+    
+    # Tolerance with custom parameters
+    python raytrace.py tolerance LA4001 LA4647 --opt powell --z-range 1.0 --n-samples 41 --n-rays 5000
     
     # Run wavelength analysis on specific lens combinations
     python raytrace.py wavelength-analyze --results-file results/2025-10-17/36-681+LA4647.csv
@@ -120,6 +129,8 @@ def parse_arguments():
         'wl_end': 300,
         'wl_step': 10,
         'n_rays': 1000,
+        'z_range': 0.5,
+        'n_samples': 21,
         'config_file': None,
         'profile': None
     }
@@ -143,6 +154,15 @@ def parse_arguments():
             print_usage()
             sys.exit(1)
         args['mode'] = 'compare'
+        args['lens1'] = sys.argv[2]
+        args['lens2'] = sys.argv[3]
+    
+    elif sys.argv[1] == 'tolerance':
+        if len(sys.argv) < 4:
+            print("Error: tolerance mode requires two lens names")
+            print_usage()
+            sys.exit(1)
+        args['mode'] = 'tolerance'
         args['lens1'] = sys.argv[2]
         args['lens2'] = sys.argv[3]
 
@@ -268,6 +288,30 @@ def parse_arguments():
                 i += 2
             else:
                 print("Error: --n-rays requires a value")
+                sys.exit(1)
+        
+        elif arg == '--z-range':
+            if i + 1 < len(sys.argv):
+                try:
+                    args['z_range'] = float(sys.argv[i + 1])
+                except ValueError:
+                    print("Error: --z-range must be a number")
+                    sys.exit(1)
+                i += 2
+            else:
+                print("Error: --z-range requires a value")
+                sys.exit(1)
+        
+        elif arg == '--n-samples':
+            if i + 1 < len(sys.argv):
+                try:
+                    args['n_samples'] = int(sys.argv[i + 1])
+                except ValueError:
+                    print("Error: --n-samples must be an integer")
+                    sys.exit(1)
+                i += 2
+            else:
+                print("Error: --n-samples requires a value")
                 sys.exit(1)
 
         elif arg == '--config':
