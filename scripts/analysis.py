@@ -30,7 +30,7 @@ def _setup_logger(run_id):
     return logger
 
 
-def analyze_combos(results_file, coupling_threshold, lenses, run_id, alpha=0.7, n_rays=1000, medium='air'):
+def analyze_combos(results_file, coupling_threshold, lenses, run_id, alpha=0.7, n_rays=1000, medium='air', methods=None):
     logger = _setup_logger(run_id)
     
     logger.info(f"Loading results from {results_file}")
@@ -47,7 +47,9 @@ def analyze_combos(results_file, coupling_threshold, lenses, run_id, alpha=0.7, 
         print("No combinations meet the threshold. Exiting.")
         return {}
     
-    methods = ['differential_evolution', 'dual_annealing', 'nelder_mead', 'powell', 'grid_search', 'bayesian']
+    # Use provided methods list or default to all methods
+    if methods is None:
+        methods = ['differential_evolution', 'dual_annealing', 'nelder_mead', 'powell', 'grid_search', 'bayesian']
     
     try:
         from scripts.optimization import bayesian
@@ -226,7 +228,7 @@ def evaluate_fixed_config_at_wavelength(lenses, lens1, lens2, z_l1, z_l2, z_fibe
         C.WAVELENGTH_NM = original_wavelength
 
 
-def wavelength_analysis(results_file, run_id, wl_start=180, wl_end=300, wl_step=10, n_rays=2000, alpha=0.7, medium='air'):
+def wavelength_analysis(results_file, run_id, wl_start=180, wl_end=300, wl_step=10, n_rays=2000, alpha=0.7, medium='air', methods=None):
     logger = _setup_logger(run_id)
     
     logger.info(f"Loading lens combinations from {results_file}")
@@ -249,8 +251,11 @@ def wavelength_analysis(results_file, run_id, wl_start=180, wl_end=300, wl_step=
     from scripts.data_io import find_combos
     _, lenses = find_combos('combine')
     
+    # Use provided methods list or default to all methods
+    if methods is None:
+        methods = ['differential_evolution', 'dual_annealing', 'nelder_mead', 'powell', 'grid_search', 'bayesian']
+    
     wavelengths = np.arange(wl_start, wl_end + 1, wl_step)
-    methods = ['differential_evolution', 'dual_annealing', 'nelder_mead', 'powell', 'grid_search', 'bayesian']
     
     print(f"Parameters: wavelengths={wl_start}-{wl_end}nm (step={wl_step}nm), n_rays={n_rays}, medium={medium}")
     print(f"Strategy: Calibrate at 200nm, then test fixed geometry across wavelengths")

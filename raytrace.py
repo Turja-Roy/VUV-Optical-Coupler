@@ -38,20 +38,36 @@ def main():
     if args['mode'] == 'dashboard':
         from scripts.web_dashboard import start_dashboard
         
+        # Load dashboard params from config if available
+        dashboard_port = args['port']
+        dashboard_db = args['db_path']
+        
+        if '_config' in args:
+            from scripts.config_loader import ConfigLoader
+            loader = ConfigLoader()
+            dash_params = loader.get_dashboard_params(args['_config'])
+            
+            # CLI args override config values
+            import sys
+            if '--port' not in sys.argv:
+                dashboard_port = dash_params['port']
+            if '--db' not in sys.argv:
+                dashboard_db = dash_params['db_path']
+        
         print("\n" + "="*60)
         print("Starting Web Dashboard")
         print("="*60)
-        print(f"Port: {args['port']}")
-        if args['db_path']:
-            print(f"Database: {args['db_path']}")
+        print(f"Port: {dashboard_port}")
+        if dashboard_db:
+            print(f"Database: {dashboard_db}")
         else:
             print(f"Database: Auto-detect")
         print(f"Results directory: ./results")
         print("="*60)
         
         start_dashboard(
-            port=args['port'],
-            db_path=args['db_path'],
+            port=dashboard_port,
+            db_path=dashboard_db,
             results_dir='./results'
         )
         return
@@ -223,17 +239,42 @@ def main():
     if args['mode'] == 'wavelength-analyze':
         from scripts.analysis import wavelength_analysis
         
+        # Load wavelength params from config if available
+        wl_start = args['wl_start']
+        wl_end = args['wl_end']
+        wl_step = args['wl_step']
+        wl_n_rays = args['n_rays']
+        wl_methods = None
+        
+        if '_config' in args:
+            from scripts.config_loader import ConfigLoader
+            loader = ConfigLoader()
+            wl_params = loader.get_wavelength_params(args['_config'])
+            
+            # CLI args override config values
+            import sys
+            if '--wl-start' not in sys.argv:
+                wl_start = wl_params['wl_start']
+            if '--wl-end' not in sys.argv:
+                wl_end = wl_params['wl_end']
+            if '--wl-step' not in sys.argv:
+                wl_step = wl_params['wl_step']
+            if '--n-rays' not in sys.argv:
+                wl_n_rays = wl_params['n_rays']
+            wl_methods = wl_params['methods']
+        
         Path(f'./results/{run_id}').mkdir(parents=True, exist_ok=True)
         
         wavelength_analysis(
             args['results_file'], 
             run_id,
-            wl_start=args['wl_start'],
-            wl_end=args['wl_end'],
-            wl_step=args['wl_step'],
-            n_rays=args['n_rays'],
+            wl_start=wl_start,
+            wl_end=wl_end,
+            wl_step=wl_step,
+            n_rays=wl_n_rays,
             alpha=args['alpha'],
-            medium=args['medium']
+            medium=args['medium'],
+            methods=wl_methods
         )
         
         return
@@ -244,16 +285,36 @@ def main():
         
         _, lenses = find_combos('combine')
         
+        # Load analyze params from config if available
+        analyze_n_rays = args['n_rays']
+        analyze_threshold = args['coupling_threshold']
+        analyze_methods = None
+        
+        if '_config' in args:
+            from scripts.config_loader import ConfigLoader
+            loader = ConfigLoader()
+            analyze_params = loader.get_analyze_params(args['_config'])
+            
+            # CLI args override config values
+            import sys
+            if '--n-rays' not in sys.argv:
+                analyze_n_rays = analyze_params['n_rays']
+            if '--coupling-threshold' not in sys.argv:
+                analyze_threshold = analyze_params['coupling_threshold']
+            analyze_methods = analyze_params['methods']
+        
         Path(f'./results/{run_id}').mkdir(parents=True, exist_ok=True)
         Path(f'./plots/{run_id}').mkdir(parents=True, exist_ok=True)
         
         all_results = analyze_combos(
             args['results_file'],
-            args['coupling_threshold'],
+            analyze_threshold,
             lenses,
             run_id,
             alpha=args['alpha'],
-            medium=args['medium']
+            medium=args['medium'],
+            n_rays=analyze_n_rays,
+            methods=analyze_methods
         )
         
         for method, results in all_results.items():

@@ -201,6 +201,102 @@ class ConfigLoader:
             'test_tilt': tol.get('test_tilt', defaults['test_tilt'])
         }
     
+    def get_analyze_params(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Extract analyze mode parameters from config.
+        
+        Parameters
+        ----------
+        config : dict
+            Configuration dictionary
+            
+        Returns
+        -------
+        analyze_params : dict
+            Dictionary with keys: n_rays, coupling_threshold, methods
+        """
+        defaults = {
+            'n_rays': 1000,
+            'coupling_threshold': 0.2,
+            'methods': ['differential_evolution', 'dual_annealing', 
+                       'nelder_mead', 'powell', 'grid_search', 'bayesian']
+        }
+        
+        if 'analyze' not in config:
+            return defaults
+        
+        analyze = config['analyze']
+        return {
+            'n_rays': analyze.get('n_rays', defaults['n_rays']),
+            'coupling_threshold': analyze.get('coupling_threshold', defaults['coupling_threshold']),
+            'methods': analyze.get('methods', defaults['methods'])
+        }
+    
+    def get_wavelength_params(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Extract wavelength analysis parameters from config.
+        
+        Parameters
+        ----------
+        config : dict
+            Configuration dictionary
+            
+        Returns
+        -------
+        wavelength_params : dict
+            Dictionary with keys: wl_start, wl_end, wl_step, n_rays, methods
+        """
+        defaults = {
+            'wl_start': 180,
+            'wl_end': 300,
+            'wl_step': 10,
+            'n_rays': 2000,
+            'methods': ['differential_evolution', 'dual_annealing', 
+                       'nelder_mead', 'powell', 'grid_search', 'bayesian']
+        }
+        
+        if 'wavelength' not in config:
+            return defaults
+        
+        wl = config['wavelength']
+        return {
+            'wl_start': wl.get('wl_start', defaults['wl_start']),
+            'wl_end': wl.get('wl_end', defaults['wl_end']),
+            'wl_step': wl.get('wl_step', defaults['wl_step']),
+            'n_rays': wl.get('n_rays', defaults['n_rays']),
+            'methods': wl.get('methods', defaults['methods'])
+        }
+    
+    def get_dashboard_params(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Extract dashboard parameters from config.
+        
+        Parameters
+        ----------
+        config : dict
+            Configuration dictionary
+            
+        Returns
+        -------
+        dashboard_params : dict
+            Dictionary with keys: port, db_path, auto_open
+        """
+        defaults = {
+            'port': 5000,
+            'db_path': None,
+            'auto_open': False
+        }
+        
+        if 'dashboard' not in config:
+            return defaults
+        
+        dash = config['dashboard']
+        return {
+            'port': dash.get('port', defaults['port']),
+            'db_path': dash.get('db_path', defaults['db_path']),
+            'auto_open': dash.get('auto_open', defaults['auto_open'])
+        }
+    
     def list_profiles(self) -> list:
         """List all available preset profiles."""
         if not self.config_dir.exists():

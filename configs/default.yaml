@@ -85,3 +85,35 @@ tolerance:
   test_lateral: false   # Test x/y lateral displacements (future feature)
   test_tilt: false      # Test angular tilts (future feature)
 
+# Analysis settings (for analyze mode - re-optimize high-coupling results)
+analyze:
+  n_rays: 1000          # Number of rays for re-optimization
+  coupling_threshold: 0.2  # Minimum coupling to analyze
+  methods:              # Optimization methods to test on each combination
+    - differential_evolution
+    - dual_annealing
+    - nelder_mead
+    - powell
+    - grid_search
+    - bayesian
+
+# Wavelength analysis settings (test fixed geometry across wavelengths)
+wavelength:
+  wl_start: 180         # Starting wavelength (nm)
+  wl_end: 300           # Ending wavelength (nm)
+  wl_step: 10           # Wavelength step (nm)
+  n_rays: 2000          # Rays per wavelength test (higher = more accurate)
+  methods:              # Optimization methods for calibration at 200nm
+    - differential_evolution
+    - dual_annealing
+    - nelder_mead
+    - powell
+    - grid_search
+    - bayesian
+
+# Dashboard settings (for web dashboard mode)
+dashboard:
+  port: 5000            # Web server port
+  db_path: null         # Path to database (null = auto-detect)
+  auto_open: false      # Auto-open browser on start (future feature)
+
