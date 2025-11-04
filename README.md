@@ -142,7 +142,7 @@ python test_database.py
 
 ## Web Dashboard
 
-Interactive browser-based interface for viewing, filtering, and analyzing optimization results.
+Interactive browser-based interface for viewing, filtering, and analyzing optimization results. **Now supports config files!**
 
 ### Starting the Dashboard
 
@@ -155,6 +155,20 @@ python raytrace.py dashboard --port 8080
 
 # Specify database file
 python raytrace.py dashboard --db results/integration_test.db
+
+# Using config file
+python raytrace.py dashboard --config my_config.yaml
+
+# Config with CLI override
+python raytrace.py dashboard --config my_config.yaml --port 5000
+```
+
+**Config file example** (`my_config.yaml`):
+```yaml
+dashboard:
+  port: 8080
+  db_path: results/optimization.db
+  auto_open: false  # Future feature
 ```
 
 The dashboard will start a local web server and display:
@@ -255,7 +269,7 @@ python raytrace.py particular LA4001 LA4647 --opt powell
 
 ## Configuration Files
 
-The project supports YAML configuration files for easier parameter management and reproducible runs.
+**All modes now support YAML configuration files** for easier parameter management and reproducible runs. CLI arguments always override config values.
 
 ### Using Preset Profiles
 
@@ -268,12 +282,17 @@ python raytrace.py combine --profile argon_batch
 
 # Wavelength study configuration
 python raytrace.py wavelength-analyze --profile wavelength_study --results-file results/...
+
+# High-resolution tolerance testing
+python raytrace.py tolerance LA4001 LA4647 --profile tolerance_test
 ```
 
-Available profiles:
+Available profiles (in `configs/`):
 - `quick_test`: 100 rays, Powell optimizer, plots disabled (fast testing)
 - `argon_batch`: 1000 rays, argon medium, differential evolution (thorough argon studies)
 - `wavelength_study`: 1000 rays, air medium, Powell optimizer (wavelength sweeps)
+- `tolerance_test`: 5000 rays, 41 samples, ±1mm range (high-resolution tolerance)
+- `integration_test`: Database testing configuration
 
 ### Using Custom Configuration Files
 
@@ -297,6 +316,31 @@ optimization:
     maxiter: 500
     ftol: 0.0001
 
+# NEW: Analyze mode configuration
+analyze:
+  n_rays: 1000
+  coupling_threshold: 0.22
+  methods:
+    - differential_evolution
+    - powell
+    - dual_annealing
+
+# NEW: Wavelength analysis configuration
+wavelength:
+  wl_start: 190
+  wl_end: 250
+  wl_step: 5
+  n_rays: 2000
+  methods:
+    - differential_evolution
+    - powell
+
+# NEW: Dashboard configuration
+dashboard:
+  port: 8080
+  db_path: results/optimization.db
+  auto_open: false
+
 output:
   save_plots: true
   save_csv: true
@@ -312,9 +356,23 @@ python raytrace.py particular LA4001 LA4647 --config my_config.yaml
 ```bash
 # Config sets medium=argon, but CLI overrides to air
 python raytrace.py particular LA4001 LA4647 --profile argon_batch --medium air
+
+# Config sets port=8080, but CLI overrides to 5000
+python raytrace.py dashboard --config my_config.yaml --port 5000
 ```
 
-See `configs/default.yaml` for all available configuration options.
+### Configuration Support by Mode
+
+| Mode | Config Support | Config Sections Used |
+|------|----------------|---------------------|
+| `particular`, `compare`, `select`, `combine` | ✅ Full | `rays`, `medium`, `optimization` |
+| `analyze` | ✅ Full (NEW) | `analyze` |
+| `wavelength-analyze` | ✅ Full (NEW) | `wavelength` |
+| `tolerance` | ✅ Full | `tolerance` |
+| `dashboard` | ✅ Full (NEW) | `dashboard` |
+| `wavelength-analyze-plot` | CLI only | N/A |
+
+See `configs/default.yaml` for all available configuration options and detailed documentation.
 
 ## Usage Guide
 
@@ -376,28 +434,78 @@ python raytrace.py combine --opt powell continue 2025-10-14
 
 #### Analyze High-Coupling Results
 
+Re-optimize promising results with multiple methods to find absolute best configurations. **Now supports config files!**
+
 ```bash
-# Re-optimize previously found good configurations with all methods
+# CLI-only usage
 python raytrace.py analyze \
   --results-file results/2025-10-17/results_combine_*.csv \
-  --coupling-threshold 0.20 \
-  --opt powell
+  --coupling-threshold 0.20
+
+# Using config file to specify methods and parameters
+python raytrace.py analyze \
+  --config my_config.yaml \
+  --results-file results/2025-10-17/results_combine_*.csv
+
+# Config with CLI override
+python raytrace.py analyze \
+  --config my_config.yaml \
+  --results-file results/2025-10-17/results_combine_*.csv \
+  --coupling-threshold 0.18 \
+  --n-rays 2000
 ```
+
+**Config file example** (`my_config.yaml`):
+```yaml
+analyze:
+  n_rays: 1000
+  coupling_threshold: 0.22
+  methods:
+    - differential_evolution
+    - dual_annealing
+    - powell
+```
+
+The `methods` list controls which optimizers to test on each lens pair. Results are saved separately for each method and combined into a single best-of-all file.
 
 #### Wavelength Dependence Analysis
 
+Study how coupling varies with wavelength. **Now supports config files!**
+
 ```bash
-# Analyze coupling vs wavelength for specific lens pairs
+# CLI-only usage
 python raytrace.py wavelength-analyze \
   --results-file results/2025-10-17/36-681+LA4647.csv \
   --wl-start 180 --wl-end 300 --wl-step 10
 
-# Custom range with more rays for precision
+# Using config file
 python raytrace.py wavelength-analyze \
-  --results-file results/2025-10-17/36-681+LA4647.csv \
-  --wl-start 190 --wl-end 210 --wl-step 2 \
-  --n-rays 5000
+  --config my_config.yaml \
+  --results-file results/2025-10-17/36-681+LA4647.csv
 
+# Config with CLI override for wavelength range
+python raytrace.py wavelength-analyze \
+  --config my_config.yaml \
+  --results-file results/2025-10-17/36-681+LA4647.csv \
+  --wl-start 190 --wl-end 210 --wl-step 2
+```
+
+**Config file example** (`my_config.yaml`):
+```yaml
+wavelength:
+  wl_start: 180
+  wl_end: 300
+  wl_step: 10
+  n_rays: 2000
+  methods:
+    - differential_evolution
+    - powell
+```
+
+The `methods` list controls which optimizers calibrate the geometry at 200nm before wavelength sweeping.
+
+**Plotting results:**
+```bash
 # Generate plots from wavelength analysis
 python raytrace.py wavelength-analyze-plot \
   --results-dir results/wavelength_analyze_2025-10-18
@@ -765,15 +873,26 @@ python raytrace.py combine --opt powell --alpha 0.9
 # Step 2: Check results
 head -20 results/2025-10-18_combine_powell_air/results_combine_2025-10-18.csv
 
-# Step 3: Re-optimize top candidates more thoroughly
+# Step 3: Re-optimize top candidates more thoroughly using config
 python raytrace.py analyze \
-  --results-file results/2025-10-18_combine_powell_air/results_combine_2025-10-18.csv \
-  --coupling-threshold 0.22 \
-  --opt differential_evolution \
-  --alpha 0.9
+  --config analyze_config.yaml \
+  --results-file results/2025-10-18_combine_powell_air/results_combine_2025-10-18.csv
 
 # Step 4: Review final results
 cat results/analyze_2025-10-18_coupling_0_22_air/results_analyze_combined_*.csv
+
+# Step 5: View in dashboard
+python raytrace.py dashboard
+```
+
+**analyze_config.yaml:**
+```yaml
+analyze:
+  n_rays: 2000
+  coupling_threshold: 0.22
+  methods:
+    - differential_evolution
+    - dual_annealing
 ```
 
 ### Workflow 2: Design Compact System
@@ -786,26 +905,36 @@ python raytrace.py combine --opt powell --alpha 0.5
 python raytrace.py analyze \
   --results-file results/2025-10-18_combine_powell_air/results_combine_2025-10-18.csv \
   --coupling-threshold 0.18 \
-  --opt powell \
   --alpha 0.3
 ```
 
-### Workflow 3: Wavelength Characterization
+### Workflow 3: Wavelength Characterization Using Config Files
 
 ```bash
 # Step 1: Find best configuration at 200nm
 python raytrace.py particular 36-681 LA4647 --opt differential_evolution
 
-# Step 2: Analyze wavelength dependence
+# Step 2: Analyze wavelength dependence with config
 python raytrace.py wavelength-analyze \
-  --results-file results/particular_2025-10-18_differential_evolution_air/36-681+LA4647.csv \
-  --wl-start 180 --wl-end 250 --wl-step 5 \
-  --n-rays 2000
+  --config wavelength_config.yaml \
+  --results-file results/particular_2025-10-18_differential_evolution_air/36-681+LA4647.csv
 
 # Step 3: Generate plots
 python raytrace.py wavelength-analyze-plot \
   --results-dir results/wavelength_analyze_2025-10-18 \
-  --fit polynomial
+  --fit polynomial --aggregate
+```
+
+**wavelength_config.yaml:**
+```yaml
+wavelength:
+  wl_start: 180
+  wl_end: 250
+  wl_step: 5
+  n_rays: 2000
+  methods:
+    - differential_evolution
+    - powell
 ```
 
 ### Workflow 4: Compare Air vs. Argon
@@ -849,10 +978,10 @@ python raytrace.py tolerance LA4001 LA4647 --opt powell --medium argon \
 # (Ensure database.enabled: true in configs/default.yaml)
 python raytrace.py select --opt powell --alpha 0.9
 
-# Step 2: Start the dashboard
-python raytrace.py dashboard --db results/optimization.db
+# Step 2: Start the dashboard with config
+python raytrace.py dashboard --config dashboard_config.yaml
 
-# Step 3: Open browser to http://localhost:5000
+# Step 3: Open browser to http://localhost:8080 (or configured port)
 # - Filter results by coupling > 0.22
 # - View coupling distribution histogram
 # - Compare different lens pairs
@@ -862,7 +991,85 @@ python raytrace.py dashboard --db results/optimization.db
 python raytrace.py dashboard  # Auto-detects CSV files
 
 # Step 4: Export high-performing results via API
-curl "http://localhost:5000/api/export?min_coupling=0.22" -o best_results.csv
+curl "http://localhost:8080/api/export?min_coupling=0.22" -o best_results.csv
+```
+
+**dashboard_config.yaml:**
+```yaml
+dashboard:
+  port: 8080
+  db_path: results/optimization.db
+```
+
+### Workflow 7: Complete Project Using Config Files (NEW)
+
+Manage an entire project with a single comprehensive config file.
+
+**project_config.yaml:**
+```yaml
+rays:
+  n_rays: 1500
+  use_vectorized: true
+
+medium:
+  type: argon
+
+optimization:
+  method: powell
+
+analyze:
+  n_rays: 2000
+  coupling_threshold: 0.22
+  methods:
+    - differential_evolution
+    - dual_annealing
+
+wavelength:
+  wl_start: 190
+  wl_end: 250
+  wl_step: 5
+  n_rays: 2000
+  methods:
+    - differential_evolution
+
+tolerance:
+  z_range_mm: 1.0
+  n_samples: 41
+  n_rays: 5000
+
+dashboard:
+  port: 8080
+  db_path: results/project.db
+
+database:
+  enabled: true
+  path: results/project.db
+```
+
+**Workflow steps:**
+```bash
+# All commands use the same config file
+# 1. Initial optimization scan
+python raytrace.py select --config project_config.yaml
+
+# 2. Analyze top results
+python raytrace.py analyze \
+  --config project_config.yaml \
+  --results-file results/2025-10-25_select_powell_argon/results_*.csv
+
+# 3. Wavelength characterization of best pair
+python raytrace.py wavelength-analyze \
+  --config project_config.yaml \
+  --results-file results/analyze_*/36-681+LA4647.csv
+
+# 4. Tolerance analysis
+python raytrace.py tolerance 36-681 LA4647 --config project_config.yaml
+
+# 5. View everything in dashboard
+python raytrace.py dashboard --config project_config.yaml
+
+# CLI overrides work at any step
+python raytrace.py dashboard --config project_config.yaml --port 5000
 ```
 
 ## Troubleshooting
