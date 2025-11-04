@@ -89,6 +89,55 @@ Vectorized time: 0.003 ± 0.001 s
 Speedup:         13.9x
 ```
 
+## Database Storage
+
+### SQLite Backend for Results
+
+All optimization results can be automatically stored in an SQLite database for efficient querying and analysis:
+
+**Enable database storage** in `configs/default.yaml`:
+```yaml
+database:
+  enabled: true
+  path: ./results/optimization.db
+```
+
+**Query results** using the built-in CLI:
+```bash
+# Show all runs
+python -m scripts.db_query list-runs
+
+# Show details of a specific run
+python -m scripts.db_query show-run 2025-10-24_coupling_0_21_air
+
+# Show top results
+python -m scripts.db_query show-results 2025-10-24_coupling_0_21_air --limit 10
+
+# Find best results across all runs
+python -m scripts.db_query best --limit 20 --medium air --min-coupling 0.20
+
+# Track history of a specific lens pair
+python -m scripts.db_query lens-pair LA4001 LA4647
+
+# Export results to CSV
+python -m scripts.db_query export-run 2025-10-24_coupling_0_21_air output.csv
+
+# View overall statistics
+python -m scripts.db_query stats
+```
+
+**Benefits**:
+- Fast queries across thousands of optimization results
+- Track performance trends over time
+- Easy filtering by medium, method, coupling efficiency, etc.
+- Persistent storage independent of CSV files
+- No overhead when disabled (CSV files are always created as backup)
+
+**Test the database**:
+```bash
+python test_database.py
+```
+
 ## Installation
 
 ### Requirements

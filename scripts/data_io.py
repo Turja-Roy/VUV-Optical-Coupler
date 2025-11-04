@@ -1,4 +1,6 @@
 import pandas as pd
+from scripts import consts as C
+from typing import Optional
 
 
 def fetch_lens_data(method):
@@ -93,10 +95,11 @@ def particular_combo(name1, name2):
     return combos, lenses
 
 
-def write_results(method, results, run_id, batch=False, batch_num=None, lens_pair=None):
+def write_results(method, results, run_id, batch=False, batch_num=None, lens_pair=None, 
+                 use_database=None, db=None):
     """
-        Write results to CSV file. Each result must be a dictionary with
-        scalar values for lens parameters, positions, and coupling efficiency.
+        Write results to CSV file and optionally to database. Each result must be a 
+        dictionary with scalar values for lens parameters, positions, and coupling efficiency.
     """
     import os
     from datetime import datetime
@@ -106,6 +109,10 @@ def write_results(method, results, run_id, batch=False, batch_num=None, lens_pai
         return
     if not hasattr(results, '__iter__'):
         raise ValueError("results must be a sequence")
+    
+    # Check if database should be used
+    if use_database is None:
+        use_database = getattr(C, 'USE_DATABASE', False)
     
     scalar_keys = ['lens1', 'lens2', 'f1_mm', 'f2_mm', 'z_l1', 'z_l2',
                   'z_fiber', 'total_len_mm', 'coupling', 'orientation']
@@ -118,6 +125,16 @@ def write_results(method, results, run_id, batch=False, batch_num=None, lens_pai
         ['coupling', 'total_len_mm'],
         ascending=[False, True]).reset_index(drop=True)
 
+    # Write to database if enabled
+    if use_database and db is not None:
+        try:
+            # Add method to each result dict for database storage
+            results_with_method = [dict(r, method=method) for r in rows]
+            db.insert_results_batch(run_id, results_with_method)
+        except Exception as e:
+            print(f"Warning: Failed to write to database: {e}")
+    
+    # Always write CSV files as backup
     if batch and batch_num is not None:
         if not os.path.exists('./results/' + run_id):
             os.makedirs('./results/' + run_id)

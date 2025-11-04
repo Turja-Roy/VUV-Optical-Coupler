@@ -71,3 +71,9 @@ output:
   log_dir: logs
   save_plots: true
   save_csv: true
+
+# Database settings
+database:
+  enabled: false  # Enable SQLite database for storing results
+  path: ./results/optimization.db  # Path to database file
+

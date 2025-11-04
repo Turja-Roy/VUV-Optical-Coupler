@@ -159,6 +159,13 @@ class ConfigLoader:
                 C.TEMPERATURE_K = med['temperature_k']
             if 'humidity_fraction' in med:
                 C.HUMIDITY_FRACTION = med['humidity_fraction']
+        
+        if 'database' in config:
+            db = config['database']
+            if 'enabled' in db:
+                C.USE_DATABASE = db['enabled']
+            if 'path' in db:
+                C.DATABASE_PATH = db['path']
     
     def list_profiles(self) -> list:
         """List all available preset profiles."""
