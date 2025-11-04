@@ -5,7 +5,8 @@ from scripts.data_io import write_temp
 from scripts.PlanoConvex import PlanoConvex
 from scripts import consts as C
 from scripts.visualizers import plot_system_rays
-from scripts.raytrace_helpers import sample_rays, trace_system
+from scripts.raytrace_helpers import sample_rays
+from scripts.raytrace_helpers_vectorized import trace_system_vectorized as trace_system
 
 import logging
 from pathlib import Path

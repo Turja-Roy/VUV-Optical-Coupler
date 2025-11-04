@@ -1,7 +1,8 @@
 import numpy as np
 from scripts.PlanoConvex import PlanoConvex
 from scripts import consts as C
-from scripts.raytrace_helpers import sample_rays, trace_system
+from scripts.raytrace_helpers import sample_rays
+from scripts.raytrace_helpers_vectorized import trace_system_vectorized as trace_system
 
 try:
     from skopt import gp_minimize

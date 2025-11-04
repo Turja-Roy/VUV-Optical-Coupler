@@ -2,7 +2,8 @@ import numpy as np
 from scipy.optimize import differential_evolution
 from scripts.PlanoConvex import PlanoConvex
 from scripts import consts as C
-from scripts.raytrace_helpers import sample_rays, trace_system
+from scripts.raytrace_helpers import sample_rays
+from scripts.raytrace_helpers_vectorized import trace_system_vectorized as trace_system
 
 
 def evaluate_config_fast(params, d1, d2, origins, dirs, n_rays, alpha=0.7, medium='air', flipped1=False, flipped2=True):

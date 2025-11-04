@@ -117,6 +117,8 @@ class ConfigLoader:
         if 'rays' in config:
             if 'n_rays' in config['rays']:
                 C.N_RAYS = config['rays']['n_rays']
+            if 'use_vectorized' in config['rays']:
+                C.USE_VECTORIZED_TRACING = config['rays']['use_vectorized']
         
         if 'optics' in config:
             if 'wavelength_nm' in config['optics']:

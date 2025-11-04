@@ -4,6 +4,7 @@
 # Ray tracing parameters
 rays:
   n_rays: 1000  # Number of rays per optimization trial
+  use_vectorized: true  # Use vectorized ray tracing (10-15x faster)
 
 # Wavelength and optical properties
 optics:

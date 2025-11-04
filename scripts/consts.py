@@ -22,6 +22,9 @@ SOURCE_TO_LENS_OFFSET = WINDOW_DISTANCE_MM + 1  # Lenses start after the window
 N_RAYS = 1000
 N_GLASS = fused_silica_n(WAVELENGTH_NM)
 
+# Performance settings
+USE_VECTORIZED_TRACING = True  # Use vectorized ray tracing (10-15x faster)
+
 MEDIUM = 'air'
 PRESSURE_ATM = 1.0
 TEMPERATURE_K = 293.15
