@@ -77,3 +77,11 @@ database:
   enabled: false  # Enable SQLite database for storing results
   path: ./results/optimization.db  # Path to database file
 
+# Tolerance analysis settings
+tolerance:
+  z_range_mm: 0.5       # Range of z-displacement to test (±mm from optimal)
+  n_samples: 21         # Number of displacement samples (should be odd)
+  n_rays: 2000          # Rays per tolerance test (higher = more accurate)
+  test_lateral: false   # Test x/y lateral displacements (future feature)
+  test_tilt: false      # Test angular tilts (future feature)
+

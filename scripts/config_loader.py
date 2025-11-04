@@ -167,6 +167,40 @@ class ConfigLoader:
             if 'path' in db:
                 C.DATABASE_PATH = db['path']
     
+    def get_tolerance_params(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Extract tolerance analysis parameters from config.
+        
+        Parameters
+        ----------
+        config : dict
+            Configuration dictionary
+            
+        Returns
+        -------
+        tolerance_params : dict
+            Dictionary with keys: z_range_mm, n_samples, n_rays
+        """
+        defaults = {
+            'z_range_mm': 0.5,
+            'n_samples': 21,
+            'n_rays': 2000,
+            'test_lateral': False,
+            'test_tilt': False
+        }
+        
+        if 'tolerance' not in config:
+            return defaults
+        
+        tol = config['tolerance']
+        return {
+            'z_range_mm': tol.get('z_range_mm', defaults['z_range_mm']),
+            'n_samples': tol.get('n_samples', defaults['n_samples']),
+            'n_rays': tol.get('n_rays', defaults['n_rays']),
+            'test_lateral': tol.get('test_lateral', defaults['test_lateral']),
+            'test_tilt': tol.get('test_tilt', defaults['test_tilt'])
+        }
+    
     def list_profiles(self) -> list:
         """List all available preset profiles."""
         if not self.config_dir.exists():

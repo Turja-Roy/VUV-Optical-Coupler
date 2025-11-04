@@ -280,12 +280,38 @@ def main():
         from scripts.tolerance_analysis import analyze_tolerance, save_tolerance_results
         from scripts.visualizers import plot_tolerance_results
         
+        # Load tolerance parameters from config if available, otherwise use CLI args
+        if '_config' in args:
+            from scripts.config_loader import ConfigLoader
+            loader = ConfigLoader()
+            tol_params = loader.get_tolerance_params(args['_config'])
+            
+            # CLI args override config values (only if explicitly provided)
+            # Check if CLI args were explicitly set by looking at sys.argv
+            import sys
+            if '--z-range' not in sys.argv:
+                args['z_range'] = tol_params['z_range_mm']
+            if '--n-samples' not in sys.argv:
+                args['n_samples'] = tol_params['n_samples']
+            # n_rays for tolerance is separate from optimization n_rays
+            # Use config tolerance n_rays if available and --n-rays not specified
+            if '--n-rays' not in sys.argv:
+                tolerance_n_rays = tol_params['n_rays']
+            else:
+                tolerance_n_rays = args['n_rays']
+        else:
+            tolerance_n_rays = args['n_rays']
+        
         print("\n" + "="*70)
         print("TOLERANCE ANALYSIS MODE")
         print("="*70)
         print(f"Lens pair: {args['lens1']} + {args['lens2']}")
         print(f"Optimizer: {args['optimizer']}")
         print(f"Medium: {args['medium']}")
+        print(f"Tolerance parameters:")
+        print(f"  Z-displacement range: ±{args['z_range']:.2f} mm")
+        print(f"  Number of samples: {args['n_samples']}")
+        print(f"  Rays per test: {tolerance_n_rays}")
         print("="*70)
         
         # First, run optimization to get baseline configuration
@@ -310,7 +336,7 @@ def main():
         print("\nStep 2: Running tolerance analysis...")
         tolerance_results = analyze_tolerance(
             lenses, best_result,
-            n_rays=args['n_rays'],
+            n_rays=tolerance_n_rays,
             n_samples=args['n_samples'],
             z_range_mm=args['z_range'],
             medium=args['medium']
