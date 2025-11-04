@@ -75,6 +75,69 @@ cd raytrace-xe-flashlamp-fiber
 python raytrace.py particular LA4001 LA4647 --opt powell
 ```
 
+## Configuration Files
+
+The project supports YAML configuration files for easier parameter management and reproducible runs.
+
+### Using Preset Profiles
+
+```bash
+# Quick test with reduced rays (10x faster)
+python raytrace.py particular LA4001 LA4647 --profile quick_test
+
+# Argon medium batch processing
+python raytrace.py combine --profile argon_batch
+
+# Wavelength study configuration
+python raytrace.py wavelength-analyze --profile wavelength_study --results-file results/...
+```
+
+Available profiles:
+- `quick_test`: 100 rays, Powell optimizer, plots disabled (fast testing)
+- `argon_batch`: 1000 rays, argon medium, differential evolution (thorough argon studies)
+- `wavelength_study`: 1000 rays, air medium, Powell optimizer (wavelength sweeps)
+
+### Using Custom Configuration Files
+
+Create a YAML file (e.g., `my_config.yaml`) in the `configs/` directory:
+
+```yaml
+rays:
+  n_rays: 500
+
+optics:
+  wavelength_nm: 250.0
+
+medium:
+  type: helium
+  pressure_atm: 1.0
+  temperature_k: 293.15
+
+optimization:
+  method: powell
+  powell:
+    maxiter: 500
+    ftol: 0.0001
+
+output:
+  save_plots: true
+  save_csv: true
+```
+
+Then use it:
+
+```bash
+python raytrace.py particular LA4001 LA4647 --config my_config.yaml
+```
+
+**Note**: Command-line arguments override configuration file values. For example:
+```bash
+# Config sets medium=argon, but CLI overrides to air
+python raytrace.py particular LA4001 LA4647 --profile argon_batch --medium air
+```
+
+See `configs/default.yaml` for all available configuration options.
+
 ## Usage Guide
 
 ### Basic Commands

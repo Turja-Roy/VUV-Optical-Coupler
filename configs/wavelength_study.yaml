@@ -1,0 +1,29 @@
+# Configuration for wavelength-dependent studies
+# Sweeps across VUV range to analyze atmospheric absorption effects
+
+# Medium ray count - balance between speed and accuracy
+rays:
+  n_rays: 1000
+
+# Wavelength will be overridden by wavelength sweep command
+optics:
+  wavelength_nm: 200.0  # Default, will be swept
+
+# Air medium to see absorption effects
+medium:
+  type: air
+  pressure_atm: 1.0
+  temperature_k: 293.15
+  humidity_fraction: 0.01
+
+# Powell for efficient wavelength sweeps
+optimization:
+  method: powell
+  powell:
+    maxiter: 500
+    ftol: 0.0001
+
+# Save all results for comparison
+output:
+  save_plots: true
+  save_csv: true

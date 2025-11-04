@@ -20,6 +20,9 @@ Commands:
     wavelength-analyze-plot       Create plots from wavelength analysis results
 
 Options:
+    --config <file>               Load configuration from YAML file
+    --profile <name>              Load preset configuration profile
+                                  Available: quick_test, argon_batch, wavelength_study
     --opt <method>                Optimization method (default: differential_evolution)
                                   Options: differential_evolution, dual_annealing,
                                            nelder_mead, powell, bayesian, grid_search
@@ -41,6 +44,15 @@ Options:
     <YYYY-MM-DD>                  Specify run date
 
 Examples:
+    # Use quick test profile (100 rays, fast)
+    python raytrace.py particular LA4001 LA4647 --profile quick_test
+    
+    # Use argon batch profile
+    python raytrace.py combine --profile argon_batch
+    
+    # Load custom config file
+    python raytrace.py combine --config my_config.yaml
+    
     # Fast global optimization (recommended)
     python raytrace.py combine --opt differential_evolution
     
@@ -107,7 +119,9 @@ def parse_arguments():
         'wl_start': 180,
         'wl_end': 300,
         'wl_step': 10,
-        'n_rays': 1000
+        'n_rays': 1000,
+        'config_file': None,
+        'profile': None
     }
 
     if len(sys.argv) < 2:
@@ -256,6 +270,22 @@ def parse_arguments():
                 print("Error: --n-rays requires a value")
                 sys.exit(1)
 
+        elif arg == '--config':
+            if i + 1 < len(sys.argv):
+                args['config_file'] = sys.argv[i + 1]
+                i += 2
+            else:
+                print("Error: --config requires a file path")
+                sys.exit(1)
+
+        elif arg == '--profile':
+            if i + 1 < len(sys.argv):
+                args['profile'] = sys.argv[i + 1]
+                i += 2
+            else:
+                print("Error: --profile requires a profile name")
+                sys.exit(1)
+
         elif arg == '--results-dir':
             if i + 1 < len(sys.argv):
                 args['results_dir'] = sys.argv[i + 1]
@@ -313,6 +343,28 @@ def parse_arguments():
         if args['results_dir'] is None:
             print("Error: wavelength-analyze-plot mode requires --results-dir")
             print_usage()
+            sys.exit(1)
+
+    # Load configuration file if specified
+    if args['config_file'] or args['profile']:
+        from scripts.config_loader import load_config, apply_config
+        
+        try:
+            config = load_config(config_file=args['config_file'], profile=args['profile'])
+            apply_config(config)
+            
+            # Store config in args for optimizer parameter extraction
+            args['_config'] = config
+            
+            # Override CLI args with config values if not explicitly set
+            # (CLI arguments take precedence over config file)
+            if 'optimization' in config and 'method' in config['optimization']:
+                # Only use config optimizer if --opt was not provided
+                if '--opt' not in sys.argv:
+                    args['optimizer'] = config['optimization']['method']
+            
+        except (FileNotFoundError, ValueError) as e:
+            print(f"Error loading configuration: {e}")
             sys.exit(1)
 
     return args

@@ -1,0 +1,25 @@
+# Argon medium configuration for batch processing
+# Use for VUV studies where O2 absorption is eliminated
+
+# Standard ray count
+rays:
+  n_rays: 1000
+
+# Argon medium - no O2 absorption
+medium:
+  type: argon
+  pressure_atm: 1.0
+  temperature_k: 293.15
+  humidity_fraction: 0.0  # No water in argon
+
+# Use differential evolution for thorough global search
+optimization:
+  method: differential_evolution
+  differential_evolution:
+    maxiter: 150
+    popsize: 20
+
+# Save all outputs
+output:
+  save_plots: true
+  save_csv: true

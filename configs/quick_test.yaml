@@ -1,0 +1,18 @@
+# Quick test configuration - fast parameters for testing
+# Inherits from default.yaml, only overrides specific values
+
+# Reduced ray count for faster testing
+rays:
+  n_rays: 100  # 10x faster than default
+
+# Use Powell for quick convergence
+optimization:
+  method: powell
+  powell:
+    maxiter: 100  # Reduced iterations
+    ftol: 0.001   # Relaxed tolerance
+
+# Disable plot generation for speed
+output:
+  save_plots: false
+  save_csv: true

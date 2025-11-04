@@ -1,0 +1,72 @@
+# Default configuration for raytrace-xe-flashlamp-fiber
+# All physical units: mm, nm, radians (not degrees except where noted)
+
+# Ray tracing parameters
+rays:
+  n_rays: 1000  # Number of rays per optimization trial
+
+# Wavelength and optical properties
+optics:
+  wavelength_nm: 200.0  # VUV wavelength
+
+# Source geometry (xenon flashlamp)
+source:
+  arc_diameter_mm: 3.0      # Arc source diameter
+  window_diameter_mm: 14.3  # Window diameter
+  window_distance_mm: 8.7   # Distance from arc to window
+  max_angle_deg: 33         # Maximum ray angle at window edge
+
+# Fiber parameters
+fiber:
+  core_diameter_mm: 1.0  # 1000 micron core
+  numerical_aperture: 0.22
+
+# Medium properties (air, argon, or helium)
+medium:
+  type: air               # Options: 'air', 'argon', 'helium'
+  pressure_atm: 1.0       # Atmospheric pressure
+  temperature_k: 293.15   # Room temperature (20°C)
+  humidity_fraction: 0.01 # Relative humidity (1%)
+
+# Optimization settings
+optimization:
+  method: powell          # Options: 'powell', 'grid', 'nelder_mead', 'differential_evolution', 'dual_annealing', 'bayesian'
+  
+  # Powell-specific settings
+  powell:
+    maxiter: 1000
+    ftol: 0.0001
+  
+  # Grid search settings
+  grid:
+    z_l1_min: 10.0
+    z_l1_max: 30.0
+    z_l1_steps: 5
+    z_l2_min: 20.0
+    z_l2_max: 40.0
+    z_l2_steps: 5
+    z_fiber_min: 30.0
+    z_fiber_max: 50.0
+    z_fiber_steps: 5
+  
+  # Differential evolution settings
+  differential_evolution:
+    maxiter: 100
+    popsize: 15
+    
+  # Dual annealing settings
+  dual_annealing:
+    maxiter: 1000
+    
+  # Bayesian optimization settings
+  bayesian:
+    n_calls: 100
+    n_initial_points: 10
+
+# Output settings
+output:
+  results_dir: results
+  plots_dir: plots
+  log_dir: logs
+  save_plots: true
+  save_csv: true
