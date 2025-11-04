@@ -96,7 +96,7 @@ def particular_combo(name1, name2):
 
 
 def write_results(method, results, run_id, batch=False, batch_num=None, lens_pair=None, 
-                 use_database=None, db=None):
+                 use_database=None, db=None, alpha=None):
     """
         Write results to CSV file and optionally to database. Each result must be a 
         dictionary with scalar values for lens parameters, positions, and coupling efficiency.
@@ -128,6 +128,25 @@ def write_results(method, results, run_id, batch=False, batch_num=None, lens_pai
     # Write to database if enabled
     if use_database and db is not None:
         try:
+            # Ensure run exists in database first
+            # Check if run already exists
+            existing_run = db.get_run(run_id)
+            if not existing_run:
+                # Insert run metadata (use alpha if provided, otherwise use default 0.7)
+                alpha_value = alpha if alpha is not None else 0.7
+                config = {'alpha': alpha_value}
+                db.insert_run(
+                    run_id=run_id,
+                    method=method,
+                    medium=C.MEDIUM,
+                    n_rays=C.N_RAYS,
+                    wavelength_nm=C.WAVELENGTH_NM,
+                    pressure_atm=C.PRESSURE_ATM,
+                    temperature_k=C.TEMPERATURE_K,
+                    humidity_fraction=C.HUMIDITY_FRACTION,
+                    config=config
+                )
+            
             # Add method to each result dict for database storage
             results_with_method = [dict(r, method=method) for r in rows]
             db.insert_results_batch(run_id, results_with_method)

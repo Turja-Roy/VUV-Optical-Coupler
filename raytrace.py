@@ -11,6 +11,13 @@ from scripts.cli import parse_arguments, print_usage
 
 def main():
     args = parse_arguments()
+    
+    # Initialize database connection if enabled
+    db = None
+    if C.USE_DATABASE:
+        from scripts.database import OptimizationDatabase
+        db = OptimizationDatabase(C.DATABASE_PATH)
+        print(f"Database enabled: {C.DATABASE_PATH}")
 
     # Build run_id based on mode and method
     if args['mode'] == 'compare':
@@ -230,7 +237,7 @@ def main():
         for method, results in all_results.items():
             if results:
                 print(f"\nSaving {method} results...")
-                write_results(f'analyze_{method}', results, run_id)
+                write_results(f'analyze_{method}', results, run_id, db=db, alpha=args['alpha'])
         
         combined_results = []
         for method, results in all_results.items():
@@ -238,7 +245,7 @@ def main():
         
         if combined_results:
             print(f"\nSaving combined results...")
-            write_results('analyze_combined', combined_results, run_id)
+            write_results('analyze_combined', combined_results, run_id, db=db, alpha=args['alpha'])
             
             print("\n" + "="*60)
             print("Analysis Complete!")
@@ -291,14 +298,16 @@ def main():
     # Run optimization
     if args['continue'] and batch_run:
         results = run_batches_continue(combos, lenses, run_id,
-                                       args['method'], runner_func)
+                                       args['method'], runner_func, db=db, alpha=args['alpha'])
     elif batch_run:
         results = run_batches(combos, lenses, run_id,
-                              args['method'], runner_func)
+                              args['method'], runner_func, db=db, alpha=args['alpha'])
     else:
         results = runner_func(lenses, combos, run_id, None)
         lens_pair = (args['lens1'], args['lens2']) if args['mode'] == 'particular' else None
-        write_results(args['method'], results, run_id, lens_pair=lens_pair)
+        # For particular mode, method is in 'optimizer', otherwise it's in 'method'
+        method_name = args.get('optimizer') or args.get('method')
+        write_results(method_name, results, run_id, lens_pair=lens_pair, db=db, alpha=args['alpha'])
 
     # Analyze results
     if results:

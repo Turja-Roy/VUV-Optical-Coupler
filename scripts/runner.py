@@ -7,7 +7,7 @@ from scripts.data_io import write_results
 from scripts import consts as C
 
 
-def run_batches(combos, lenses, run_id, method, runner_func, db=None):
+def run_batches(combos, lenses, run_id, method, runner_func, db=None, alpha=None):
     """Run optimization in batches."""
     results = []
     n_batches = int(np.ceil(len(combos) / 100))
@@ -20,14 +20,14 @@ def run_batches(combos, lenses, run_id, method, runner_func, db=None):
 
         batch_results = runner_func(lenses, batch_combos, run_id, i+1)
         write_results(method, batch_results, run_id,
-                      batch=True, batch_num=i+1, db=db)
+                      batch=True, batch_num=i+1, db=db, alpha=alpha)
         results.extend(batch_results)
 
-    write_results(method, results, run_id, db=db)
+    write_results(method, results, run_id, db=db, alpha=alpha)
     return results
 
 
-def run_batches_continue(combos, lenses, run_id, method, runner_func, db=None):
+def run_batches_continue(combos, lenses, run_id, method, runner_func, db=None, alpha=None):
     """Continue incomplete batch run."""
     results_dir = Path(f'./results/{run_id}')
 
@@ -81,10 +81,10 @@ def run_batches_continue(combos, lenses, run_id, method, runner_func, db=None):
 
         batch_results = runner_func(lenses, batch_combos, run_id, batch_num)
         write_results(method, batch_results, run_id,
-                      batch=True, batch_num=batch_num, db=db)
+                      batch=True, batch_num=batch_num, db=db, alpha=alpha)
         results.extend(batch_results)
         
         current_combo_idx = batch_end
 
-    write_results(method, results, run_id, db=db)
+    write_results(method, results, run_id, db=db, alpha=alpha)
     return results
