@@ -1,0 +1,23 @@
+# Integration test configuration - database enabled
+# Quick test to verify database integration
+
+# Reduced ray count for faster testing
+rays:
+  n_rays: 100
+
+# Use Powell for quick convergence
+optimization:
+  method: powell
+  powell:
+    maxiter: 100
+    ftol: 0.001
+
+# Enable database for integration test
+database:
+  enabled: true
+  path: results/integration_test.db
+
+# Disable plot generation for speed
+output:
+  save_plots: false
+  save_csv: true
