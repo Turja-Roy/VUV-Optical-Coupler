@@ -523,6 +523,198 @@ def plot_system_rays(lenses, best_result, run_id, n_plot_rays=1000, method=None,
         plt.close(fig_2d)
 
 
+def plot_dual_orientation_comparison(lenses, result1, result2, run_id, n_plot_rays=1000, plot_style='both'):
+    """
+    Plot side-by-side comparison of both lens orientations.
+    
+    Parameters
+    ----------
+    lenses : dict
+        Dictionary of lens specifications
+    result1 : dict
+        First orientation result (ScffcF)
+    result2 : dict
+        Second orientation result (SfccfF)
+    run_id : str
+        Run identifier for output directory
+    n_plot_rays : int
+        Number of rays to plot
+    plot_style : str
+        Plot style: '2d', '3d', or 'both'
+    """
+    # Ensure result1 is ScffcF and result2 is SfccfF for consistency
+    if result1.get('orientation') == 'SfccfF':
+        result1, result2 = result2, result1
+    
+    lens1_name = result1['lens1']
+    lens2_name = result1['lens2']
+    
+    # Create plot directory
+    plot_dir = f"./plots/{run_id}"
+    if not __import__("os").path.exists(plot_dir):
+        __import__("os").makedirs(plot_dir)
+    
+    if plot_style in ['2d', 'both']:
+        # Create 2×2 grid for 2D comparison: ScffcF (top row), SfccfF (bottom row)
+        fig = plt.figure(figsize=(20, 16))
+        
+        # ScffcF orientation - X-Z view (top left)
+        ax1 = fig.add_subplot(2, 2, 1)
+        _plot_single_2d_view(ax1, lenses, result1, n_plot_rays, 'xz')
+        ax1.set_title(f"ScffcF (L1 curved-first) - X-Z View\nCoupling: {result1['coupling']:.4f}", 
+                     fontsize=11, fontweight='bold')
+        
+        # ScffcF orientation - Y-Z view (top right)
+        ax2 = fig.add_subplot(2, 2, 2)
+        _plot_single_2d_view(ax2, lenses, result1, n_plot_rays, 'yz')
+        ax2.set_title(f"ScffcF (L1 curved-first) - Y-Z View\nCoupling: {result1['coupling']:.4f}", 
+                     fontsize=11, fontweight='bold')
+        
+        # SfccfF orientation - X-Z view (bottom left)
+        ax3 = fig.add_subplot(2, 2, 3)
+        _plot_single_2d_view(ax3, lenses, result2, n_plot_rays, 'xz')
+        ax3.set_title(f"SfccfF (L1 flat-first) - X-Z View\nCoupling: {result2['coupling']:.4f}", 
+                     fontsize=11, fontweight='bold')
+        
+        # SfccfF orientation - Y-Z view (bottom right)
+        ax4 = fig.add_subplot(2, 2, 4)
+        _plot_single_2d_view(ax4, lenses, result2, n_plot_rays, 'yz')
+        ax4.set_title(f"SfccfF (L1 flat-first) - Y-Z View\nCoupling: {result2['coupling']:.4f}", 
+                     fontsize=11, fontweight='bold')
+        
+        fig.suptitle(f"Orientation Comparison: {lens1_name} + {lens2_name}", 
+                    fontsize=14, fontweight='bold', y=0.995)
+        plt.tight_layout(rect=[0, 0, 1, 0.99])
+        
+        filename_2d = f"{plot_dir}/BOTH_L1-{lens1_name}_L2-{lens2_name}_2d.png"
+        plt.savefig(filename_2d)
+        plt.close(fig)
+    
+    if plot_style in ['3d', 'both']:
+        # Create 2×1 grid for 3D comparison
+        fig = plt.figure(figsize=(20, 16))
+        
+        # ScffcF orientation (top)
+        ax1 = fig.add_subplot(2, 1, 1, projection='3d')
+        _plot_rays_on_axis(ax1, lenses, result1, n_plot_rays)
+        ax1.set_title(f"ScffcF (L1 curved-first): Coupling = {result1['coupling']:.4f}", 
+                     fontsize=12, fontweight='bold')
+        
+        # SfccfF orientation (bottom)
+        ax2 = fig.add_subplot(2, 1, 2, projection='3d')
+        _plot_rays_on_axis(ax2, lenses, result2, n_plot_rays)
+        ax2.set_title(f"SfccfF (L1 flat-first): Coupling = {result2['coupling']:.4f}", 
+                     fontsize=12, fontweight='bold')
+        
+        fig.suptitle(f"Orientation Comparison: {lens1_name} + {lens2_name}", 
+                    fontsize=14, fontweight='bold', y=0.995)
+        plt.tight_layout(rect=[0, 0, 1, 0.99])
+        
+        filename_3d = f"{plot_dir}/BOTH_L1-{lens1_name}_L2-{lens2_name}_3d.png"
+        plt.savefig(filename_3d)
+        plt.close(fig)
+
+
+def _plot_single_2d_view(ax, lenses, result, n_plot_rays, view='xz'):
+    """
+    Helper function to plot a single 2D view (either X-Z or Y-Z projection).
+    
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes
+        Axis to plot on
+    lenses : dict
+        Dictionary of lens specifications
+    result : dict
+        Result dictionary containing z_l1, z_l2, z_fiber, lens1, lens2, orientation
+    n_plot_rays : int
+        Number of rays to plot
+    view : str
+        'xz' for X-Z projection or 'yz' for Y-Z projection
+    """
+    z_l1 = result['z_l1']
+    z_l2 = result['z_l2']
+    z_fiber = result['z_fiber']
+    lens1_data = lenses[result['lens1']]
+    lens2_data = lenses[result['lens2']]
+    
+    # Parse orientation to determine flipped flags
+    orientation = result.get('orientation', 'ScffcF')
+    if orientation == 'SfccfF':
+        flipped1, flipped2 = True, False
+    else:  # Default to 'ScffcF'
+        flipped1, flipped2 = False, True
+
+    origins, dirs = sample_rays(n_plot_rays)
+
+    lens1 = PlanoConvex(z_l1, lens1_data['R_mm'], lens1_data['tc_mm'],
+                        lens1_data['te_mm'], lens1_data['dia']/2.0, flipped=flipped1)
+    lens2 = PlanoConvex(z_l2, lens2_data['R_mm'], lens2_data['tc_mm'],
+                        lens2_data['te_mm'], lens2_data['dia']/2.0, flipped=flipped2)
+
+    # Trace rays and collect data
+    for i in range(n_plot_rays):
+        points_perp = []  # Perpendicular coordinate (X or Y)
+        points_z = []     # Z coordinates
+        
+        o = origins[i].copy()
+        d = dirs[i].copy()
+        points_perp.append(o[0] if view == 'xz' else o[1])
+        points_z.append(o[2])
+
+        out1 = lens1.trace_ray(o, d, 1.0)
+        if out1[2] is False:
+            # Ray rejected at L1
+            ax.plot(points_z, points_perp, 'r-', alpha=0.2, linewidth=0.5)
+            continue
+        o1, d1 = out1[0], out1[1]
+        points_perp.append(o1[0] if view == 'xz' else o1[1])
+        points_z.append(o1[2])
+
+        out2 = lens2.trace_ray(o1, d1, 1.0)
+        if out2[2] is False:
+            # Ray rejected at L2
+            ax.plot(points_z, points_perp, 'r-', alpha=0.2, linewidth=0.5)
+            continue
+        o2, d2 = out2[0], out2[1]
+        points_perp.append(o2[0] if view == 'xz' else o2[1])
+        points_z.append(o2[2])
+
+        if abs(d2[2]) < 1e-9:
+            continue
+        t = (z_fiber - o2[2]) / d2[2]
+        if t < 0:
+            continue
+        p_f = o2 + t * d2
+        points_perp.append(p_f[0] if view == 'xz' else p_f[1])
+        points_z.append(p_f[2])
+
+        # Check acceptance criteria
+        r = __import__("math").hypot(p_f[0], p_f[1])
+        theta = __import__("math").acos(abs(d2[2]) / np.linalg.norm(d2))
+        color = 'g' if (r <= C.FIBER_CORE_DIAM_MM/2.0 and
+                        theta <= C.ACCEPTANCE_HALF_RAD) else 'r'
+
+        ax.plot(points_z, points_perp, color+'-', alpha=0.5, linewidth=0.5)
+
+    # Draw lenses with actual curved profiles
+    _draw_planoconvex_2d(ax, z_l1, lens1_data, flipped=flipped1, alpha=0.2)
+    _draw_planoconvex_2d(ax, z_l2, lens2_data, flipped=flipped2, alpha=0.2)
+    
+    # Draw fiber as vertical line
+    fiber_half_height = C.FIBER_CORE_DIAM_MM / 2.0
+    ax.axvline(x=z_fiber, color='orange', linestyle='--', linewidth=2, label='Fiber')
+    ax.plot([z_fiber, z_fiber], [-fiber_half_height, fiber_half_height], 
+            'orange', linewidth=3, label='Fiber Core')
+    
+    # Formatting
+    ax.set_xlabel('Z (mm)', fontsize=10)
+    ax.set_ylabel('X (mm)' if view == 'xz' else 'Y (mm)', fontsize=10)
+    ax.grid(True, alpha=0.3)
+    ax.set_aspect('equal', adjustable='datalim')
+    ax.legend(loc='upper right', fontsize=8)
+
+
 def plot_combined_methods(lenses, results_by_method, lens1, lens2, run_id, n_plot_rays=500, plot_style='2d'):
     """
     Plot comparison grid of multiple optimization methods.

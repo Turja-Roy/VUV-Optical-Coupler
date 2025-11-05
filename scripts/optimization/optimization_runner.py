@@ -29,7 +29,7 @@ def _setup_logger(run_id):
 
 
 def run_combos(lenses, combos, run_id, method='differential_evolution',
-               alpha=0.7, n_rays=1000, batch_num=None, medium='air', db=None, plot_style='3d'):
+               alpha=0.7, n_rays=1000, batch_num=None, medium='air', db=None, plot_style='3d', orientation_mode='both'):
     logger = _setup_logger(run_id)
     
     # Initialize database run if provided and not already exists
@@ -52,22 +52,22 @@ def run_combos(lenses, combos, run_id, method='differential_evolution',
     
     if method == 'grid_search':
         from scripts.optimization import grid_search as optimizer
-        optimize_func = lambda l, n1, n2: optimizer.run_grid(run_id, l, n1, n2, medium=medium)
+        optimize_func = lambda l, n1, n2: optimizer.run_grid(run_id, l, n1, n2, medium=medium, orientation_mode=orientation_mode)
     elif method == 'differential_evolution':
         from scripts.optimization import differential_evolution as optimizer
-        optimize_func = lambda l, n1, n2: optimizer.optimize(l, n1, n2, n_rays, alpha, medium)
+        optimize_func = lambda l, n1, n2: optimizer.optimize(l, n1, n2, n_rays, alpha, medium, orientation_mode=orientation_mode)
     elif method == 'dual_annealing':
         from scripts.optimization import dual_annealing as optimizer
-        optimize_func = lambda l, n1, n2: optimizer.optimize(l, n1, n2, n_rays, alpha, medium)
+        optimize_func = lambda l, n1, n2: optimizer.optimize(l, n1, n2, n_rays, alpha, medium, orientation_mode=orientation_mode)
     elif method == 'nelder_mead':
         from scripts.optimization import nelder_mead as optimizer
-        optimize_func = lambda l, n1, n2: optimizer.optimize(l, n1, n2, n_rays, alpha, medium)
+        optimize_func = lambda l, n1, n2: optimizer.optimize(l, n1, n2, n_rays, alpha, medium, orientation_mode=orientation_mode)
     elif method == 'powell':
         from scripts.optimization import powell as optimizer
-        optimize_func = lambda l, n1, n2: optimizer.optimize(l, n1, n2, n_rays, alpha, medium)
+        optimize_func = lambda l, n1, n2: optimizer.optimize(l, n1, n2, n_rays, alpha, medium, orientation_mode=orientation_mode)
     elif method == 'bayesian':
         from scripts.optimization import bayesian as optimizer
-        optimize_func = lambda l, n1, n2: optimizer.optimize(l, n1, n2, n_calls=50, n_rays=n_rays, alpha=alpha, medium=medium)
+        optimize_func = lambda l, n1, n2: optimizer.optimize(l, n1, n2, n_calls=50, n_rays=n_rays, alpha=alpha, medium=medium, orientation_mode=orientation_mode)
     else:
         raise ValueError(f"Unknown optimization method: {method}")
     
@@ -81,20 +81,31 @@ def run_combos(lenses, combos, run_id, method='differential_evolution',
                 logger.warning("Optimization failed or invalid configuration.")
                 continue
             
-            plot_system_rays(lenses, res, run_id, plot_style=plot_style)
-            write_temp(res, run_id, batch_num)
+            # Handle both single result (dict) and dual results (list of dicts)
+            results_to_process = res if isinstance(res, list) else [res]
             
-            # Save to database immediately if enabled
-            if db is not None:
-                try:
-                    result_with_method = dict(res, method=method)
-                    db.insert_result(run_id, result_with_method)
-                except Exception as e:
-                    logger.error(f"Failed to write to database: {e}")
+            # Generate individual plots and save each result
+            for single_res in results_to_process:
+                plot_system_rays(lenses, single_res, run_id, plot_style=plot_style)
+                write_temp(single_res, run_id, batch_num)
+                
+                # Save to database immediately if enabled
+                if db is not None:
+                    try:
+                        result_with_method = dict(single_res, method=method)
+                        db.insert_result(run_id, result_with_method)
+                    except Exception as e:
+                        logger.error(f"Failed to write to database: {e}")
+                
+                logger.info(f"Orientation={single_res.get('orientation', 'N/A')}, "
+                           f"Coupling={single_res['coupling']:.4f}, "
+                           f"Length={single_res['total_len_mm']:.2f}mm, "
+                           f"z_l1={single_res['z_l1']:.2f}, z_l2={single_res['z_l2']:.2f}")
             
-            logger.info(f"Coupling={res['coupling']:.4f}, "
-                       f"Length={res['total_len_mm']:.2f}mm, "
-                       f"z_l1={res['z_l1']:.2f}, z_l2={res['z_l2']:.2f}")
+            # If we have both orientations, also create a comparison plot
+            if isinstance(res, list) and len(res) == 2:
+                from scripts.visualizers import plot_dual_orientation_comparison
+                plot_dual_orientation_comparison(lenses, res[0], res[1], run_id, plot_style=plot_style)
             
         except Exception as e:
             logger.error(f"Error optimizing {a} + {b}: {str(e)}")
@@ -124,7 +135,7 @@ def run_combos(lenses, combos, run_id, method='differential_evolution',
     return results
 
 
-def compare_optimizers(lenses, test_combo, run_id, n_rays=1000, alpha=0.7, medium='air'):
+def compare_optimizers(lenses, test_combo, run_id, n_rays=1000, alpha=0.7, medium='air', orientation_mode='both'):
     methods = ['differential_evolution', 'dual_annealing', 'nelder_mead', 'powell', 'grid_search', 'bayesian']
     results = {}
     
@@ -141,36 +152,40 @@ def compare_optimizers(lenses, test_combo, run_id, n_rays=1000, alpha=0.7, mediu
             res = None
             if method == 'grid_search':
                 from scripts.optimization import grid_search as optimizer
-                res = optimizer.run_grid(run_id, lenses, lens1, lens2, medium=medium)
+                res = optimizer.run_grid(run_id, lenses, lens1, lens2, medium=medium, orientation_mode=orientation_mode)
             elif method == 'differential_evolution':
                 from scripts.optimization import differential_evolution as optimizer
-                res = optimizer.optimize(lenses, lens1, lens2, n_rays, alpha, medium)
+                res = optimizer.optimize(lenses, lens1, lens2, n_rays, alpha, medium, orientation_mode=orientation_mode)
             elif method == 'dual_annealing':
                 from scripts.optimization import dual_annealing as optimizer
-                res = optimizer.optimize(lenses, lens1, lens2, n_rays, alpha, medium)
+                res = optimizer.optimize(lenses, lens1, lens2, n_rays, alpha, medium, orientation_mode=orientation_mode)
             elif method == 'nelder_mead':
                 from scripts.optimization import nelder_mead as optimizer
-                res = optimizer.optimize(lenses, lens1, lens2, n_rays, alpha, medium)
+                res = optimizer.optimize(lenses, lens1, lens2, n_rays, alpha, medium, orientation_mode=orientation_mode)
             elif method == 'powell':
                 from scripts.optimization import powell as optimizer
-                res = optimizer.optimize(lenses, lens1, lens2, n_rays, alpha, medium)
+                res = optimizer.optimize(lenses, lens1, lens2, n_rays, alpha, medium, orientation_mode=orientation_mode)
             elif method == 'bayesian':
                 from scripts.optimization import bayesian as optimizer
-                res = optimizer.optimize(lenses, lens1, lens2, n_calls=30, n_rays=n_rays, alpha=alpha, medium=medium)
+                res = optimizer.optimize(lenses, lens1, lens2, n_calls=30, n_rays=n_rays, alpha=alpha, medium=medium, orientation_mode=orientation_mode)
             
             elapsed = time.time() - start
             
             if res is not None:
+                # Handle both single result and list of results
+                # For comparison, we'll use the first result if it's a list
+                result_to_report = res[0] if isinstance(res, list) else res
+                
                 results[method] = {
-                    'coupling': res['coupling'],
-                    'total_len_mm': res['total_len_mm'],
-                    'z_l1': res['z_l1'],
-                    'z_l2': res['z_l2'],
+                    'coupling': result_to_report['coupling'],
+                    'total_len_mm': result_to_report['total_len_mm'],
+                    'z_l1': result_to_report['z_l1'],
+                    'z_l2': result_to_report['z_l2'],
                     'time_seconds': elapsed
                 }
                 
-                print(f"  Coupling: {res['coupling']:.4f}")
-                print(f"  Length: {res['total_len_mm']:.2f} mm")
+                print(f"  Coupling: {result_to_report['coupling']:.4f}")
+                print(f"  Length: {result_to_report['total_len_mm']:.2f} mm")
                 print(f"  Time: {elapsed:.2f} seconds")
             else:
                 results[method] = None

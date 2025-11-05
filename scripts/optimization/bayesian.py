@@ -13,7 +13,7 @@ except ImportError:
     SKOPT_AVAILABLE = False
 
 
-def optimize(lenses, name1, name2, n_calls=100, n_rays=1000, alpha=0.7, medium='air'):
+def optimize(lenses, name1, name2, n_calls=100, n_rays=1000, alpha=0.7, medium='air', orientation_mode='both'):
     if not SKOPT_AVAILABLE:
         raise ImportError("scikit-optimize not installed. Run: pip install scikit-optimize")
     
@@ -28,6 +28,10 @@ def optimize(lenses, name1, name2, n_calls=100, n_rays=1000, alpha=0.7, medium='
         (False, True, 'ScffcF'),   # lens1 curved-first, lens2 flat-first
         (True, False, 'SfccfF')    # lens1 flat-first, lens2 curved-first
     ]
+    
+    # Filter orientations based on mode
+    if orientation_mode != 'both':
+        orientations = [o for o in orientations if o[2] == orientation_mode]
     
     for flipped1, flipped2, orientation_name in orientations:
         z_l1_max = max(C.SOURCE_TO_LENS_OFFSET + 5.0, f1 * 1.5)
@@ -79,6 +83,8 @@ def optimize(lenses, name1, name2, n_calls=100, n_rays=1000, alpha=0.7, medium='
             'origins': origins_final, 'dirs': dirs_final, 'accepted': accepted
         })
     
-    # Return the best orientation based on coupling
-    best_result = max(results, key=lambda x: x['coupling'])
-    return best_result
+    # Return list if 'both' mode, otherwise return single result
+    if orientation_mode == 'both':
+        return results
+    else:
+        return results[0] if results else None

@@ -37,7 +37,7 @@ def get_bounds(f1, f2):
     ]
 
 
-def optimize(lenses, name1, name2, n_rays=1000, alpha=0.7, medium='air'):
+def optimize(lenses, name1, name2, n_rays=1000, alpha=0.7, medium='air', orientation_mode='both'):
     d1, d2 = lenses[name1], lenses[name2]
     origins, dirs = sample_rays(n_rays)
     
@@ -49,6 +49,10 @@ def optimize(lenses, name1, name2, n_rays=1000, alpha=0.7, medium='air'):
         (False, True, 'ScffcF'),   # lens1 curved-first, lens2 flat-first
         (True, False, 'SfccfF')    # lens1 flat-first, lens2 curved-first
     ]
+    
+    # Filter orientations based on mode
+    if orientation_mode != 'both':
+        orientations = [o for o in orientations if o[2] == orientation_mode]
     
     for flipped1, flipped2, orientation_name in orientations:
         result = dual_annealing(
@@ -80,6 +84,8 @@ def optimize(lenses, name1, name2, n_rays=1000, alpha=0.7, medium='air'):
             'origins': origins_final, 'dirs': dirs_final, 'accepted': accepted
         })
     
-    # Return the best orientation based on coupling
-    best_result = max(results, key=lambda x: x['coupling'])
-    return best_result
+    # Return list if 'both' mode, otherwise return single result
+    if orientation_mode == 'both':
+        return results
+    else:
+        return results[0] if results else None

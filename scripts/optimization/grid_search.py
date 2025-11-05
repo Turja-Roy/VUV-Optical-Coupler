@@ -48,7 +48,7 @@ def evaluate_config(z_l1, z_l2, origins, dirs, d1, d2, z_fiber, n_rays, medium='
 
 def run_grid(run_id, lenses, name1, name2,
              coarse_steps=DEFAULT_COARSE_STEPS, refine_steps=DEFAULT_REFINE_STEPS,
-             n_coarse=DEFAULT_N_COARSE, n_refine=DEFAULT_N_REFINE, medium='air'):
+             n_coarse=DEFAULT_N_COARSE, n_refine=DEFAULT_N_REFINE, medium='air', orientation_mode='both'):
     d1 = lenses[name1]
     d2 = lenses[name2]
     f1 = d1['f_mm']
@@ -63,6 +63,10 @@ def run_grid(run_id, lenses, name1, name2,
         (False, True, 'ScffcF'),   # lens1 curved-first, lens2 flat-first
         (True, False, 'SfccfF')    # lens1 flat-first, lens2 curved-first
     ]
+    
+    # Filter orientations based on mode
+    if orientation_mode != 'both':
+        orientations = [o for o in orientations if o[2] == orientation_mode]
     
     for flipped1, flipped2, orientation_name in orientations:
         origins_coarse, dirs_coarse = sample_rays(n_coarse)
@@ -111,9 +115,11 @@ def run_grid(run_id, lenses, name1, name2,
                     'orientation': orientation_name})
         results.append(best)
     
-    # Return the best orientation based on coupling
-    best_result = max(results, key=lambda x: x['coupling'])
-    return best_result
+    # Return list if 'both' mode, otherwise return single result
+    if orientation_mode == 'both':
+        return results
+    else:
+        return results[0] if results else None
 
 
 def _setup_logger(run_id: str):
@@ -138,7 +144,7 @@ def _setup_logger(run_id: str):
     return logger
 
 
-def run_combos(lenses, combos, run_id, batch_num=None, medium='air', db=None, plot_style='3d'):
+def run_combos(lenses, combos, run_id, batch_num=None, medium='air', db=None, plot_style='3d', orientation_mode='both'):
     logger = _setup_logger(run_id)
     
     # Initialize database run if provided and not already exists
@@ -162,25 +168,36 @@ def run_combos(lenses, combos, run_id, batch_num=None, medium='air', db=None, pl
     for (a, b) in tqdm(combos):
         logger.info(f"\nEvaluating {a} + {b} ...")
 
-        res = run_grid(run_id, lenses, a, b, medium=medium)
+        res = run_grid(run_id, lenses, a, b, medium=medium, orientation_mode=orientation_mode)
 
         if res is None:
             logger.warning("Lens 1 focal length too short for placement.")
             continue
         else:
-            plot_system_rays(lenses, res, run_id, plot_style=plot_style)
-            write_temp(res, run_id, batch_num)
+            # Handle both single result (dict) and dual results (list of dicts)
+            results_to_process = res if isinstance(res, list) else [res]
             
-            # Save to database immediately if enabled
-            if db is not None:
-                try:
-                    result_with_method = dict(res, method='grid_search')
-                    db.insert_result(run_id, result_with_method)
-                except Exception as e:
-                    logger.error(f"Failed to write to database: {e}")
+            # Generate individual plots and save each result
+            for single_res in results_to_process:
+                plot_system_rays(lenses, single_res, run_id, plot_style=plot_style)
+                write_temp(single_res, run_id, batch_num)
+                
+                # Save to database immediately if enabled
+                if db is not None:
+                    try:
+                        result_with_method = dict(single_res, method='grid_search')
+                        db.insert_result(run_id, result_with_method)
+                    except Exception as e:
+                        logger.error(f"Failed to write to database: {e}")
+                
+                logger.info(f"Orientation={single_res.get('orientation', 'N/A')}, "
+                           f"best coupling={single_res['coupling']:.4f} at z_l1={
+                          single_res['z_l1']:.2f}, z_l2={single_res['z_l2']:.2f}")
             
-            logger.info(f"best coupling={res['coupling']:.4f} at z_l1={
-                      res['z_l1']:.2f}, z_l2={res['z_l2']:.2f}")
+            # If we have both orientations, also create a comparison plot
+            if isinstance(res, list) and len(res) == 2:
+                from scripts.visualizers import plot_dual_orientation_comparison
+                plot_dual_orientation_comparison(lenses, res[0], res[1], run_id, plot_style=plot_style)
 
     results = []
     

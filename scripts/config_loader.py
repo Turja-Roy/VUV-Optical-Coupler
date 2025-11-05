@@ -333,6 +333,42 @@ class ConfigLoader:
         
         return plot_style
     
+    def get_orientation_mode(self, config: Dict[str, Any]) -> str:
+        """
+        Extract orientation mode from config.
+        
+        Parameters
+        ----------
+        config : dict
+            Configuration dictionary
+            
+        Returns
+        -------
+        orientation_mode : str
+            Orientation mode: 'ScffcF', 'SfccfF', or 'both'. Default is 'both'.
+            
+        Raises
+        ------
+        ValueError
+            If orientation is not one of the valid options.
+        """
+        default_mode = 'both'
+        
+        if 'output' not in config:
+            return default_mode
+        
+        output = config['output']
+        orientation_mode = output.get('orientation', default_mode)
+        
+        # Validate orientation_mode
+        valid_modes = {'ScffcF', 'SfccfF', 'both'}
+        if orientation_mode not in valid_modes:
+            raise ValueError(
+                f"Invalid orientation '{orientation_mode}'. Must be one of: {valid_modes}"
+            )
+        
+        return orientation_mode
+    
     def list_profiles(self) -> list:
         """List all available preset profiles."""
         if not self.config_dir.exists():

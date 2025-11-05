@@ -72,6 +72,7 @@ output:
   save_plots: true
   save_csv: true
   plot_style: '2d'  # Options: '2d', '3d', 'both'
+  orientation: 'both'  # Options: 'ScffcF', 'SfccfF', 'both'
 
 # Database settings
 database:

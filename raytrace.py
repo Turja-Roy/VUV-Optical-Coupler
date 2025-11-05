@@ -14,10 +14,12 @@ def main():
     
     # Get plot style from config if available
     plot_style = '3d'  # Default
+    orientation_mode = 'both'  # Default
     if '_config' in args:
         from scripts.config_loader import ConfigLoader
         loader = ConfigLoader()
         plot_style = loader.get_plot_style(args['_config'])
+        orientation_mode = loader.get_orientation_mode(args['_config'])
     
     # Initialize database connection if enabled
     db = None
@@ -375,11 +377,13 @@ def main():
         
         # Load tolerance parameters from config if available, otherwise use CLI args
         tolerance_plot_style = '3d'  # Default
+        tolerance_orientation_mode = 'both'  # Default
         if '_config' in args:
             from scripts.config_loader import ConfigLoader
             loader = ConfigLoader()
             tol_params = loader.get_tolerance_params(args['_config'])
             tolerance_plot_style = loader.get_plot_style(args['_config'])
+            tolerance_orientation_mode = loader.get_orientation_mode(args['_config'])
             
             # CLI args override config values (only if explicitly provided)
             # Check if CLI args were explicitly set by looking at sys.argv
@@ -419,7 +423,7 @@ def main():
             lenses, combos, run_id, method=args['optimizer'],
             alpha=args['alpha'], n_rays=args['n_rays'],
             batch_num=None, medium=args['medium'], db=db,
-            plot_style=tolerance_plot_style
+            plot_style=tolerance_plot_style, orientation_mode=tolerance_orientation_mode
         )
         
         if not results or len(results) == 0:
@@ -471,7 +475,7 @@ def main():
     def runner_func(lenses, combos, run_id, batch_num): return run_combos(
         lenses, combos, run_id, method=args['optimizer'],
         alpha=args['alpha'], n_rays=1000, batch_num=batch_num,
-        medium=args['medium'], db=db, plot_style=plot_style
+        medium=args['medium'], db=db, plot_style=plot_style, orientation_mode=orientation_mode
     )
 
     # Run optimization
