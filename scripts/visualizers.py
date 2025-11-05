@@ -40,12 +40,14 @@ def _draw_planoconvex_2d(ax, z_pos, lens_data, flipped, alpha=0.2):
     y_curve = np.linspace(-ap_rad, ap_rad, n_points)
     
     if not flipped:
-        # Normal orientation: curved front, flat back
+        # Normal orientation: curved front, FLAT back
         # Curved surface equation: z = z_pos + R - sqrt(R^2 - y^2)
         z_curve = z_pos + R - np.sqrt(np.maximum(R**2 - y_curve**2, 0))
+        
+        # Back surface is perfectly flat at z = z_pos + tc
         z_flat = z_pos + tc
         
-        # Build lens outline: curved front (bottom to top) + flat back (top to bottom, reversed) + close
+        # Build lens outline: curved front (bottom to top) + flat back (top to bottom) + close
         z_outline = np.concatenate([z_curve, [z_flat, z_flat], [z_curve[0]]])
         y_outline = np.concatenate([y_curve, [ap_rad, -ap_rad], [y_curve[0]]])
         
@@ -408,34 +410,48 @@ def _plot_single_2d_view(ax, lenses, result, n_plot_rays=500, projection='xz'):
         points_coord.append(o[coord_idx])
         points_z.append(o[2])
 
-        out1 = lens1.trace_ray(o, d, 1.0)
-        if out1[2] is False:
+        # Trace through lens1 with detailed output
+        result1 = lens1.trace_ray_detailed(o, d, 1.0)
+        if result1[4] is False:  # success flag is at index 4
             ax.plot(points_z, points_coord, 'r-', alpha=0.2, linewidth=0.5)
             continue
-        o1, d1 = out1[0], out1[1]
-        points_coord.append(o1[coord_idx])
-        points_z.append(o1[2])
+        p1_entry, d1_in, p1_exit, d1_out = result1[0], result1[1], result1[2], result1[3]
+        
+        # Add entry point to lens1
+        points_coord.append(p1_entry[coord_idx])
+        points_z.append(p1_entry[2])
+        
+        # Add exit point from lens1
+        points_coord.append(p1_exit[coord_idx])
+        points_z.append(p1_exit[2])
 
-        out2 = lens2.trace_ray(o1, d1, 1.0)
-        if out2[2] is False:
+        # Trace through lens2 with detailed output
+        result2 = lens2.trace_ray_detailed(p1_exit, d1_out, 1.0)
+        if result2[4] is False:  # success flag is at index 4
             ax.plot(points_z, points_coord, 'r-', alpha=0.2, linewidth=0.5)
             continue
-        o2, d2 = out2[0], out2[1]
-        points_coord.append(o2[coord_idx])
-        points_z.append(o2[2])
+        p2_entry, d2_in, p2_exit, d2_out = result2[0], result2[1], result2[2], result2[3]
+        
+        # Add entry point to lens2
+        points_coord.append(p2_entry[coord_idx])
+        points_z.append(p2_entry[2])
+        
+        # Add exit point from lens2
+        points_coord.append(p2_exit[coord_idx])
+        points_z.append(p2_exit[2])
 
-        if abs(d2[2]) < 1e-9:
+        if abs(d2_out[2]) < 1e-9:
             continue
-        t = (z_fiber - o2[2]) / d2[2]
+        t = (z_fiber - p2_exit[2]) / d2_out[2]
         if t < 0:
             continue
-        p_f = o2 + t * d2
+        p_f = p2_exit + t * d2_out
         points_coord.append(p_f[coord_idx])
         points_z.append(p_f[2])
 
         # Check acceptance criteria
         r = __import__("math").hypot(p_f[0], p_f[1])
-        theta = __import__("math").acos(abs(d2[2]) / np.linalg.norm(d2))
+        theta = __import__("math").acos(abs(d2_out[2]) / np.linalg.norm(d2_out))
         color = 'g' if (r <= C.FIBER_CORE_DIAM_MM/2.0 and
                         theta <= C.ACCEPTANCE_HALF_RAD) else 'r'
 
@@ -507,7 +523,7 @@ def plot_system_rays(lenses, best_result, run_id, n_plot_rays=1000, method=None,
         _plot_rays_2d_dual_view(fig_2d, lenses, best_result, n_plot_rays)
         fig_2d.suptitle(f"Ray Trace (2D): {best_result['lens1']} + {best_result['lens2']}, Coupling: {best_result['coupling']:.4f}, {orientation}", 
                        fontsize=13, fontweight='bold', y=0.995)
-        plt.tight_layout(rect=[0, 0, 1, 0.99])
+        plt.tight_layout(rect=(0, 0, 1, 0.99))
         
         # Save 2D plot
         if method:
@@ -584,7 +600,7 @@ def plot_dual_orientation_comparison(lenses, result1, result2, run_id, n_plot_ra
         
         fig.suptitle(f"Orientation Comparison: {lens1_name} + {lens2_name}", 
                     fontsize=14, fontweight='bold', y=0.995)
-        plt.tight_layout(rect=[0, 0, 1, 0.99])
+        plt.tight_layout(rect=(0, 0, 1, 0.99))
         
         filename_2d = f"{plot_dir}/BOTH_L1-{lens1_name}_L2-{lens2_name}_2d.png"
         plt.savefig(filename_2d)
@@ -608,111 +624,12 @@ def plot_dual_orientation_comparison(lenses, result1, result2, run_id, n_plot_ra
         
         fig.suptitle(f"Orientation Comparison: {lens1_name} + {lens2_name}", 
                     fontsize=14, fontweight='bold', y=0.995)
-        plt.tight_layout(rect=[0, 0, 1, 0.99])
+        plt.tight_layout(rect=(0, 0, 1, 0.99))
         
         filename_3d = f"{plot_dir}/BOTH_L1-{lens1_name}_L2-{lens2_name}_3d.png"
         plt.savefig(filename_3d)
         plt.close(fig)
 
-
-def _plot_single_2d_view(ax, lenses, result, n_plot_rays, view='xz'):
-    """
-    Helper function to plot a single 2D view (either X-Z or Y-Z projection).
-    
-    Parameters
-    ----------
-    ax : matplotlib.axes.Axes
-        Axis to plot on
-    lenses : dict
-        Dictionary of lens specifications
-    result : dict
-        Result dictionary containing z_l1, z_l2, z_fiber, lens1, lens2, orientation
-    n_plot_rays : int
-        Number of rays to plot
-    view : str
-        'xz' for X-Z projection or 'yz' for Y-Z projection
-    """
-    z_l1 = result['z_l1']
-    z_l2 = result['z_l2']
-    z_fiber = result['z_fiber']
-    lens1_data = lenses[result['lens1']]
-    lens2_data = lenses[result['lens2']]
-    
-    # Parse orientation to determine flipped flags
-    orientation = result.get('orientation', 'ScffcF')
-    if orientation == 'SfccfF':
-        flipped1, flipped2 = True, False
-    else:  # Default to 'ScffcF'
-        flipped1, flipped2 = False, True
-
-    origins, dirs = sample_rays(n_plot_rays)
-
-    lens1 = PlanoConvex(z_l1, lens1_data['R_mm'], lens1_data['tc_mm'],
-                        lens1_data['te_mm'], lens1_data['dia']/2.0, flipped=flipped1)
-    lens2 = PlanoConvex(z_l2, lens2_data['R_mm'], lens2_data['tc_mm'],
-                        lens2_data['te_mm'], lens2_data['dia']/2.0, flipped=flipped2)
-
-    # Trace rays and collect data
-    for i in range(n_plot_rays):
-        points_perp = []  # Perpendicular coordinate (X or Y)
-        points_z = []     # Z coordinates
-        
-        o = origins[i].copy()
-        d = dirs[i].copy()
-        points_perp.append(o[0] if view == 'xz' else o[1])
-        points_z.append(o[2])
-
-        out1 = lens1.trace_ray(o, d, 1.0)
-        if out1[2] is False:
-            # Ray rejected at L1
-            ax.plot(points_z, points_perp, 'r-', alpha=0.2, linewidth=0.5)
-            continue
-        o1, d1 = out1[0], out1[1]
-        points_perp.append(o1[0] if view == 'xz' else o1[1])
-        points_z.append(o1[2])
-
-        out2 = lens2.trace_ray(o1, d1, 1.0)
-        if out2[2] is False:
-            # Ray rejected at L2
-            ax.plot(points_z, points_perp, 'r-', alpha=0.2, linewidth=0.5)
-            continue
-        o2, d2 = out2[0], out2[1]
-        points_perp.append(o2[0] if view == 'xz' else o2[1])
-        points_z.append(o2[2])
-
-        if abs(d2[2]) < 1e-9:
-            continue
-        t = (z_fiber - o2[2]) / d2[2]
-        if t < 0:
-            continue
-        p_f = o2 + t * d2
-        points_perp.append(p_f[0] if view == 'xz' else p_f[1])
-        points_z.append(p_f[2])
-
-        # Check acceptance criteria
-        r = __import__("math").hypot(p_f[0], p_f[1])
-        theta = __import__("math").acos(abs(d2[2]) / np.linalg.norm(d2))
-        color = 'g' if (r <= C.FIBER_CORE_DIAM_MM/2.0 and
-                        theta <= C.ACCEPTANCE_HALF_RAD) else 'r'
-
-        ax.plot(points_z, points_perp, color+'-', alpha=0.5, linewidth=0.5)
-
-    # Draw lenses with actual curved profiles
-    _draw_planoconvex_2d(ax, z_l1, lens1_data, flipped=flipped1, alpha=0.2)
-    _draw_planoconvex_2d(ax, z_l2, lens2_data, flipped=flipped2, alpha=0.2)
-    
-    # Draw fiber as vertical line
-    fiber_half_height = C.FIBER_CORE_DIAM_MM / 2.0
-    ax.axvline(x=z_fiber, color='orange', linestyle='--', linewidth=2, label='Fiber')
-    ax.plot([z_fiber, z_fiber], [-fiber_half_height, fiber_half_height], 
-            'orange', linewidth=3, label='Fiber Core')
-    
-    # Formatting
-    ax.set_xlabel('Z (mm)', fontsize=10)
-    ax.set_ylabel('X (mm)' if view == 'xz' else 'Y (mm)', fontsize=10)
-    ax.grid(True, alpha=0.3)
-    ax.set_aspect('equal', adjustable='datalim')
-    ax.legend(loc='upper right', fontsize=8)
 
 
 def plot_combined_methods(lenses, results_by_method, lens1, lens2, run_id, n_plot_rays=500, plot_style='2d'):
@@ -774,7 +691,7 @@ def plot_combined_methods(lenses, results_by_method, lens1, lens2, run_id, n_plo
             
             # Create a temporary figure for 2D plotting, extract the X-Z view
             # For combined methods, we'll create simplified single-panel X-Z views
-            _plot_single_2d_view(ax, lenses, result, n_plot_rays, projection='xz')
+            _plot_single_2d_view(ax, lenses, result, n_plot_rays, 'xz')
             
             time_str = f", {result.get('time_seconds', 0):.1f}s" if 'time_seconds' in result else ""
             ax.set_title(f"{method}\nCoupling: {result['coupling']:.4f}{time_str}", fontsize=10)
@@ -1289,7 +1206,7 @@ def plot_tolerance_results(results, run_id, output_dir='./plots'):
     fig.suptitle(f'Tolerance Analysis: {lens_pair} ({params["orientation"]})', 
                  fontsize=14, fontweight='bold', y=0.98)
     
-    plt.tight_layout(rect=[0, 0, 1, 0.96])
+    plt.tight_layout(rect=(0, 0, 1, 0.96))
     
     # Save plot
     filename = output_path / f"tolerance_{lens_pair}.png"

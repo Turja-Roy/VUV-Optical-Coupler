@@ -9,8 +9,13 @@ All functions operate on batches of rays simultaneously using NumPy broadcasting
 
 import numpy as np
 import math
+import warnings
 from scripts import consts as C
 from scripts.calcs import transmission_through_medium, medium_refractive_index, calculate_attenuation_coefficient
+
+# Suppress expected RuntimeWarnings from NaN operations on failed rays
+# This is intentional behavior - failed rays are marked as NaN and filtered by success masks
+warnings.filterwarnings('ignore', 'invalid value encountered', RuntimeWarning)
 
 
 def transmission_through_medium_vectorized(distances_mm, wavelength_nm, medium, 
