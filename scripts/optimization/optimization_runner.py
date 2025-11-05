@@ -29,7 +29,7 @@ def _setup_logger(run_id):
 
 
 def run_combos(lenses, combos, run_id, method='differential_evolution',
-               alpha=0.7, n_rays=1000, batch_num=None, medium='air', db=None):
+               alpha=0.7, n_rays=1000, batch_num=None, medium='air', db=None, plot_style='3d'):
     logger = _setup_logger(run_id)
     
     # Initialize database run if provided and not already exists
@@ -81,7 +81,7 @@ def run_combos(lenses, combos, run_id, method='differential_evolution',
                 logger.warning("Optimization failed or invalid configuration.")
                 continue
             
-            plot_system_rays(lenses, res, run_id)
+            plot_system_rays(lenses, res, run_id, plot_style=plot_style)
             write_temp(res, run_id, batch_num)
             
             # Save to database immediately if enabled

@@ -138,7 +138,7 @@ def _setup_logger(run_id: str):
     return logger
 
 
-def run_combos(lenses, combos, run_id, batch_num=None, medium='air', db=None):
+def run_combos(lenses, combos, run_id, batch_num=None, medium='air', db=None, plot_style='3d'):
     logger = _setup_logger(run_id)
     
     # Initialize database run if provided and not already exists
@@ -168,7 +168,7 @@ def run_combos(lenses, combos, run_id, batch_num=None, medium='air', db=None):
             logger.warning("Lens 1 focal length too short for placement.")
             continue
         else:
-            plot_system_rays(lenses, res, run_id)
+            plot_system_rays(lenses, res, run_id, plot_style=plot_style)
             write_temp(res, run_id, batch_num)
             
             # Save to database immediately if enabled

@@ -291,7 +291,7 @@ def _trace_flat_curved_vectorized(origins, directions, n_medium, lens_params):
     center_thickness = lens_params['center_thickness_mm']
     ap_rad = lens_params['ap_rad_mm']
     vertex_z_back = vertex_z_front + center_thickness
-    center_z_back = vertex_z_back + R_front
+    center_z_back = vertex_z_back - R_front
     
     # Initialize output arrays
     origins_out = np.full((n_rays, 3), np.nan)
@@ -355,7 +355,7 @@ def _trace_flat_curved_vectorized(origins, directions, n_medium, lens_params):
         return origins_out, directions_out, success
     
     # Surface normals (pointing out of glass)
-    normals_back = (p_back - center_back) / R_front
+    normals_back = -(p_back - center_back) / R_front
     
     # Refract out of glass
     dirs_out, refract_out_ok = refract_vec_vectorized(normals_back, dirs_in, n_glass, n_medium)

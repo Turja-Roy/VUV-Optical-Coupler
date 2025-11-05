@@ -423,7 +423,10 @@ def parse_arguments():
             print_usage()
             sys.exit(1)
 
-    # Load configuration file if specified
+    # Load configuration file (auto-load default.yaml if not specified)
+    if not args['config_file'] and not args['profile']:
+        args['config_file'] = 'default.yaml'
+    
     if args['config_file'] or args['profile']:
         from scripts.config_loader import load_config, apply_config
         
@@ -440,6 +443,17 @@ def parse_arguments():
                 # Only use config optimizer if --opt was not provided
                 if '--opt' not in sys.argv:
                     args['optimizer'] = config['optimization']['method']
+            
+            # Apply other config defaults if CLI args not provided
+            if 'medium' in config and '--medium' not in sys.argv:
+                if 'type' in config['medium']:
+                    args['medium'] = config['medium']['type']
+            
+            if 'optimization' in config and '--alpha' not in sys.argv:
+                # Alpha might be in optimization section or as top-level param
+                # Check common locations
+                if 'alpha' in config['optimization']:
+                    args['alpha'] = config['optimization']['alpha']
             
         except (FileNotFoundError, ValueError) as e:
             print(f"Error loading configuration: {e}")

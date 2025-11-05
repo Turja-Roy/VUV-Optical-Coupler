@@ -37,8 +37,8 @@ class PlanoConvex:
             self.center_z_front = vertex_z_front + R_front_mm
         else:
             # Flipped orientation: flat face first, curved face at back
-            # Center of curvature is on the +z side of the back surface
-            self.center_z_back = self.vertex_z_back + R_front_mm
+            # Center of curvature is on the -z side of the back surface
+            self.center_z_back = self.vertex_z_back - R_front_mm
 
     def trace_ray(self, o, d, n1):
         """
@@ -134,9 +134,9 @@ class PlanoConvex:
             return None, None, False
         
         # Surface normal (points out of glass toward +z)
-        # For a sphere centered at center_z_back (which is > vertex_z_back),
+        # For a sphere centered at center_z_back (which is < vertex_z_back),
         # the outward normal from the back surface points away from center
-        n = (p_back - c) / self.R_front_mm
+        n = -(p_back - c) / self.R_front_mm
         
         # Refract out of glass
         d_out = refract_vec(n, d_in, self.n_glass, n1)

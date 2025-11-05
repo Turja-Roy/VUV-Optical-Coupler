@@ -30,7 +30,7 @@ def _setup_logger(run_id):
     return logger
 
 
-def analyze_combos(results_file, coupling_threshold, lenses, run_id, alpha=0.7, n_rays=1000, medium='air', methods=None):
+def analyze_combos(results_file, coupling_threshold, lenses, run_id, alpha=0.7, n_rays=1000, medium='air', methods=None, plot_style='3d'):
     logger = _setup_logger(run_id)
     
     logger.info(f"Loading results from {results_file}")
@@ -103,7 +103,7 @@ def analyze_combos(results_file, coupling_threshold, lenses, run_id, alpha=0.7, 
                 res['time_seconds'] = elapsed
                 
                 write_temp(res, run_id, f'{method}_batch')
-                plot_system_rays(lenses, res, run_id, method=method)
+                plot_system_rays(lenses, res, run_id, method=method, plot_style=plot_style)
                 
                 logger.info(f"Coupling={res['coupling']:.4f}, "
                            f"Length={res['total_len_mm']:.2f}mm, "
@@ -150,7 +150,7 @@ def analyze_combos(results_file, coupling_threshold, lenses, run_id, alpha=0.7, 
     from scripts.visualizers import plot_combined_methods
     for (lens1, lens2), methods_dict in lens_combos.items():
         logger.info(f"Creating combined plot for {lens1} + {lens2} ({len(methods_dict)} methods)")
-        plot_combined_methods(lenses, methods_dict, lens1, lens2, run_id)
+        plot_combined_methods(lenses, methods_dict, lens1, lens2, run_id, plot_style=plot_style)
     
     print(f"Generated {len(lens_combos)} combined plots")
     logger.info(f"Generated {len(lens_combos)} combined plots")

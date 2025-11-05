@@ -1,10 +1,147 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.patches import Circle
+from matplotlib.patches import Circle, Rectangle, Patch
+from matplotlib.lines import Line2D
 
 from scripts.PlanoConvex import PlanoConvex
 from scripts.raytrace_helpers import sample_rays
 from scripts import consts as C
+
+
+def _draw_planoconvex_2d(ax, z_pos, lens_data, flipped, alpha=0.2):
+    """
+    Draw a plano-convex lens profile in 2D with actual curved surface.
+    
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes
+        Axis to draw on
+    z_pos : float
+        Z position of the front vertex of the lens
+    lens_data : dict
+        Dictionary containing 'R_mm', 'tc_mm', 'te_mm', 'dia'
+    flipped : bool
+        If False: curved front, flat back (normal orientation)
+        If True: flat front, curved back (flipped orientation)
+    alpha : float
+        Transparency for the fill
+    """
+    R = lens_data['R_mm']
+    tc = lens_data['tc_mm']
+    te = lens_data['te_mm']
+    ap_rad = lens_data['dia'] / 2.0
+    
+    # Calculate sag (how much the curved surface protrudes)
+    # sag = R - sqrt(R^2 - ap_rad^2)
+    sag = R - np.sqrt(R**2 - ap_rad**2)
+    
+    # Generate points for curved surface profile
+    n_points = 100
+    y_curve = np.linspace(-ap_rad, ap_rad, n_points)
+    
+    if not flipped:
+        # Normal orientation: curved front, flat back
+        # Curved surface equation: z = z_pos + R - sqrt(R^2 - y^2)
+        z_curve = z_pos + R - np.sqrt(np.maximum(R**2 - y_curve**2, 0))
+        z_flat = z_pos + tc
+        
+        # Build lens outline: curved front (bottom to top) + flat back (top to bottom, reversed) + close
+        z_outline = np.concatenate([z_curve, [z_flat, z_flat], [z_curve[0]]])
+        y_outline = np.concatenate([y_curve, [ap_rad, -ap_rad], [y_curve[0]]])
+        
+        # Fill the lens body
+        ax.fill(z_outline, y_outline, color='b', alpha=alpha, edgecolor='b', linewidth=1.5)
+        
+    else:
+        # Flipped orientation: flat front, curved back
+        z_flat = z_pos
+        # Curved back surface: center at z_pos + tc - R
+        # For back surface: z = (z_pos + tc) - R + sqrt(R^2 - y^2)
+        z_curve = (z_pos + tc) - R + np.sqrt(np.maximum(R**2 - y_curve**2, 0))
+        
+        # Build lens outline: flat front (bottom to top) + curved back (top to bottom, reversed) + close
+        z_outline = np.concatenate([[z_flat, z_flat], z_curve[::-1], [z_flat]])
+        y_outline = np.concatenate([[-ap_rad, ap_rad], y_curve[::-1], [-ap_rad]])
+        
+        # Fill the lens body
+        ax.fill(z_outline, y_outline, color='b', alpha=alpha, edgecolor='b', linewidth=1.5)
+
+
+def _draw_planoconvex_3d(ax, z_pos, lens_data, flipped, alpha=0.3):
+    """
+    Draw a plano-convex lens in 3D with actual curved surface.
+    
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes3D
+        3D axis to draw on
+    z_pos : float
+        Z position of the front vertex of the lens
+    lens_data : dict
+        Dictionary containing 'R_mm', 'tc_mm', 'dia'
+    flipped : bool
+        If False: curved front, flat back (normal orientation)
+        If True: flat front, curved back (flipped orientation)
+    alpha : float
+        Transparency for the surfaces
+    """
+    R = lens_data['R_mm']
+    tc = lens_data['tc_mm']
+    ap_rad = lens_data['dia'] / 2.0
+    
+    # Azimuthal angle (full circle)
+    theta = np.linspace(0, 2*np.pi, 50)
+    
+    if not flipped:
+        # Normal orientation: curved front, flat back
+        
+        # 1. Curved front surface (spherical cap)
+        # Sphere center at (0, 0, z_pos + R)
+        # Polar angle range determined by aperture radius
+        phi_max = np.arcsin(min(ap_rad / R, 1.0))  # Angle subtended by aperture
+        phi = np.linspace(np.pi - phi_max, np.pi, 30)
+        
+        theta_grid, phi_grid = np.meshgrid(theta, phi)
+        x_front = R * np.sin(phi_grid) * np.cos(theta_grid)
+        y_front = R * np.sin(phi_grid) * np.sin(theta_grid)
+        z_front = z_pos + R + R * np.cos(phi_grid)
+        
+        ax.plot_surface(x_front, y_front, z_front, alpha=alpha, color='b')
+        
+        # 2. Flat back surface (circular disc)
+        r = np.linspace(0, ap_rad, 2)
+        theta_flat = np.linspace(0, 2*np.pi, 50)
+        r_grid, theta_grid = np.meshgrid(r, theta_flat)
+        x_back = r_grid * np.cos(theta_grid)
+        y_back = r_grid * np.sin(theta_grid)
+        z_back = z_pos + tc + np.zeros_like(x_back)
+        
+        ax.plot_surface(x_back, y_back, z_back, alpha=alpha, color='b')
+        
+    else:
+        # Flipped orientation: flat front, curved back
+        
+        # 1. Flat front surface (circular disc)
+        r = np.linspace(0, ap_rad, 2)
+        theta_flat = np.linspace(0, 2*np.pi, 50)
+        r_grid, theta_grid = np.meshgrid(r, theta_flat)
+        x_front = r_grid * np.cos(theta_grid)
+        y_front = r_grid * np.sin(theta_grid)
+        z_front = z_pos + np.zeros_like(x_front)
+        
+        ax.plot_surface(x_front, y_front, z_front, alpha=alpha, color='b')
+        
+        # 2. Curved back surface (spherical cap)
+        # Sphere center at (0, 0, z_pos + tc - R)
+        phi_max = np.arcsin(min(ap_rad / R, 1.0))
+        phi = np.linspace(0, phi_max, 30)
+        
+        theta_grid, phi_grid = np.meshgrid(theta, phi)
+        x_back = R * np.sin(phi_grid) * np.cos(theta_grid)
+        y_back = R * np.sin(phi_grid) * np.sin(theta_grid)
+        z_back = (z_pos + tc - R) + R * np.cos(phi_grid)
+        
+        ax.plot_surface(x_back, y_back, z_back, alpha=alpha, color='b')
 
 
 def _plot_rays_on_axis(ax, lenses, result, n_plot_rays=1000):
@@ -67,24 +204,12 @@ def _plot_rays_on_axis(ax, lenses, result, n_plot_rays=1000):
         ax.plot(points[:, 0], points[:, 1], points[:, 2],
                 color+'-', alpha=0.5)
 
+    # Draw lenses with actual curved surfaces
+    _draw_planoconvex_3d(ax, z_l1, lens1_data, flipped=flipped1, alpha=0.2)
+    _draw_planoconvex_3d(ax, z_l2, lens2_data, flipped=flipped2, alpha=0.2)
+
+    # Draw fiber face
     theta = np.linspace(0, 2*np.pi, 100)
-
-    r = np.linspace(0, lens1_data['dia']/2.0, 2)
-    t, r = np.meshgrid(theta, r)
-    x = r * np.cos(t)
-    y = r * np.sin(t)
-    ax.plot_surface(x, y, z_l1 + np.zeros_like(x), alpha=0.2, color='b')
-    ax.plot_surface(x, y, z_l1 + lens1_data['tc_mm'] + np.zeros_like(x),
-                    alpha=0.2, color='b')
-
-    r = np.linspace(0, lens2_data['dia']/2.0, 2)
-    t, r = np.meshgrid(theta, r)
-    x = r * np.cos(t)
-    y = r * np.sin(t)
-    ax.plot_surface(x, y, z_l2 + np.zeros_like(x), alpha=0.2, color='b')
-    ax.plot_surface(x, y, z_l2 + lens2_data['tc_mm'] + np.zeros_like(x),
-                    alpha=0.2, color='b')
-
     r = np.linspace(0, C.FIBER_CORE_DIAM_MM/2.0, 2)
     t, r = np.meshgrid(theta, r)
     x = r * np.cos(t)
@@ -98,61 +223,369 @@ def _plot_rays_on_axis(ax, lenses, result, n_plot_rays=1000):
     ax.view_init(elev=20, azim=45)
 
 
-def plot_system_rays(lenses, best_result, run_id, n_plot_rays=1000, method=None):
-    fig = plt.figure(figsize=(12, 8))
-    ax = fig.add_subplot(111, projection='3d')
+def _plot_rays_2d_dual_view(fig, lenses, result, n_plot_rays=1000):
+    """
+    Plot ray traces in dual 2D side views (X-Z and Y-Z projections).
+    
+    Parameters
+    ----------
+    fig : matplotlib.figure.Figure
+        Figure object to plot on
+    lenses : dict
+        Dictionary of lens specifications
+    result : dict
+        Result dictionary containing z_l1, z_l2, z_fiber, lens1, lens2, orientation
+    n_plot_rays : int
+        Number of rays to plot
+    """
+    z_l1 = result['z_l1']
+    z_l2 = result['z_l2']
+    z_fiber = result['z_fiber']
+    lens1_data = lenses[result['lens1']]
+    lens2_data = lenses[result['lens2']]
+    
+    # Parse orientation to determine flipped flags
+    orientation = result.get('orientation', 'ScffcF')
+    if orientation == 'SfccfF':
+        flipped1, flipped2 = True, False
+    else:  # Default to 'ScffcF'
+        flipped1, flipped2 = False, True
 
-    _plot_rays_on_axis(ax, lenses, best_result, n_plot_rays)
+    origins, dirs = sample_rays(n_plot_rays)
 
+    lens1 = PlanoConvex(z_l1, lens1_data['R_mm'], lens1_data['tc_mm'],
+                        lens1_data['te_mm'], lens1_data['dia']/2.0, flipped=flipped1)
+    lens2 = PlanoConvex(z_l2, lens2_data['R_mm'], lens2_data['tc_mm'],
+                        lens2_data['te_mm'], lens2_data['dia']/2.0, flipped=flipped2)
+
+    # Create two subplots for X-Z and Y-Z views
+    ax1 = fig.add_subplot(2, 1, 1)  # X-Z view (top)
+    ax2 = fig.add_subplot(2, 1, 2)  # Y-Z view (bottom)
+    
+    # Trace rays and collect data for both projections
+    for i in range(n_plot_rays):
+        points_x = []  # X coordinates
+        points_y = []  # Y coordinates
+        points_z = []  # Z coordinates
+        
+        o = origins[i].copy()
+        d = dirs[i].copy()
+        points_x.append(o[0])
+        points_y.append(o[1])
+        points_z.append(o[2])
+
+        out1 = lens1.trace_ray(o, d, 1.0)
+        if out1[2] is False:
+            # Ray rejected at L1
+            ax1.plot(points_z, points_x, 'r-', alpha=0.2, linewidth=0.5)
+            ax2.plot(points_z, points_y, 'r-', alpha=0.2, linewidth=0.5)
+            continue
+        o1, d1 = out1[0], out1[1]
+        points_x.append(o1[0])
+        points_y.append(o1[1])
+        points_z.append(o1[2])
+
+        out2 = lens2.trace_ray(o1, d1, 1.0)
+        if out2[2] is False:
+            # Ray rejected at L2
+            ax1.plot(points_z, points_x, 'r-', alpha=0.2, linewidth=0.5)
+            ax2.plot(points_z, points_y, 'r-', alpha=0.2, linewidth=0.5)
+            continue
+        o2, d2 = out2[0], out2[1]
+        points_x.append(o2[0])
+        points_y.append(o2[1])
+        points_z.append(o2[2])
+
+        if abs(d2[2]) < 1e-9:
+            continue
+        t = (z_fiber - o2[2]) / d2[2]
+        if t < 0:
+            continue
+        p_f = o2 + t * d2
+        points_x.append(p_f[0])
+        points_y.append(p_f[1])
+        points_z.append(p_f[2])
+
+        # Check acceptance criteria
+        r = __import__("math").hypot(p_f[0], p_f[1])
+        theta = __import__("math").acos(abs(d2[2]) / np.linalg.norm(d2))
+        color = 'g' if (r <= C.FIBER_CORE_DIAM_MM/2.0 and
+                        theta <= C.ACCEPTANCE_HALF_RAD) else 'r'
+
+        # Plot in both views
+        ax1.plot(points_z, points_x, color+'-', alpha=0.5, linewidth=0.5)
+        ax2.plot(points_z, points_y, color+'-', alpha=0.5, linewidth=0.5)
+
+    # Draw lenses with actual curved profiles
+    _draw_planoconvex_2d(ax1, z_l1, lens1_data, flipped=flipped1, alpha=0.2)
+    _draw_planoconvex_2d(ax2, z_l1, lens1_data, flipped=flipped1, alpha=0.2)
+    
+    _draw_planoconvex_2d(ax1, z_l2, lens2_data, flipped=flipped2, alpha=0.2)
+    _draw_planoconvex_2d(ax2, z_l2, lens2_data, flipped=flipped2, alpha=0.2)
+    
+    # Draw fiber as vertical line
+    fiber_half_dia = C.FIBER_CORE_DIAM_MM / 2.0
+    ax1.plot([z_fiber, z_fiber], [-fiber_half_dia, fiber_half_dia], 
+             'g-', linewidth=3, alpha=0.6, label='Fiber')
+    ax2.plot([z_fiber, z_fiber], [-fiber_half_dia, fiber_half_dia], 
+             'g-', linewidth=3, alpha=0.6, label='Fiber')
+    
+    # Mark fiber endpoints
+    ax1.plot(z_fiber, -fiber_half_dia, 'go', markersize=5)
+    ax1.plot(z_fiber, fiber_half_dia, 'go', markersize=5)
+    ax2.plot(z_fiber, -fiber_half_dia, 'go', markersize=5)
+    ax2.plot(z_fiber, fiber_half_dia, 'go', markersize=5)
+    
+    # Set labels and formatting
+    ax1.set_ylabel('X (mm)', fontsize=10)
+    ax1.set_title('X-Z Projection (Horizontal)', fontsize=11, fontweight='bold')
+    ax1.grid(True, alpha=0.3)
+    ax1.set_aspect('equal', adjustable='box')
+    
+    ax2.set_xlabel('Z (mm)', fontsize=10)
+    ax2.set_ylabel('Y (mm)', fontsize=10)
+    ax2.set_title('Y-Z Projection (Vertical)', fontsize=11, fontweight='bold')
+    ax2.grid(True, alpha=0.3)
+    ax2.set_aspect('equal', adjustable='box')
+    
+    # Add legend to first subplot only
+    legend_elements = [
+        Patch(facecolor='g', alpha=0.5, label='Accepted rays'),
+        Patch(facecolor='r', alpha=0.5, label='Rejected rays'),
+        Patch(facecolor='b', alpha=0.2, edgecolor='b', label='Lenses'),
+        Line2D([0], [0], color='g', linewidth=3, alpha=0.6, label='Fiber core')
+    ]
+    ax1.legend(handles=legend_elements, loc='upper right', fontsize=8)
+
+
+def _plot_single_2d_view(ax, lenses, result, n_plot_rays=500, projection='xz'):
+    """
+    Plot ray traces in a single 2D view (for combined method comparisons).
+    
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes
+        Axis object to plot on
+    lenses : dict
+        Dictionary of lens specifications
+    result : dict
+        Result dictionary containing z_l1, z_l2, z_fiber, lens1, lens2, orientation
+    n_plot_rays : int
+        Number of rays to plot
+    projection : str
+        Either 'xz' for X-Z projection or 'yz' for Y-Z projection
+    """
+    z_l1 = result['z_l1']
+    z_l2 = result['z_l2']
+    z_fiber = result['z_fiber']
+    lens1_data = lenses[result['lens1']]
+    lens2_data = lenses[result['lens2']]
+    
+    # Parse orientation to determine flipped flags
+    orientation = result.get('orientation', 'ScffcF')
+    if orientation == 'SfccfF':
+        flipped1, flipped2 = True, False
+    else:  # Default to 'ScffcF'
+        flipped1, flipped2 = False, True
+
+    origins, dirs = sample_rays(n_plot_rays)
+
+    lens1 = PlanoConvex(z_l1, lens1_data['R_mm'], lens1_data['tc_mm'],
+                        lens1_data['te_mm'], lens1_data['dia']/2.0, flipped=flipped1)
+    lens2 = PlanoConvex(z_l2, lens2_data['R_mm'], lens2_data['tc_mm'],
+                        lens2_data['te_mm'], lens2_data['dia']/2.0, flipped=flipped2)
+
+    coord_idx = 0 if projection == 'xz' else 1  # X=0, Y=1
+    coord_label = 'X' if projection == 'xz' else 'Y'
+    
+    # Trace rays and collect data
+    for i in range(n_plot_rays):
+        points_coord = []  # X or Y coordinates
+        points_z = []      # Z coordinates
+        
+        o = origins[i].copy()
+        d = dirs[i].copy()
+        points_coord.append(o[coord_idx])
+        points_z.append(o[2])
+
+        out1 = lens1.trace_ray(o, d, 1.0)
+        if out1[2] is False:
+            ax.plot(points_z, points_coord, 'r-', alpha=0.2, linewidth=0.5)
+            continue
+        o1, d1 = out1[0], out1[1]
+        points_coord.append(o1[coord_idx])
+        points_z.append(o1[2])
+
+        out2 = lens2.trace_ray(o1, d1, 1.0)
+        if out2[2] is False:
+            ax.plot(points_z, points_coord, 'r-', alpha=0.2, linewidth=0.5)
+            continue
+        o2, d2 = out2[0], out2[1]
+        points_coord.append(o2[coord_idx])
+        points_z.append(o2[2])
+
+        if abs(d2[2]) < 1e-9:
+            continue
+        t = (z_fiber - o2[2]) / d2[2]
+        if t < 0:
+            continue
+        p_f = o2 + t * d2
+        points_coord.append(p_f[coord_idx])
+        points_z.append(p_f[2])
+
+        # Check acceptance criteria
+        r = __import__("math").hypot(p_f[0], p_f[1])
+        theta = __import__("math").acos(abs(d2[2]) / np.linalg.norm(d2))
+        color = 'g' if (r <= C.FIBER_CORE_DIAM_MM/2.0 and
+                        theta <= C.ACCEPTANCE_HALF_RAD) else 'r'
+
+        ax.plot(points_z, points_coord, color+'-', alpha=0.5, linewidth=0.5)
+
+    # Draw lenses with actual curved profiles
+    _draw_planoconvex_2d(ax, z_l1, lens1_data, flipped=flipped1, alpha=0.2)
+    _draw_planoconvex_2d(ax, z_l2, lens2_data, flipped=flipped2, alpha=0.2)
+    
+    # Draw fiber as vertical line
+    fiber_half_dia = C.FIBER_CORE_DIAM_MM / 2.0
+    ax.plot([z_fiber, z_fiber], [-fiber_half_dia, fiber_half_dia], 
+            'g-', linewidth=2, alpha=0.6)
+    ax.plot(z_fiber, -fiber_half_dia, 'go', markersize=4)
+    ax.plot(z_fiber, fiber_half_dia, 'go', markersize=4)
+    
+    # Set labels and formatting
+    ax.set_xlabel('Z (mm)', fontsize=9)
+    ax.set_ylabel(f'{coord_label} (mm)', fontsize=9)
+    ax.grid(True, alpha=0.3)
+    ax.set_aspect('equal', adjustable='box')
+
+
+def plot_system_rays(lenses, best_result, run_id, n_plot_rays=1000, method=None, plot_style='2d'):
+    """
+    Plot ray trace visualization for a single configuration.
+    
+    Parameters
+    ----------
+    lenses : dict
+        Dictionary of lens specifications
+    best_result : dict
+        Result dictionary containing optimization results
+    run_id : str
+        Run identifier for output directory
+    n_plot_rays : int
+        Number of rays to plot
+    method : str, optional
+        Optimization method name for filename
+    plot_style : str
+        Plot style: '2d', '3d', or 'both'
+    """
     orientation = best_result.get('orientation', 'ScffcF')
-    plt.title(f"Ray Trace: {
-              best_result['lens1']} + {best_result['lens2']}, Coupling: {best_result['coupling']:.4f}, {orientation}")
+    
+    if plot_style in ['3d', 'both']:
+        # Create 3D plot
+        fig_3d = plt.figure(figsize=(12, 8))
+        ax = fig_3d.add_subplot(111, projection='3d')
+        _plot_rays_on_axis(ax, lenses, best_result, n_plot_rays)
+        plt.title(f"Ray Trace: {best_result['lens1']} + {best_result['lens2']}, Coupling: {best_result['coupling']:.4f}, {orientation}")
+        plt.tight_layout()
+        
+        # Save 3D plot
+        if method:
+            plot_dir = f"./plots/{run_id}/{best_result['lens1']}+{best_result['lens2']}"
+            if not __import__("os").path.exists(plot_dir):
+                __import__("os").makedirs(plot_dir)
+            filename_3d = f"{plot_dir}/C-{best_result['coupling']:.4f}_{method}_3d.png"
+        else:
+            if not __import__("os").path.exists('./plots/' + run_id):
+                __import__("os").makedirs('./plots/' + run_id)
+            filename_3d = f"./plots/{run_id}/C-{best_result['coupling']:.4f}_L1-{best_result['lens1']}_L2-{best_result['lens2']}_3d.png"
+        plt.savefig(filename_3d)
+        plt.close(fig_3d)
+    
+    if plot_style in ['2d', 'both']:
+        # Create 2D dual-view plot
+        fig_2d = plt.figure(figsize=(12, 10))
+        _plot_rays_2d_dual_view(fig_2d, lenses, best_result, n_plot_rays)
+        fig_2d.suptitle(f"Ray Trace (2D): {best_result['lens1']} + {best_result['lens2']}, Coupling: {best_result['coupling']:.4f}, {orientation}", 
+                       fontsize=13, fontweight='bold', y=0.995)
+        plt.tight_layout(rect=[0, 0, 1, 0.99])
+        
+        # Save 2D plot
+        if method:
+            plot_dir = f"./plots/{run_id}/{best_result['lens1']}+{best_result['lens2']}"
+            if not __import__("os").path.exists(plot_dir):
+                __import__("os").makedirs(plot_dir)
+            filename_2d = f"{plot_dir}/C-{best_result['coupling']:.4f}_{method}_2d.png"
+        else:
+            if not __import__("os").path.exists('./plots/' + run_id):
+                __import__("os").makedirs('./plots/' + run_id)
+            filename_2d = f"./plots/{run_id}/C-{best_result['coupling']:.4f}_L1-{best_result['lens1']}_L2-{best_result['lens2']}_2d.png"
+        plt.savefig(filename_2d)
+        plt.close(fig_2d)
 
-    plt.tight_layout()
 
-    # Save plot
-    if method:
-        plot_dir = f"./plots/{run_id}/{best_result['lens1']}+{best_result['lens2']}"
-        if not __import__("os").path.exists(plot_dir):
-            __import__("os").makedirs(plot_dir)
-        filename = f"{plot_dir}/C-{best_result['coupling']:.4f}_{method}.png"
-    else:
-        if not __import__("os").path.exists('./plots/' + run_id):
-            __import__("os").makedirs('./plots/' + run_id)
-        filename = f"./plots/{run_id}/C-{best_result['coupling']:.4f}_L1-{best_result['lens1']}_L2-{best_result['lens2']}.png"
-    plt.savefig(filename)
-    plt.close(fig)
-
-
-def plot_combined_methods(lenses, results_by_method, lens1, lens2, run_id, n_plot_rays=500):
+def plot_combined_methods(lenses, results_by_method, lens1, lens2, run_id, n_plot_rays=500, plot_style='2d'):
+    """
+    Plot comparison grid of multiple optimization methods.
+    
+    Parameters
+    ----------
+    lenses : dict
+        Dictionary of lens specifications
+    results_by_method : dict
+        Dictionary mapping method names to result dictionaries
+    lens1 : str
+        First lens identifier
+    lens2 : str
+        Second lens identifier
+    run_id : str
+        Run identifier for output directory
+    n_plot_rays : int
+        Number of rays to plot per subplot
+    plot_style : str
+        Plot style: '2d' or '3d' (default: '2d')
+    """
     n_methods = len(results_by_method)
     if n_methods == 0:
         return
 
     if n_methods == 1:
         nrows, ncols = 1, 1
-        figsize = (12, 8)
+        figsize = (12, 8) if plot_style == '3d' else (12, 10)
     elif n_methods == 2:
         nrows, ncols = 1, 2
-        figsize = (20, 8)
+        figsize = (20, 8) if plot_style == '3d' else (20, 10)
     elif n_methods == 3:
         nrows, ncols = 1, 3
-        figsize = (24, 8)
+        figsize = (24, 8) if plot_style == '3d' else (30, 10)
     elif n_methods == 4:
         nrows, ncols = 2, 2
-        figsize = (20, 16)
+        figsize = (20, 16) if plot_style == '3d' else (20, 20)
     else:
         nrows, ncols = 2, 3
-        figsize = (24, 16)
+        figsize = (24, 16) if plot_style == '3d' else (30, 20)
 
     fig = plt.figure(figsize=figsize)
 
-    for idx, (method, result) in enumerate(sorted(results_by_method.items()), 1):
-        ax = fig.add_subplot(nrows, ncols, idx, projection='3d')
-        _plot_rays_on_axis(ax, lenses, result, n_plot_rays)
-        
-        time_str = f", {result.get('time_seconds', 0):.1f}s" if 'time_seconds' in result else ""
-        ax.set_title(f"{method}\nCoupling: {result['coupling']:.4f}{time_str}", fontsize=10)
+    if plot_style == '3d':
+        # 3D subplot grid
+        for idx, (method, result) in enumerate(sorted(results_by_method.items()), 1):
+            ax = fig.add_subplot(nrows, ncols, idx, projection='3d')
+            _plot_rays_on_axis(ax, lenses, result, n_plot_rays)
+            
+            time_str = f", {result.get('time_seconds', 0):.1f}s" if 'time_seconds' in result else ""
+            ax.set_title(f"{method}\nCoupling: {result['coupling']:.4f}{time_str}", fontsize=10)
+    else:
+        # 2D subplot grid - each method gets a single combined 2D view
+        # For simplicity, we'll just show X-Z projection in combined view
+        for idx, (method, result) in enumerate(sorted(results_by_method.items()), 1):
+            ax = fig.add_subplot(nrows, ncols, idx)
+            
+            # Create a temporary figure for 2D plotting, extract the X-Z view
+            # For combined methods, we'll create simplified single-panel X-Z views
+            _plot_single_2d_view(ax, lenses, result, n_plot_rays, projection='xz')
+            
+            time_str = f", {result.get('time_seconds', 0):.1f}s" if 'time_seconds' in result else ""
+            ax.set_title(f"{method}\nCoupling: {result['coupling']:.4f}{time_str}", fontsize=10)
 
     plt.suptitle(f"Method Comparison: {lens1} + {lens2}", fontsize=14, y=0.995)
     plt.tight_layout(rect=(0, 0, 1, 0.99))
@@ -160,7 +593,9 @@ def plot_combined_methods(lenses, results_by_method, lens1, lens2, run_id, n_plo
     plot_dir = f"./plots/{run_id}/{lens1}+{lens2}"
     if not __import__("os").path.exists(plot_dir):
         __import__("os").makedirs(plot_dir)
-    filename = f"{plot_dir}/{lens1}+{lens2}.png"
+    
+    suffix = '_2d' if plot_style == '2d' else ''
+    filename = f"{plot_dir}/{lens1}+{lens2}{suffix}.png"
     plt.savefig(filename, dpi=150)
     plt.close(fig)
 

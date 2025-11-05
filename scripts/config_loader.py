@@ -297,6 +297,42 @@ class ConfigLoader:
             'auto_open': dash.get('auto_open', defaults['auto_open'])
         }
     
+    def get_plot_style(self, config: Dict[str, Any]) -> str:
+        """
+        Extract plot style from config.
+        
+        Parameters
+        ----------
+        config : dict
+            Configuration dictionary
+            
+        Returns
+        -------
+        plot_style : str
+            Plot style: '2d', '3d', or 'both'. Default is '2d'.
+            
+        Raises
+        ------
+        ValueError
+            If plot_style is not one of the valid options.
+        """
+        default_style = '2d'
+        
+        if 'output' not in config:
+            return default_style
+        
+        output = config['output']
+        plot_style = output.get('plot_style', default_style)
+        
+        # Validate plot_style
+        valid_styles = {'2d', '3d', 'both'}
+        if plot_style not in valid_styles:
+            raise ValueError(
+                f"Invalid plot_style '{plot_style}'. Must be one of: {valid_styles}"
+            )
+        
+        return plot_style
+    
     def list_profiles(self) -> list:
         """List all available preset profiles."""
         if not self.config_dir.exists():

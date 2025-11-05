@@ -12,6 +12,13 @@ from scripts.cli import parse_arguments, print_usage
 def main():
     args = parse_arguments()
     
+    # Get plot style from config if available
+    plot_style = '3d'  # Default
+    if '_config' in args:
+        from scripts.config_loader import ConfigLoader
+        loader = ConfigLoader()
+        plot_style = loader.get_plot_style(args['_config'])
+    
     # Initialize database connection if enabled
     db = None
     if C.USE_DATABASE:
@@ -289,11 +296,13 @@ def main():
         analyze_n_rays = args['n_rays']
         analyze_threshold = args['coupling_threshold']
         analyze_methods = None
+        analyze_plot_style = '3d'  # Default
         
         if '_config' in args:
             from scripts.config_loader import ConfigLoader
             loader = ConfigLoader()
             analyze_params = loader.get_analyze_params(args['_config'])
+            analyze_plot_style = loader.get_plot_style(args['_config'])
             
             # CLI args override config values
             import sys
@@ -314,7 +323,8 @@ def main():
             alpha=args['alpha'],
             medium=args['medium'],
             n_rays=analyze_n_rays,
-            methods=analyze_methods
+            methods=analyze_methods,
+            plot_style=analyze_plot_style
         )
         
         for method, results in all_results.items():
@@ -364,10 +374,12 @@ def main():
         from scripts.visualizers import plot_tolerance_results
         
         # Load tolerance parameters from config if available, otherwise use CLI args
+        tolerance_plot_style = '3d'  # Default
         if '_config' in args:
             from scripts.config_loader import ConfigLoader
             loader = ConfigLoader()
             tol_params = loader.get_tolerance_params(args['_config'])
+            tolerance_plot_style = loader.get_plot_style(args['_config'])
             
             # CLI args override config values (only if explicitly provided)
             # Check if CLI args were explicitly set by looking at sys.argv
@@ -406,7 +418,8 @@ def main():
         results = run_combos(
             lenses, combos, run_id, method=args['optimizer'],
             alpha=args['alpha'], n_rays=args['n_rays'],
-            batch_num=None, medium=args['medium'], db=db
+            batch_num=None, medium=args['medium'], db=db,
+            plot_style=tolerance_plot_style
         )
         
         if not results or len(results) == 0:
@@ -458,7 +471,7 @@ def main():
     def runner_func(lenses, combos, run_id, batch_num): return run_combos(
         lenses, combos, run_id, method=args['optimizer'],
         alpha=args['alpha'], n_rays=1000, batch_num=batch_num,
-        medium=args['medium'], db=db
+        medium=args['medium'], db=db, plot_style=plot_style
     )
 
     # Run optimization
