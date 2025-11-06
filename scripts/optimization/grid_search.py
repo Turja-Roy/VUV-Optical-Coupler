@@ -5,7 +5,7 @@ from scripts.data_io import write_temp
 from scripts.PlanoConvex import PlanoConvex
 from scripts import consts as C
 from scripts.visualizers import plot_system_rays
-from scripts.raytrace_helpers import sample_rays, get_fiber_position_hybrid
+from scripts.raytrace_helpers import sample_rays, find_optimal_fiber_position
 from scripts.raytrace_helpers_vectorized import trace_system_vectorized as trace_system
 
 import logging
@@ -37,12 +37,11 @@ def evaluate_config(z_l1, z_l2, origins, dirs, d1, d2, n_rays, medium='air', fli
                         ap_rad_mm=d2['dia']/2.0,
                         flipped=flipped2)
     
-    # Find optimal fiber position using hybrid method
-    z_fiber, coupling = get_fiber_position_hybrid(
+    # Find optimal fiber position based on actual ray convergence
+    z_fiber, coupling = find_optimal_fiber_position(
         origins, dirs, lens1, lens2, z_l2, d2['f_mm'],
         C.FIBER_CORE_DIAM_MM/2.0, C.ACCEPTANCE_HALF_RAD,
-        medium, C.PRESSURE_ATM, C.TEMPERATURE_K, C.HUMIDITY_FRACTION,
-        n_samples=15  # Use fewer samples during grid search for speed
+        medium, C.PRESSURE_ATM, C.TEMPERATURE_K, C.HUMIDITY_FRACTION
     )
     
     # Get accepted rays for the optimal fiber position

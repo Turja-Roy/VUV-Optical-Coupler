@@ -2,7 +2,7 @@ import numpy as np
 from scipy.optimize import minimize
 from scripts.PlanoConvex import PlanoConvex
 from scripts import consts as C
-from scripts.raytrace_helpers import sample_rays, get_fiber_position_hybrid
+from scripts.raytrace_helpers import sample_rays, find_optimal_fiber_position
 from scripts.raytrace_helpers_vectorized import trace_system_vectorized as trace_system
 
 
@@ -16,12 +16,11 @@ def evaluate_config_fast(params, d1, d2, origins, dirs, n_rays, alpha=0.7, mediu
     lens1 = PlanoConvex(z_l1, d1['R_mm'], d1['tc_mm'], d1['te_mm'], d1['dia']/2.0, flipped=flipped1)
     lens2 = PlanoConvex(z_l2, d2['R_mm'], d2['tc_mm'], d2['te_mm'], d2['dia']/2.0, flipped=flipped2)
     
-    # Use hybrid fiber positioning (paraxial when it works, optimized search when needed)
-    z_fiber, coupling = get_fiber_position_hybrid(
+    # Find optimal fiber position based on actual ray convergence
+    z_fiber, coupling = find_optimal_fiber_position(
         origins, dirs, lens1, lens2, z_l2, d2['f_mm'],
         C.FIBER_CORE_DIAM_MM/2.0, C.ACCEPTANCE_HALF_RAD,
-        medium, C.PRESSURE_ATM, C.TEMPERATURE_K, C.HUMIDITY_FRACTION,
-        n_samples=15
+        medium, C.PRESSURE_ATM, C.TEMPERATURE_K, C.HUMIDITY_FRACTION
     )
     
     return alpha * (1 - coupling) + (1 - alpha) * z_fiber / 80.0
@@ -60,12 +59,11 @@ def optimize(lenses, name1, name2, n_rays=1000, alpha=0.7, medium='air', orienta
         lens1 = PlanoConvex(z_l1, d1['R_mm'], d1['tc_mm'], d1['te_mm'], d1['dia']/2.0, flipped=flipped1)
         lens2 = PlanoConvex(z_l2, d2['R_mm'], d2['tc_mm'], d2['te_mm'], d2['dia']/2.0, flipped=flipped2)
         
-        # Use hybrid fiber positioning with more samples for final evaluation
-        z_fiber, coupling = get_fiber_position_hybrid(
+        # Find optimal fiber position for final evaluation with more rays
+        z_fiber, coupling = find_optimal_fiber_position(
             origins_final, dirs_final, lens1, lens2, z_l2, d2['f_mm'],
             C.FIBER_CORE_DIAM_MM/2.0, C.ACCEPTANCE_HALF_RAD,
-            medium, C.PRESSURE_ATM, C.TEMPERATURE_K, C.HUMIDITY_FRACTION,
-            n_samples=30
+            medium, C.PRESSURE_ATM, C.TEMPERATURE_K, C.HUMIDITY_FRACTION
         )
         
         # Get accepted rays for the optimal fiber position

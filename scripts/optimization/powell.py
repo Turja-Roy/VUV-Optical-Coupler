@@ -2,7 +2,7 @@ import numpy as np
 from scipy.optimize import minimize
 from scripts.PlanoConvex import PlanoConvex
 from scripts import consts as C
-from scripts.raytrace_helpers import sample_rays, get_fiber_position_hybrid
+from scripts.raytrace_helpers import sample_rays, find_optimal_fiber_position
 from scripts.raytrace_helpers_vectorized import trace_system_vectorized as trace_system
 
 
@@ -16,9 +16,13 @@ def evaluate_config_fast(params, d1, d2, origins, dirs, n_rays, alpha=0.7, mediu
     lens1 = PlanoConvex(z_l1, d1['R_mm'], d1['tc_mm'], d1['te_mm'], d1['dia']/2.0, flipped=flipped1)
     lens2 = PlanoConvex(z_l2, d2['R_mm'], d2['tc_mm'], d2['te_mm'], d2['dia']/2.0, flipped=flipped2)
     
-    # Use hybrid fiber positioning (paraxial when it works, optimized search when needed)
-    z_fiber, coupling = get_fiber_position_hybrid(
-        origins, dirs, lens1, lens2, z_l2, d2['f_mm'],
+    # Find optimal fiber position instead of using paraxial focal length
+    z_search_start = z_l2 + d2['tc_mm'] + 0.5  # Start just after lens 2
+    z_search_end = z_l2 + max(d2['f_mm'] * 2.0, 50.0)  # Search up to 2x focal length or 50mm
+    
+    z_fiber, coupling = find_optimal_fiber_position(
+        origins, dirs, lens1, lens2,
+        z_search_start, z_search_end,
         C.FIBER_CORE_DIAM_MM/2.0, C.ACCEPTANCE_HALF_RAD,
         medium, C.PRESSURE_ATM, C.TEMPERATURE_K, C.HUMIDITY_FRACTION,
         n_samples=15  # Use fewer samples during optimization for speed
@@ -60,9 +64,13 @@ def optimize(lenses, name1, name2, n_rays=1000, alpha=0.7, medium='air', orienta
         lens1 = PlanoConvex(z_l1, d1['R_mm'], d1['tc_mm'], d1['te_mm'], d1['dia']/2.0, flipped=flipped1)
         lens2 = PlanoConvex(z_l2, d2['R_mm'], d2['tc_mm'], d2['te_mm'], d2['dia']/2.0, flipped=flipped2)
         
-        # Use hybrid fiber positioning with more samples for final evaluation
-        z_fiber, coupling = get_fiber_position_hybrid(
-            origins_final, dirs_final, lens1, lens2, z_l2, d2['f_mm'],
+        # Find optimal fiber position with finer resolution for final evaluation
+        z_search_start = z_l2 + d2['tc_mm'] + 0.5
+        z_search_end = z_l2 + max(d2['f_mm'] * 2.0, 50.0)
+        
+        z_fiber, coupling = find_optimal_fiber_position(
+            origins_final, dirs_final, lens1, lens2,
+            z_search_start, z_search_end,
             C.FIBER_CORE_DIAM_MM/2.0, C.ACCEPTANCE_HALF_RAD,
             medium, C.PRESSURE_ATM, C.TEMPERATURE_K, C.HUMIDITY_FRACTION,
             n_samples=30  # Use more samples for final evaluation
