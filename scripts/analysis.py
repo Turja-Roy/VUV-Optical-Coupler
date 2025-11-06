@@ -30,7 +30,7 @@ def _setup_logger(run_id):
     return logger
 
 
-def analyze_combos(results_file, coupling_threshold, lenses, run_id, alpha=0.7, n_rays=1000, medium='air', methods=None, plot_style='3d'):
+def analyze_combos(results_file, coupling_threshold, lenses, run_id, alpha=0.7, n_rays=1000, medium='air', methods=None, plot_style='3d', orientation_mode='both'):
     logger = _setup_logger(run_id)
     
     logger.info(f"Loading results from {results_file}")
@@ -76,22 +76,22 @@ def analyze_combos(results_file, coupling_threshold, lenses, run_id, alpha=0.7, 
                 res = None
                 if method == 'differential_evolution':
                     from scripts.optimization import differential_evolution as optimizer
-                    res = optimizer.optimize(lenses, lens1, lens2, n_rays, alpha, medium)
+                    res = optimizer.optimize(lenses, lens1, lens2, n_rays, alpha, medium, orientation_mode=orientation_mode)
                 elif method == 'dual_annealing':
                     from scripts.optimization import dual_annealing as optimizer
-                    res = optimizer.optimize(lenses, lens1, lens2, n_rays, alpha, medium)
+                    res = optimizer.optimize(lenses, lens1, lens2, n_rays, alpha, medium, orientation_mode=orientation_mode)
                 elif method == 'nelder_mead':
                     from scripts.optimization import nelder_mead as optimizer
-                    res = optimizer.optimize(lenses, lens1, lens2, n_rays, alpha, medium)
+                    res = optimizer.optimize(lenses, lens1, lens2, n_rays, alpha, medium, orientation_mode=orientation_mode)
                 elif method == 'powell':
                     from scripts.optimization import powell as optimizer
-                    res = optimizer.optimize(lenses, lens1, lens2, n_rays, alpha, medium)
+                    res = optimizer.optimize(lenses, lens1, lens2, n_rays, alpha, medium, orientation_mode=orientation_mode)
                 elif method == 'grid_search':
                     from scripts.optimization import grid_search as optimizer
                     res = optimizer.run_grid(run_id, lenses, lens1, lens2, medium=medium)
                 elif method == 'bayesian':
                     from scripts.optimization import bayesian as optimizer
-                    res = optimizer.optimize(lenses, lens1, lens2, n_calls=50, n_rays=n_rays, alpha=alpha, medium=medium)
+                    res = optimizer.optimize(lenses, lens1, lens2, n_calls=50, n_rays=n_rays, alpha=alpha, medium=medium, orientation_mode=orientation_mode)
                 
                 elapsed = time.time() - start_time
                 
@@ -99,15 +99,19 @@ def analyze_combos(results_file, coupling_threshold, lenses, run_id, alpha=0.7, 
                     logger.warning(f"Optimization failed for {lens1} + {lens2}")
                     continue
                 
-                res['method'] = method
-                res['time_seconds'] = elapsed
+                # Handle both list (orientation_mode='both') and single dict returns
+                results_to_process = res if isinstance(res, list) else [res]
                 
-                write_temp(res, run_id, f'{method}_batch')
-                plot_system_rays(lenses, res, run_id, method=method, plot_style=plot_style)
-                
-                logger.info(f"Coupling={res['coupling']:.4f}, "
-                           f"Length={res['total_len_mm']:.2f}mm, "
-                           f"Time={elapsed:.2f}s")
+                for result in results_to_process:
+                    result['method'] = method
+                    result['time_seconds'] = elapsed
+                    
+                    write_temp(result, run_id, f'{method}_batch')
+                    plot_system_rays(lenses, result, run_id, method=method, plot_style=plot_style)
+                    
+                    logger.info(f"Coupling={result['coupling']:.4f}, "
+                               f"Length={result['total_len_mm']:.2f}mm, "
+                               f"Time={elapsed:.2f}s")
                 
             except Exception as e:
                 logger.error(f"Error optimizing {lens1} + {lens2} with {method}: {str(e)}")
@@ -228,7 +232,7 @@ def evaluate_fixed_config_at_wavelength(lenses, lens1, lens2, z_l1, z_l2, z_fibe
         C.WAVELENGTH_NM = original_wavelength
 
 
-def wavelength_analysis(results_file, run_id, wl_start=180, wl_end=300, wl_step=10, n_rays=2000, alpha=0.7, medium='air', methods=None):
+def wavelength_analysis(results_file, run_id, wl_start=180, wl_end=300, wl_step=10, n_rays=2000, alpha=0.7, medium='air', methods=None, orientation_mode='both'):
     logger = _setup_logger(run_id)
     
     logger.info(f"Loading lens combinations from {results_file}")
@@ -338,22 +342,27 @@ def wavelength_analysis(results_file, run_id, wl_start=180, wl_end=300, wl_step=
                 res = None
                 if method == 'differential_evolution':
                     from scripts.optimization import differential_evolution as optimizer
-                    res = optimizer.optimize(lenses, lens1, lens2, n_rays=n_rays, alpha=alpha, medium=medium)
+                    res = optimizer.optimize(lenses, lens1, lens2, n_rays=n_rays, alpha=alpha, medium=medium, orientation_mode=orientation_mode)
                 elif method == 'dual_annealing':
                     from scripts.optimization import dual_annealing as optimizer
-                    res = optimizer.optimize(lenses, lens1, lens2, n_rays=n_rays, alpha=alpha, medium=medium)
+                    res = optimizer.optimize(lenses, lens1, lens2, n_rays=n_rays, alpha=alpha, medium=medium, orientation_mode=orientation_mode)
                 elif method == 'nelder_mead':
                     from scripts.optimization import nelder_mead as optimizer
-                    res = optimizer.optimize(lenses, lens1, lens2, n_rays=n_rays, alpha=alpha, medium=medium)
+                    res = optimizer.optimize(lenses, lens1, lens2, n_rays=n_rays, alpha=alpha, medium=medium, orientation_mode=orientation_mode)
                 elif method == 'powell':
                     from scripts.optimization import powell as optimizer
-                    res = optimizer.optimize(lenses, lens1, lens2, n_rays=n_rays, alpha=alpha, medium=medium)
+                    res = optimizer.optimize(lenses, lens1, lens2, n_rays=n_rays, alpha=alpha, medium=medium, orientation_mode=orientation_mode)
                 elif method == 'grid_search':
                     from scripts.optimization import grid_search as optimizer
                     res = optimizer.run_grid(run_id, lenses, lens1, lens2, medium=medium)
                 elif method == 'bayesian':
                     from scripts.optimization import bayesian as optimizer
-                    res = optimizer.optimize(lenses, lens1, lens2, n_calls=50, n_rays=n_rays, alpha=alpha, medium=medium)
+                    res = optimizer.optimize(lenses, lens1, lens2, n_calls=50, n_rays=n_rays, alpha=alpha, medium=medium, orientation_mode=orientation_mode)
+                
+                # Handle both list (orientation_mode='both') and single dict returns
+                # For wavelength analysis, we only use the first/best result
+                if isinstance(res, list):
+                    res = res[0] if res else None
                 
                 if res and res['coupling'] > 0:
                     calibrations[method] = {

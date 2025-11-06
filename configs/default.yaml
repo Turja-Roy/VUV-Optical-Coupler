@@ -24,7 +24,7 @@ fiber:
 
 # Medium properties (air, argon, or helium)
 medium:
-  type: argon               # Options: 'air', 'argon', 'helium'
+  type: air               # Options: 'air', 'argon', 'helium'
   pressure_atm: 1.0       # Atmospheric pressure
   temperature_k: 293.15   # Room temperature (20°C)
   humidity_fraction: 0.01 # Relative humidity (1%)
@@ -90,7 +90,8 @@ tolerance:
 # Analysis settings (for analyze mode - re-optimize high-coupling results)
 analyze:
   n_rays: 1000          # Number of rays for re-optimization
-  coupling_threshold: 0.2  # Minimum coupling to analyze
+  coupling_threshold: 0.35  # Minimum coupling to analyze
+  results_file: results/2025-11-05_select_powell_argon/results_select_2025-11-05_select_powell_argon.csv    # Path to results CSV file (null = required on CLI)
   methods:              # Optimization methods to test on each combination
     - differential_evolution
     - dual_annealing
@@ -101,10 +102,11 @@ analyze:
 
 # Wavelength analysis settings (test fixed geometry across wavelengths)
 wavelength:
-  wl_start: 180         # Starting wavelength (nm)
+  wl_start: 150         # Starting wavelength (nm)
   wl_end: 300           # Ending wavelength (nm)
   wl_step: 10           # Wavelength step (nm)
-  n_rays: 2000          # Rays per wavelength test (higher = more accurate)
+  n_rays: 1000          # Rays per wavelength test (higher = more accurate)
+  results_file: results/analyze_2025-11-05_coupling_0_35_air/results_analyze_combined_analyze_2025-11-05_coupling_0_35_air.csv    # Path to results CSV file (null = required on CLI)
   methods:              # Optimization methods for calibration at 200nm
     - differential_evolution
     - dual_annealing
@@ -112,6 +114,12 @@ wavelength:
     - powell
     - grid_search
     - bayesian
+
+# Wavelength plot settings (for wavelength-analyze-plot mode)
+wavelength_plot:
+  results_dir: results/wavelength_analyze_2025-11-05     # Path to wavelength analysis results directory (null = required on CLI)
+  fit_types: 'all'         # List of fit types: ['polynomial', 'spline'], 'all' (for no fit + polynomial + spline), or [] for no fits
+  aggregate: false      # Generate aggregated plots (per-lens, per-method)
 
 # Dashboard settings (for web dashboard mode)
 dashboard:

@@ -267,6 +267,50 @@ class ConfigLoader:
             'methods': wl.get('methods', defaults['methods'])
         }
     
+    def get_wavelength_plot_params(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Extract wavelength plot parameters from config.
+        
+        Parameters
+        ----------
+        config : dict
+            Configuration dictionary
+            
+        Returns
+        -------
+        wavelength_plot_params : dict
+            Dictionary with keys: results_dir, fit_types, aggregate
+        """
+        defaults = {
+            'results_dir': None,
+            'fit_types': [],
+            'aggregate': False
+        }
+        
+        if 'wavelength_plot' not in config:
+            return defaults
+        
+        wl_plot = config['wavelength_plot']
+        
+        # Handle both old 'fit_type' (single) and new 'fit_types' (list)
+        fit_types = wl_plot.get('fit_types', defaults['fit_types'])
+        if 'fit_type' in wl_plot and wl_plot['fit_type'] is not None:
+            # Support backward compatibility with single fit_type
+            if isinstance(wl_plot['fit_type'], list):
+                fit_types = wl_plot['fit_type']
+            else:
+                fit_types = [wl_plot['fit_type']]
+        
+        # Handle 'all' keyword - expand to [None, 'polynomial', 'spline']
+        if fit_types == 'all' or (isinstance(fit_types, list) and 'all' in fit_types):
+            fit_types = [None, 'polynomial', 'spline']
+        
+        return {
+            'results_dir': wl_plot.get('results_dir', defaults['results_dir']),
+            'fit_types': fit_types if isinstance(fit_types, list) else [fit_types] if fit_types else [],
+            'aggregate': wl_plot.get('aggregate', defaults['aggregate'])
+        }
+    
     def get_dashboard_params(self, config: Dict[str, Any]) -> Dict[str, Any]:
         """
         Extract dashboard parameters from config.

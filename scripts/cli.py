@@ -36,7 +36,7 @@ Options:
     --results-file <path>         Path to results CSV file (required for analyze and wavelength-analyze)
     --results-dir <path>          Path to results directory (required for wavelength-analyze-plot)
     --fit <type>                  Curve fitting type for wavelength plots (optional)
-                                  Options: polynomial, spline
+                                  Options: polynomial, spline, all (comma-separated: polynomial,spline)
     --aggregate                   Generate aggregated plots with error bars
     --wl-start <nm>               Starting wavelength for wavelength-analyze (default: 180)
     --wl-end <nm>                 Ending wavelength for wavelength-analyze (default: 300)
@@ -104,11 +104,17 @@ Examples:
     # Plot with spline curve fitting
     python raytrace.py wavelength-analyze-plot --results-dir results/wavelength_analyze_2025-10-18 --fit spline
     
+    # Plot with all fit types (no fit, polynomial, and spline)
+    python raytrace.py wavelength-analyze-plot --results-dir results/wavelength_analyze_2025-10-18 --fit all
+    
+    # Plot with multiple specific fit types
+    python raytrace.py wavelength-analyze-plot --results-dir results/wavelength_analyze_2025-10-18 --fit polynomial,spline
+    
     # Plot aggregated results with error bars
     python raytrace.py wavelength-analyze-plot --results-dir results/wavelength_analyze_2025-10-18 --aggregate
     
-    # Plot aggregated results with polynomial fit
-    python raytrace.py wavelength-analyze-plot --results-dir results/wavelength_analyze_2025-10-18 --aggregate --fit polynomial
+    # Plot aggregated results with all fit types
+    python raytrace.py wavelength-analyze-plot --results-dir results/wavelength_analyze_2025-10-18 --aggregate --fit all
     
     # Start web dashboard
     python raytrace.py dashboard
@@ -132,7 +138,7 @@ def parse_arguments():
         'coupling_threshold': None,
         'results_file': None,
         'results_dir': None,
-        'fit_type': None,
+        'fit_types': [],
         'aggregate': False,
         'wl_start': 180,
         'wl_end': 300,
@@ -354,14 +360,30 @@ def parse_arguments():
 
         elif arg == '--fit':
             if i + 1 < len(sys.argv):
-                fit = sys.argv[i + 1]
-                if fit not in ['polynomial', 'spline']:
-                    print("Error: --fit must be one of: polynomial, spline")
-                    sys.exit(1)
-                args['fit_type'] = fit
+                fits = sys.argv[i + 1]
+                # Support comma-separated values like "polynomial,spline"
+                fit_list = [f.strip() for f in fits.split(',')]
+                
+                # Check if 'all' is specified
+                if 'all' in fit_list:
+                    if len(fit_list) > 1:
+                        print("Error: --fit 'all' cannot be combined with other fit types")
+                        sys.exit(1)
+                    # 'all' means: no fit (None), polynomial, and spline
+                    args['fit_types'] = [None, 'polynomial', 'spline']
+                else:
+                    # Validate each fit type
+                    for fit in fit_list:
+                        if fit not in ['polynomial', 'spline']:
+                            print(f"Error: --fit value '{fit}' is invalid. Must be one of: polynomial, spline, all")
+                            sys.exit(1)
+                    # Initialize fit_types as list if not already
+                    if 'fit_types' not in args:
+                        args['fit_types'] = []
+                    args['fit_types'].extend(fit_list)
                 i += 2
             else:
-                print("Error: --fit requires a type (polynomial or spline)")
+                print("Error: --fit requires a type (polynomial, spline, all, or comma-separated list)")
                 sys.exit(1)
 
         elif arg == '--aggregate':
@@ -401,28 +423,6 @@ def parse_arguments():
             print_usage()
             sys.exit(1)
 
-    if args['mode'] == 'analyze':
-        if args['coupling_threshold'] is None:
-            print("Error: analyze mode requires --coupling-threshold")
-            print_usage()
-            sys.exit(1)
-        if args['results_file'] is None:
-            print("Error: analyze mode requires --results-file")
-            print_usage()
-            sys.exit(1)
-
-    if args['mode'] == 'wavelength-analyze':
-        if args['results_file'] is None:
-            print("Error: wavelength-analyze mode requires --results-file")
-            print_usage()
-            sys.exit(1)
-
-    if args['mode'] == 'wavelength-analyze-plot':
-        if args['results_dir'] is None:
-            print("Error: wavelength-analyze-plot mode requires --results-dir")
-            print_usage()
-            sys.exit(1)
-
     # Load configuration file (auto-load default.yaml if not specified)
     if not args['config_file'] and not args['profile']:
         args['config_file'] = 'default.yaml'
@@ -455,8 +455,83 @@ def parse_arguments():
                 if 'alpha' in config['optimization']:
                     args['alpha'] = config['optimization']['alpha']
             
+            # Apply analyze mode config defaults
+            if args['mode'] == 'analyze' and 'analyze' in config:
+                if args['coupling_threshold'] is None and 'coupling_threshold' in config['analyze']:
+                    args['coupling_threshold'] = config['analyze']['coupling_threshold']
+                if args['results_file'] is None and 'results_file' in config['analyze']:
+                    args['results_file'] = config['analyze']['results_file']
+                if '--n-rays' not in sys.argv and 'n_rays' in config['analyze']:
+                    args['n_rays'] = config['analyze']['n_rays']
+            
+            # Apply wavelength-analyze mode config defaults
+            if args['mode'] == 'wavelength-analyze' and 'wavelength' in config:
+                if args['results_file'] is None and 'results_file' in config['wavelength']:
+                    args['results_file'] = config['wavelength']['results_file']
+                if '--wl-start' not in sys.argv and 'wl_start' in config['wavelength']:
+                    args['wl_start'] = config['wavelength']['wl_start']
+                if '--wl-end' not in sys.argv and 'wl_end' in config['wavelength']:
+                    args['wl_end'] = config['wavelength']['wl_end']
+                if '--wl-step' not in sys.argv and 'wl_step' in config['wavelength']:
+                    args['wl_step'] = config['wavelength']['wl_step']
+                if '--n-rays' not in sys.argv and 'n_rays' in config['wavelength']:
+                    args['n_rays'] = config['wavelength']['n_rays']
+            
+            # Apply wavelength-analyze-plot mode config defaults
+            if args['mode'] == 'wavelength-analyze-plot' and 'wavelength_plot' in config:
+                if args['results_dir'] is None and 'results_dir' in config['wavelength_plot']:
+                    args['results_dir'] = config['wavelength_plot']['results_dir']
+                # Only use config fit_types if no --fit arguments were provided via CLI
+                if '--fit' not in sys.argv:
+                    # Handle both 'fit_types' (list) and legacy 'fit_type' (single)
+                    if 'fit_types' in config['wavelength_plot']:
+                        fit_types_config = config['wavelength_plot']['fit_types']
+                        # Handle 'all' keyword
+                        if fit_types_config == 'all':
+                            args['fit_types'] = [None, 'polynomial', 'spline']
+                        elif isinstance(fit_types_config, list):
+                            # Check if 'all' is in the list
+                            if 'all' in fit_types_config:
+                                args['fit_types'] = [None, 'polynomial', 'spline']
+                            else:
+                                args['fit_types'] = fit_types_config
+                        elif fit_types_config:
+                            args['fit_types'] = [fit_types_config]
+                    elif 'fit_type' in config['wavelength_plot'] and config['wavelength_plot']['fit_type']:
+                        # Backward compatibility
+                        fit_type_val = config['wavelength_plot']['fit_type']
+                        if fit_type_val == 'all':
+                            args['fit_types'] = [None, 'polynomial', 'spline']
+                        else:
+                            args['fit_types'] = [fit_type_val]
+                if '--aggregate' not in sys.argv and 'aggregate' in config['wavelength_plot']:
+                    args['aggregate'] = config['wavelength_plot']['aggregate']
+            
         except (FileNotFoundError, ValueError) as e:
             print(f"Error loading configuration: {e}")
+            sys.exit(1)
+    
+    # Validation (after config loading so defaults are applied)
+    if args['mode'] == 'analyze':
+        if args['coupling_threshold'] is None:
+            print("Error: analyze mode requires --coupling-threshold (or set analyze.coupling_threshold in config)")
+            print_usage()
+            sys.exit(1)
+        if args['results_file'] is None:
+            print("Error: analyze mode requires --results-file (or set analyze.results_file in config)")
+            print_usage()
+            sys.exit(1)
+
+    if args['mode'] == 'wavelength-analyze':
+        if args['results_file'] is None:
+            print("Error: wavelength-analyze mode requires --results-file (or set wavelength.results_file in config)")
+            print_usage()
+            sys.exit(1)
+
+    if args['mode'] == 'wavelength-analyze-plot':
+        if args['results_dir'] is None:
+            print("Error: wavelength-analyze-plot mode requires --results-dir (or set wavelength_plot.results_dir in config)")
+            print_usage()
             sys.exit(1)
 
     return args

@@ -91,8 +91,10 @@ def main():
         print("="*60)
         print(f"Results directory: {args['results_dir']}")
         print(f"Plot directory: plots/{run_id}/")
-        if args['fit_type']:
-            print(f"Curve fitting: {args['fit_type']}")
+        if args['fit_types']:
+            # Convert None to 'none' for display purposes
+            fit_display = [ft if ft is not None else 'none' for ft in args['fit_types']]
+            print(f"Curve fitting: {', '.join(fit_display)}")
         print("="*60 + "\n")
         
         results_dir = Path(args['results_dir'])
@@ -151,34 +153,39 @@ def main():
         per_lens_dir = plot_base_dir / 'per_lens'
         per_method_dir = plot_base_dir / 'per_method'
         
+        # If no fit_types specified, generate plots without fits (None)
+        fit_types_to_process = args['fit_types'] if args['fit_types'] else [None]
+        
         if args['aggregate']:
             from scripts.visualizers import plot_wavelength_per_lens_aggregated, plot_wavelength_per_method_aggregated
             
             per_lens_agg_dir = plot_base_dir / 'per_lens_aggregated'
             per_method_agg_dir = plot_base_dir / 'per_method_aggregated'
             
-            print("\nGenerating aggregated per-lens-combination plots (with error bars)...")
-            for combo_name, methods_data in all_data.items():
-                lens1, lens2 = combo_name.split('+')
-                plot_wavelength_per_lens_aggregated(lens1, lens2, methods_data, 
-                                                   str(per_lens_agg_dir), args['fit_type'])
-                print(f"  Created aggregated plot for {combo_name}")
-            
-            print("\nGenerating aggregated per-method plots (with error bars)...")
-            all_methods = set()
-            for combo_data in all_data.values():
-                all_methods.update(combo_data.keys())
-            
-            for method in sorted(all_methods):
-                lens_combos_data = {}
+            for fit_type in fit_types_to_process:
+                fit_suffix = f" ({fit_type})" if fit_type else ""
+                print(f"\nGenerating aggregated per-lens-combination plots{fit_suffix}...")
                 for combo_name, methods_data in all_data.items():
-                    if method in methods_data:
-                        lens_combos_data[combo_name] = methods_data[method]
+                    lens1, lens2 = combo_name.split('+')
+                    plot_wavelength_per_lens_aggregated(lens1, lens2, methods_data, 
+                                                       str(per_lens_agg_dir), fit_type)
+                    print(f"  Created aggregated plot for {combo_name}{fit_suffix}")
                 
-                if lens_combos_data:
-                    plot_wavelength_per_method_aggregated(method, lens_combos_data, 
-                                                         str(per_method_agg_dir), args['fit_type'])
-                    print(f"  Created aggregated plot for {method}")
+                print(f"\nGenerating aggregated per-method plots{fit_suffix}...")
+                all_methods = set()
+                for combo_data in all_data.values():
+                    all_methods.update(combo_data.keys())
+                
+                for method in sorted(all_methods):
+                    lens_combos_data = {}
+                    for combo_name, methods_data in all_data.items():
+                        if method in methods_data:
+                            lens_combos_data[combo_name] = methods_data[method]
+                    
+                    if lens_combos_data:
+                        plot_wavelength_per_method_aggregated(method, lens_combos_data, 
+                                                             str(per_method_agg_dir), fit_type)
+                        print(f"  Created aggregated plot for {method}{fit_suffix}")
             
             print("\n" + "="*60)
             print("Aggregated Plotting Complete!")
@@ -189,28 +196,30 @@ def main():
         else:
             from scripts.visualizers import plot_wavelength_per_lens, plot_wavelength_per_method
             
-            print("\nGenerating per-lens-combination plots...")
-            for combo_name, methods_data in all_data.items():
-                lens1, lens2 = combo_name.split('+')
-                plot_wavelength_per_lens(lens1, lens2, methods_data, 
-                                        str(per_lens_dir), args['fit_type'])
-                print(f"  Created plot for {combo_name}")
-            
-            print("\nGenerating per-method plots...")
-            all_methods = set()
-            for combo_data in all_data.values():
-                all_methods.update(combo_data.keys())
-            
-            for method in sorted(all_methods):
-                lens_combos_data = {}
+            for fit_type in fit_types_to_process:
+                fit_suffix = f" ({fit_type})" if fit_type else ""
+                print(f"\nGenerating per-lens-combination plots{fit_suffix}...")
                 for combo_name, methods_data in all_data.items():
-                    if method in methods_data:
-                        lens_combos_data[combo_name] = methods_data[method]
+                    lens1, lens2 = combo_name.split('+')
+                    plot_wavelength_per_lens(lens1, lens2, methods_data, 
+                                            str(per_lens_dir), fit_type)
+                    print(f"  Created plot for {combo_name}{fit_suffix}")
                 
-                if lens_combos_data:
-                    plot_wavelength_per_method(method, lens_combos_data, 
-                                              str(per_method_dir), args['fit_type'])
-                    print(f"  Created plot for {method}")
+                print(f"\nGenerating per-method plots{fit_suffix}...")
+                all_methods = set()
+                for combo_data in all_data.values():
+                    all_methods.update(combo_data.keys())
+                
+                for method in sorted(all_methods):
+                    lens_combos_data = {}
+                    for combo_name, methods_data in all_data.items():
+                        if method in methods_data:
+                            lens_combos_data[combo_name] = methods_data[method]
+                    
+                    if lens_combos_data:
+                        plot_wavelength_per_method(method, lens_combos_data, 
+                                                  str(per_method_dir), fit_type)
+                        print(f"  Created plot for {method}{fit_suffix}")
             
             print("\n" + "="*60)
             print("Plotting Complete!")
@@ -254,11 +263,13 @@ def main():
         wl_step = args['wl_step']
         wl_n_rays = args['n_rays']
         wl_methods = None
+        wl_orientation_mode = 'both'  # Default
         
         if '_config' in args:
             from scripts.config_loader import ConfigLoader
             loader = ConfigLoader()
             wl_params = loader.get_wavelength_params(args['_config'])
+            wl_orientation_mode = loader.get_orientation_mode(args['_config'])
             
             # CLI args override config values
             import sys
@@ -283,7 +294,8 @@ def main():
             n_rays=wl_n_rays,
             alpha=args['alpha'],
             medium=args['medium'],
-            methods=wl_methods
+            methods=wl_methods,
+            orientation_mode=wl_orientation_mode
         )
         
         return
@@ -299,12 +311,14 @@ def main():
         analyze_threshold = args['coupling_threshold']
         analyze_methods = None
         analyze_plot_style = '3d'  # Default
+        analyze_orientation_mode = 'both'  # Default
         
         if '_config' in args:
             from scripts.config_loader import ConfigLoader
             loader = ConfigLoader()
             analyze_params = loader.get_analyze_params(args['_config'])
             analyze_plot_style = loader.get_plot_style(args['_config'])
+            analyze_orientation_mode = loader.get_orientation_mode(args['_config'])
             
             # CLI args override config values
             import sys
@@ -326,7 +340,8 @@ def main():
             medium=args['medium'],
             n_rays=analyze_n_rays,
             methods=analyze_methods,
-            plot_style=analyze_plot_style
+            plot_style=analyze_plot_style,
+            orientation_mode=analyze_orientation_mode
         )
         
         for method, results in all_results.items():
