@@ -86,11 +86,8 @@ def particular_combo(name1, name2):
                     'BFL_mm': lens2_data['Back Focal Length (mm)']}
     lenses = lens1 | lens2
 
-    combos = []
-    for a in lenses:
-        for b in lenses:
-            combos.append((a, b))
-    combos = [combos[1]]
+    # Create the specific combination requested
+    combos = [(name1, name2)]
 
     return combos, lenses
 
