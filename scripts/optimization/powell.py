@@ -2,7 +2,7 @@ import numpy as np
 from scipy.optimize import minimize
 from scripts.PlanoConvex import PlanoConvex
 from scripts import consts as C
-from scripts.raytrace_helpers import sample_rays, find_optimal_fiber_position
+from scripts.raytrace_helpers import sample_rays
 from scripts.raytrace_helpers_vectorized import trace_system_vectorized as trace_system
 
 
@@ -13,20 +13,16 @@ def evaluate_config_fast(params, d1, d2, origins, dirs, n_rays, alpha=0.7, mediu
     if z_l1 < C.SOURCE_TO_LENS_OFFSET or z_l2 <= z_l1 + d1['tc_mm'] + min_gap:
         return 1e6
     
+    z_fiber = z_l2 + d2['f_mm']
+    
     lens1 = PlanoConvex(z_l1, d1['R_mm'], d1['tc_mm'], d1['te_mm'], d1['dia']/2.0, flipped=flipped1)
     lens2 = PlanoConvex(z_l2, d2['R_mm'], d2['tc_mm'], d2['te_mm'], d2['dia']/2.0, flipped=flipped2)
     
-    # Find optimal fiber position instead of using paraxial focal length
-    z_search_start = z_l2 + d2['tc_mm'] + 0.5  # Start just after lens 2
-    z_search_end = z_l2 + max(d2['f_mm'] * 2.0, 50.0)  # Search up to 2x focal length or 50mm
-    
-    z_fiber, coupling = find_optimal_fiber_position(
-        origins, dirs, lens1, lens2,
-        z_search_start, z_search_end,
-        C.FIBER_CORE_DIAM_MM/2.0, C.ACCEPTANCE_HALF_RAD,
-        medium, C.PRESSURE_ATM, C.TEMPERATURE_K, C.HUMIDITY_FRACTION,
-        n_samples=15  # Use fewer samples during optimization for speed
-    )
+    accepted, transmission = trace_system(origins, dirs, lens1, lens2, z_fiber, 
+                           C.FIBER_CORE_DIAM_MM/2.0, C.ACCEPTANCE_HALF_RAD,
+                           medium, C.PRESSURE_ATM, C.TEMPERATURE_K, C.HUMIDITY_FRACTION)
+    avg_transmission = np.mean(transmission[accepted]) if np.any(accepted) else 0.0
+    coupling = (np.count_nonzero(accepted) / n_rays) * avg_transmission
     
     return alpha * (1 - coupling) + (1 - alpha) * z_fiber / 80.0
 
@@ -59,27 +55,17 @@ def optimize(lenses, name1, name2, n_rays=1000, alpha=0.7, medium='air', orienta
         )
         
         z_l1, z_l2 = result.x
+        z_fiber = z_l2 + d2['f_mm']
         
         origins_final, dirs_final = sample_rays(2000)
         lens1 = PlanoConvex(z_l1, d1['R_mm'], d1['tc_mm'], d1['te_mm'], d1['dia']/2.0, flipped=flipped1)
         lens2 = PlanoConvex(z_l2, d2['R_mm'], d2['tc_mm'], d2['te_mm'], d2['dia']/2.0, flipped=flipped2)
         
-        # Find optimal fiber position with finer resolution for final evaluation
-        z_search_start = z_l2 + d2['tc_mm'] + 0.5
-        z_search_end = z_l2 + max(d2['f_mm'] * 2.0, 50.0)
-        
-        z_fiber, coupling = find_optimal_fiber_position(
-            origins_final, dirs_final, lens1, lens2,
-            z_search_start, z_search_end,
-            C.FIBER_CORE_DIAM_MM/2.0, C.ACCEPTANCE_HALF_RAD,
-            medium, C.PRESSURE_ATM, C.TEMPERATURE_K, C.HUMIDITY_FRACTION,
-            n_samples=30  # Use more samples for final evaluation
-        )
-        
-        # Recalculate with final z_fiber for accurate accepted rays
         accepted, transmission = trace_system(origins_final, dirs_final, lens1, lens2,
                                z_fiber, C.FIBER_CORE_DIAM_MM/2.0, C.ACCEPTANCE_HALF_RAD,
                                medium, C.PRESSURE_ATM, C.TEMPERATURE_K, C.HUMIDITY_FRACTION)
+        avg_transmission = np.mean(transmission[accepted]) if np.any(accepted) else 0.0
+        coupling = (np.count_nonzero(accepted) / 2000) * avg_transmission
         
         results.append({
             'lens1': name1, 'lens2': name2,

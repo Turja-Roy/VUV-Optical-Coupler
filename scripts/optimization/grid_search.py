@@ -5,7 +5,7 @@ from scripts.data_io import write_temp
 from scripts.PlanoConvex import PlanoConvex
 from scripts import consts as C
 from scripts.visualizers import plot_system_rays
-from scripts.raytrace_helpers import sample_rays, find_optimal_fiber_position
+from scripts.raytrace_helpers import sample_rays
 from scripts.raytrace_helpers_vectorized import trace_system_vectorized as trace_system
 
 import logging
@@ -18,11 +18,11 @@ DEFAULT_N_COARSE = 500
 DEFAULT_N_REFINE = 1000
 
 
-def evaluate_config(z_l1, z_l2, origins, dirs, d1, d2, n_rays, medium='air', flipped1=False, flipped2=True):
+def evaluate_config(z_l1, z_l2, origins, dirs, d1, d2, z_fiber, n_rays, medium='air', flipped1=False, flipped2=True):
     if z_l1 < C.SOURCE_TO_LENS_OFFSET:
-        return 0.0, 0.0, np.zeros(n_rays, dtype=bool)
+        return 0.0, np.zeros(n_rays, dtype=bool)
     if z_l2 <= z_l1 + d1['tc_mm'] + 0.5:
-        return 0.0, 0.0, np.zeros(n_rays, dtype=bool)
+        return 0.0, np.zeros(n_rays, dtype=bool)
         
     lens1 = PlanoConvex(vertex_z_front=z_l1,
                         R_front_mm=d1['R_mm'],
@@ -36,21 +36,14 @@ def evaluate_config(z_l1, z_l2, origins, dirs, d1, d2, n_rays, medium='air', fli
                         edge_thickness_mm=d2['te_mm'],
                         ap_rad_mm=d2['dia']/2.0,
                         flipped=flipped2)
-    
-    # Find optimal fiber position based on actual ray convergence
-    z_fiber, coupling = find_optimal_fiber_position(
-        origins, dirs, lens1, lens2, z_l2, d2['f_mm'],
-        C.FIBER_CORE_DIAM_MM/2.0, C.ACCEPTANCE_HALF_RAD,
-        medium, C.PRESSURE_ATM, C.TEMPERATURE_K, C.HUMIDITY_FRACTION
-    )
-    
-    # Get accepted rays for the optimal fiber position
     accepted, transmission = trace_system(origins, dirs, lens1, lens2,
                             z_fiber, C.FIBER_CORE_DIAM_MM/2.0,
                             C.ACCEPTANCE_HALF_RAD,
                             medium, C.PRESSURE_ATM, C.TEMPERATURE_K, C.HUMIDITY_FRACTION)
+    avg_transmission = np.mean(transmission[accepted]) if np.any(accepted) else 0.0
+    coupling = (np.count_nonzero(accepted) / n_rays) * avg_transmission
 
-    return z_fiber, coupling, accepted
+    return coupling, accepted
 
 
 def run_grid(run_id, lenses, name1, name2,
@@ -85,9 +78,10 @@ def run_grid(run_id, lenses, name1, name2,
             z_l2_min = z_l1 + f2 * 0.5
             z_l2_max = z_l1 + f2 * 2.5
             for z_l2 in np.linspace(z_l2_min, z_l2_max, coarse_steps):
-                z_fiber, coupling, accepted = evaluate_config(z_l1, z_l2,
+                z_fiber = z_l2 + f2
+                coupling, accepted = evaluate_config(z_l1, z_l2,
                                                      origins_coarse, dirs_coarse,
-                                                     d1, d2, n_coarse, medium,
+                                                     d1, d2, z_fiber, n_coarse, medium,
                                                      flipped1, flipped2)
                 if coupling > best['coupling']:
                     best = {'z_l1': z_l1, 'z_l2': z_l2, 'z_fiber': z_fiber,
@@ -106,9 +100,10 @@ def run_grid(run_id, lenses, name1, name2,
         origins_ref, dirs_ref = sample_rays(n_refine)
         for z_l1 in np.linspace(z1_min, z1_max, refine_steps):
             for z_l2 in np.linspace(z2_min, z2_max, refine_steps):
-                z_fiber, coupling, accepted = evaluate_config(z_l1, z_l2,
+                z_fiber = z_l2 + f2
+                coupling, accepted = evaluate_config(z_l1, z_l2,
                                                      origins_ref, dirs_ref,
-                                                     d1, d2, n_refine, medium,
+                                                     d1, d2, z_fiber, n_refine, medium,
                                                      flipped1, flipped2)
                 if coupling > best['coupling']:
                     best = {'z_l1': z_l1, 'z_l2': z_l2, 'z_fiber': z_fiber,

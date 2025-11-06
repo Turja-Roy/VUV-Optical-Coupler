@@ -101,55 +101,6 @@ def refract_vec(n_vec, v_in, n1, n2):
     return v_out
 
 
-def find_optimal_fiber_position(origins, dirs, lens1, lens2, z_start, z_end, 
-                               fiber_rad, acceptance_half_rad, medium='air',
-                               pressure_atm=1.0, temp_k=293.15, humidity_fraction=0.01,
-                               n_samples=20):
-    """
-    Find the optimal fiber position by scanning z positions and maximizing coupling.
-    
-    Parameters:
-    - origins, dirs: Nx3 arrays of ray origins and directions
-    - lens1, lens2: PlanoConvex objects
-    - z_start, z_end: range to search for optimal fiber position (mm)
-    - fiber_rad: fiber core radius
-    - acceptance_half_rad: half-acceptance angle in radians
-    - medium: propagation medium
-    - pressure_atm: pressure in atmospheres
-    - temp_k: temperature in Kelvin
-    - humidity_fraction: water vapor fraction
-    - n_samples: number of z positions to test
-    
-    Returns:
-    - z_fiber_optimal: optimal fiber position (mm)
-    - coupling_optimal: coupling efficiency at optimal position
-    """
-    from scripts.raytrace_helpers_vectorized import trace_system_vectorized
-    
-    if z_end <= z_start:
-        z_end = z_start + 10.0  # Fallback: search 10mm range
-    
-    z_positions = np.linspace(z_start, z_end, n_samples)
-    best_coupling = -1.0
-    best_z = z_start
-    
-    for z_fiber in z_positions:
-        accepted, transmission = trace_system_vectorized(
-            origins, dirs, lens1, lens2, z_fiber,
-            fiber_rad, acceptance_half_rad, medium,
-            pressure_atm, temp_k, humidity_fraction
-        )
-        
-        avg_transmission = np.mean(transmission[accepted]) if np.any(accepted) else 0.0
-        coupling = (np.count_nonzero(accepted) / len(origins)) * avg_transmission
-        
-        if coupling > best_coupling:
-            best_coupling = coupling
-            best_z = z_fiber
-    
-    return best_z, best_coupling
-
-
 def trace_system(origins, dirs, lens1, lens2,
                  z_fiber, fiber_rad, acceptance_half_rad, 
                  medium='air', pressure_atm=1.0, temp_k=293.15, humidity_fraction=0.01):
