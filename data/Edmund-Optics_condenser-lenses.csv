@@ -1,0 +1,103 @@
+Item #,Title,Diameter (mm),Center Thickness (mm),Edge Thickness (mm),Focal Length (mm),Back Focal Length (mm),Numerical Aperture,f/#,Back Surface Shape,Radius R2 (mm),Asphere Diameter (mm),Substrate,Coating,Wavelength Range (nm),Radius R1 (mm),Lens Type
+22-840,"10mm Dia. x 4.5mm FL, Aspheric Condenser Lens",10.0000,6.0000,1.8700,4.5000,1.6500,0.7400,0.4500,Aspheric ,-3.239 ,10.0000,H-K51 ,Uncoated ,,7.3688,Aspheric 
+23-811,"10mm Dia. x 4.5mm FL, MgF2 Coated, Aspheric Condenser Lens",10.0000,6.0000,1.8700,4.5000,1.6500,0.7400,0.4500,Aspheric ,-3.239 ,10.0000,H-K51 ,MgF2  (400-700nm) ,400 - 700 ,7.3688,Aspheric 
+72-492,"10mm Dia. x 4.5mm FL, Aspheric Condenser Lens, VIS-EXT",10.0000,6.0000,1.8700,4.5000,1.6500,0.7400,0.4500,Aspheric ,-3.239 ,10.0000,H-K51 ,VIS-EXT (350-700nm) ,350 - 700 ,7.3688,Aspheric 
+72-512,"10mm Dia. x 4.5mm FL, Aspheric Condenser Lens, NIR I",10.0000,6.0000,1.8700,4.5000,1.6500,0.7400,0.4500,Aspheric ,-3.239 ,10.0000,H-K51 ,NIR I (600-1050nm) ,350 - 700 ,7.3688,Aspheric 
+22-841,"12mm Dia. x 8.5mm FL, Aspheric Condenser Lens",12.0000,5.5000,1.7700,8.5000,5.8500,0.7000,0.7100,Aspheric ,-12.00 ,12.0000,H-K51 ,Uncoated ,,6.5806,Aspheric 
+23-812,"12mm Dia. x 8.5mm FL, MgF2 Coated, Aspheric Condenser Lens",12.0000,5.5000,1.7700,8.5000,5.8500,0.7000,0.7100,Aspheric ,-12.00 ,12.0000,H-K51 ,MgF2  (400-700nm) ,400 - 700 ,6.5806,Aspheric 
+72-493,"12mm Dia. x 8.5mm FL, Aspheric Condenser Lens, VIS-EXT",12.0000,5.5000,1.7700,8.5000,5.8500,0.7000,0.7100,Aspheric ,-12.00 ,12.0000,H-K51 ,VIS-EXT (350-700nm) ,350 - 700 ,6.5806,Aspheric 
+72-513,"12mm Dia. x 8.5mm FL, Aspheric Condenser Lens, NIR I",12.0000,5.5000,1.7700,8.5000,5.8500,0.7000,0.7100,Aspheric ,-12.00 ,12.0000,H-K51 ,NIR I (600-1050nm) ,350 - 700 ,6.5806,Aspheric 
+19-510,"8mm Dia. x 5.6mm FL, Aspheric Condenser Lens",8.0000,4.0000,1.3300,5.6000,3.3000,0.7100,0.7000,Convex ,16.52 ,8.0000,H-ZK2 ,Uncoated ,350 - 2000 ,2.3942,Convex 
+21-193,"8mm Dia. x 5.6mm FL, MgF2 Coated, Aspheric Condenser Lens",8.0000,4.0000,1.3300,5.6000,3.3000,0.7100,0.7000,Convex ,16.52 ,8.0000,H-ZK2 ,MgF2 (400-700nm) ,400 - 700 ,2.3942,Convex 
+72-503,"12.7mm Dia. x 8mm FL, Aspheric Condenser Lens, NIR I",12.7000,7.5000,1.8600,8.0000,3.7000,0.7900,0.6300,Convex ,15.65 ,12.7000,H-K51 ,NIR I (600-1050nm) ,350 - 700 ,3.1858,Convex 
+19-512,"12.7mm Dia. x 8mm FL, Aspheric Condenser Lens",12.7000,7.5000,1.8600,8.0000,3.7000,0.7900,0.6300,Convex ,15.65 ,12.7000,H-K51 ,Uncoated ,350 - 2000 ,3.1858,Convex 
+21-195,"12.7mm Dia. x 8mm FL, MgF2 Coated, Aspheric Condenser Lens",12.7000,7.5000,1.8600,8.0000,3.7000,0.7900,0.6300,Convex ,15.65 ,12.7000,H-K51 ,MgF2 (400-700nm) ,400 - 700 ,3.1858,Convex 
+72-483,"12.7mm Dia. x 8mm FL, Aspheric Condenser Lens, VIS-EXT",12.7000,7.5000,1.8600,8.0000,3.7000,0.7900,0.6300,Convex ,15.65 ,12.7000,H-K51 ,VIS-EXT (350-700nm) ,350 - 700 ,3.1858,Convex 
+22-842,"16mm Dia. x 8.3mm FL, PCX Condenser Lens",16.0000,7.0000,1.3900,8.3000,5.5800,0.9600,0.5200,Convex ,-7.20 ,,H-K9L ,Uncoated ,,9.7967,Convex 
+23-813,"16mm Dia. x 8.3mm FL, MgF2 Coated, PCX Condenser Lens",16.0000,7.0000,1.3900,8.3000,5.5800,0.9600,0.5200,Convex ,-7.20 ,,H-K9L ,MgF2  (400-700nm) ,400 - 700 ,9.7967,Convex 
+72-494,"16mm Dia. x 8.3mm FL, PCX Condenser Lens, VIS-EXT",16.0000,7.0000,1.3900,8.3000,5.5800,0.9600,0.5200,Convex ,-7.20 ,16.0000,H-K9L ,VIS-EXT (350-700nm) ,350 - 700 ,9.7967,Convex 
+72-514,"16mm Dia. x 8.3mm FL, PCX Condenser Lens, NIR I",16.0000,7.0000,1.3900,8.3000,5.5800,0.9600,0.5200,Convex ,-7.20 ,16.0000,H-K9L ,NIR I (600-1050nm) ,350 - 700 ,9.7967,Convex 
+84-882,"18.5mm Diameter x 12mm FL, Aspheric Condenser Lens",18.5000,8.0000,1.5000,12.0000,8.7000,0.7700,0.6000,Convex ,11.3 ,18.5000,B270 ,Uncoated ,350 - 2500 ,3.9191,Convex 
+15-532,"18.5mm Diameter x 12mm FL, MgF2 Coated, Aspheric Condenser Lens",18.5000,8.0000,1.5000,12.0000,8.7000,0.7700,0.6000,Convex ,11.3 ,18.5000,B270 ,MgF2 (400-700nm) ,400 - 700 ,3.9191,Convex 
+72-487,"25.4mm Dia. x 16mm FL, Aspheric Condenser Lens, VIS-EXT",25.4000,14.0000,1.4100,16.0000,7.3000,0.7900,0.6300,Convex ,70.00 ,25.4000,H-K51 ,VIS-EXT (350-700nm) ,350 - 700 ,7.1795,Convex 
+72-507,"25.4mm Dia. x 16mm FL, Aspheric Condenser Lens, NIR I",25.4000,14.0000,1.4100,16.0000,7.3000,0.7900,0.6300,Convex ,70.00 ,25.4000,H-K51 ,NIR I (600-1050nm) ,350 - 700 ,7.1795,Convex 
+19-518,"25.4mm Dia. x 16mm FL, Aspheric Condenser Lens",25.4000,14.0000,1.4100,16.0000,7.3000,0.7900,0.6300,Convex ,70 ,25.4000,H-K51 ,Uncoated ,350 - 2000 ,7.1795,Convex 
+21-199,"25.4mm Dia. x 16mm FL, MgF2 Coated, Aspheric Condenser Lens",25.4000,14.0000,1.4100,16.0000,7.3000,0.7900,0.6300,Convex ,70 ,25.4000,H-K51 ,MgF2 (400-700nm) ,400 - 700 ,7.1795,Convex 
+19-519,"32.5mm Dia. x 23.5mm FL, Aspheric Condenser Lens",32.5000,13.5000,1.8500,23.5000,15.0000,0.6900,0.7200,Convex ,165 ,32.5000,H-K51 ,Uncoated ,350 - 2000 ,10.9689,Convex 
+21-200,"32.5mm Dia. x 23.5mm FL, MgF2 Coated, Aspheric Condenser Lens",32.5000,13.5000,1.8500,23.5000,15.0000,0.6900,0.7200,Convex ,165 ,32.5000,H-K51 ,MgF2 (400-700nm) ,400 - 700 ,10.9689,Convex 
+72-508,"32.5mm Dia. x 23.5mm FL, Aspheric Condenser Lens, NIR I",32.5000,13.5000,1.8500,23.5000,15.0000,0.6900,0.7200,Convex ,165.00 ,32.5000,H-K51 ,NIR I (600-1050nm) ,350 - 700 ,10.9689,Convex 
+72-488,"32.5mm Dia. x 23.5mm FL, Aspheric Condenser Lens, VIS-EXT",32.5000,13.5000,1.8500,23.5000,15.0000,0.6900,0.7200,Convex ,165.00 ,32.5000,H-K51 ,VIS-EXT (350-700nm) ,350 - 700 ,10.9689,Convex 
+19-520,"34.9mm Dia. x 21.6mm FL, Aspheric Condenser Lens",34.9000,19.0000,2.9100,21.6000,11.0000,0.8100,0.6200,Convex ,71.12 ,34.9000,H-K51 ,Uncoated ,350 - 2000 ,9.3762,Convex 
+21-201,"34.9mm Dia. x 21.6mm FL, MgF2 Coated, Aspheric Condenser Lens",34.9000,19.0000,2.9100,21.6000,11.0000,0.8100,0.6200,Convex ,71.12 ,34.9000,H-K51 ,MgF2 (400-700nm) ,400 - 700 ,9.3762,Convex 
+72-489,"34.9mm Dia. x 21.6mm FL, Aspheric Condenser Lens, VIS-EXT",34.9000,19.0000,2.9100,21.6000,11.0000,0.8100,0.6200,Convex ,71.12 ,34.9000,H-K51 ,VIS-EXT (350-700nm) ,350 - 700 ,9.3762,Convex 
+72-509,"34.9mm Dia. x 21.6mm FL, Aspheric Condenser Lens, NIR I",34.9000,19.0000,2.9100,21.6000,11.0000,0.8100,0.6200,Convex ,71.12 ,34.9000,H-K51 ,NIR I (600-1050nm) ,350 - 700 ,9.3762,Convex 
+43-594,"38.4mm Diameter x 30mm FL, PCX Condenser Lens",38.4000,19.0000,,30.0000,,0.6400,0.7800,Convex ,84.125 ,,B270 ,Uncoated ,350 - 2500 ,12.7301,Convex 
+15-538,"38.4mm Diameter x 30mm FL, MgF2 Coated, PCX Condenser Lens",38.4000,19.0000,,30.0000,,0.6400,0.7800,Convex ,84.125 ,,B270 ,MgF2 (400-700nm) ,400 - 700 ,12.7301,Convex 
+22-845,"40mm Dia. x 29.5mm FL, Aspheric Condenser Lens",40.0000,15.5000,4.0400,29.5000,20.8900,0.6800,0.7400,Convex ,67.75 ,40.0000,H-K9L ,Uncoated ,,12.1129,Convex 
+23-815,"40mm Dia. x 29.5mm FL, MgF2 Coated, Aspheric Condenser Lens",40.0000,15.5000,4.0400,29.5000,20.8900,0.6800,0.7400,Convex ,67.75 ,40.0000,H-K9L ,MgF2  (400-700nm) ,400 - 700 ,12.1129,Convex 
+72-516,"40mm Dia. x 29.5mm FL, Aspheric Condenser Lens, NIR I",40.0000,15.5000,4.0400,29.5000,20.8900,0.6800,0.7400,Convex ,67.75 ,40.0000,H-K9L ,NIR I (600-1050nm) ,350 - 700 ,12.1129,Convex 
+72-496,"40mm Dia. x 29.5mm FL, Aspheric Condenser Lens, VIS-EXT",40.0000,15.5000,4.0400,29.5000,20.8900,0.6800,0.7400,Convex ,67.75 ,40.0000,H-K9L ,VIS-EXT (350-700nm) ,350 - 700 ,12.1129,Convex 
+19-522,"45mm Dia. x 32mm FL, Aspheric Condenser Lens",45.0000,18.5000,2.1800,32.0000,20.9000,0.7000,0.7100,Convex ,130 ,45.0000,H-K51 ,Uncoated ,350 - 2000 ,14.2466,Convex 
+21-202,"45mm Dia. x 32mm FL, MgF2 Coated, Aspheric Condenser Lens",45.0000,18.5000,2.1800,32.0000,20.9000,0.7000,0.7100,Convex ,130 ,45.0000,H-K51 ,MgF2 (400-700nm) ,400 - 700 ,14.2466,Convex 
+72-510,"45mm Dia. x 32mm FL, Aspheric Condenser Lens, NIR I",45.0000,18.5000,2.1800,32.0000,20.9000,0.7000,0.7100,Convex ,130.00 ,45.0000,H-K51 ,NIR I (600-1050nm) ,350 - 700 ,14.2466,Convex 
+72-490,"45mm Dia. x 32mm FL, Aspheric Condenser Lens, VIS-EXT",45.0000,18.5000,2.1800,32.0000,20.9000,0.7000,0.7100,Convex ,130.00 ,45.0000,H-K51 ,VIS-EXT (350-700nm) ,350 - 700 ,14.2466,Convex 
+19-523,"50.8mm Dia. x 32mm FL, Aspheric Condenser Lens",50.8000,25.0000,2.1000,32.0000,17.0000,0.7900,0.6300,Convex ,99.64 ,20.5000,H-K51 ,Uncoated ,350 - 2000 ,13.7862,Convex 
+21-203,"50.8mm Dia. x 32mm FL, MgF2 Coated, Aspheric Condenser Lens",50.8000,25.0000,2.1000,32.0000,17.0000,0.7900,0.6300,Convex ,99.64 ,20.5000,H-K51 ,MgF2 (400-700nm) ,400 - 700 ,13.7862,Convex 
+72-511,"50.8mm Dia. x 32mm FL, Aspheric Condenser Lens, NIR I",50.8000,25.0000,2.1000,32.0000,17.0000,0.7900,0.6300,Convex ,99.64 ,20.5000,H-K51 ,NIR I (600-1050nm) ,350 - 700 ,13.7862,Convex 
+72-491,"50.8mm Dia. x 32mm FL, Aspheric Condenser Lens, VIS-EXT",50.8000,25.0000,2.1000,32.0000,17.0000,0.7900,0.6300,Convex ,99.64 ,20.5000,H-K51 ,VIS-EXT (350-700nm) ,350 - 700 ,13.7862,Convex 
+22-846,"60mm Dia. x 39.8mm FL, Aspheric Condenser Lens",60.0000,26.0000,2.1600,39.8000,25.5800,0.7600,0.6600,Convex ,80.00 ,60.0000,H-K51 ,Uncoated ,,15.9359,Convex 
+23-816,"60mm Dia. x 39.8mm FL, MgF2 Coated, Aspheric Condenser Lens",60.0000,26.0000,2.1600,39.8000,25.5800,0.7600,0.6600,Convex ,80.00 ,60.0000,H-K51 ,MgF2  (400-700nm) ,400 - 700 ,15.9359,Convex 
+43-480,"6.5mm Diameter x 6mm FL, PCX Condenser Lens",6.5000,3.7500,,6.0000,,0.5800,0.8600,Plano ,Plano ,,Float Glass ,Uncoated ,350 - 2000 ,,Plano 
+15-527,"6.5mm Diameter x 6mm FL, MgF2 Coated, PCX Condenser Lens",6.5000,3.7500,,6.0000,,0.5800,0.8600,Plano ,Plano ,,Float Glass ,MgF2 (400-700nm) ,400 - 700 ,,Plano 
+19-509,"7.5mm Dia. x 6.6mm FL, Aspheric Condenser Lens",7.5000,3.5000,1.1800,6.6000,4.3000,0.5700,0.8800,Plano ,∞ ,7.5000,H-K51 ,Uncoated ,350 - 2000 ,,Plano 
+21-192,"7.5mm Dia. x 6.6mm FL, MgF2 Coated, Aspheric Condenser Lens",7.5000,3.5000,1.1800,6.6000,4.3000,0.5700,0.8800,Plano ,∞ ,7.5000,H-K51 ,MgF2 (400-700nm) ,400 - 700 ,,Plano 
+72-480,"7.5mm Dia. x 6.6mm FL, Aspheric Condenser Lens, VIS-EXT",7.5000,3.5000,1.1800,6.6000,4.3000,0.5700,0.8800,Plano ,∞ ,7.5000,H-K51 ,VIS-EXT (350-700nm) ,350 - 700 ,,Plano 
+72-498,"7.5mm Dia. x 6.6mm FL, Aspheric Condenser Lens, NIR I",7.5000,3.5000,1.1800,6.6000,4.3000,0.5700,0.8800,Plano ,∞ ,7.5000,H-K51 ,NIR I (600-1050nm) ,350 - 700 ,,Plano 
+43-481,"9.5mm Diameter x 9.5mm FL, PCX Condenser Lens",9.5000,4.7500,,9.5000,,0.5000,1.0000,Plano ,Plano ,,Float Glass ,Uncoated ,350 - 2000 ,,Plano 
+15-528,"9.5mm Diameter x 9.5mm FL, MgF2 Coated, PCX Condenser Lens",9.5000,4.7500,,9.5000,,0.5000,1.0000,Plano ,Plano ,,Float Glass ,MgF2 (400-700nm) ,400 - 700 ,,Plano 
+43-985,"10.5mm Diameter x 9.45mm FL, Aspheric Condenser Lens",10.5000,3.8000,1.1000,9.4500,8.1000,0.5600,0.9000,Plano ,Plano ,10.5000,N-F2 ,Uncoated ,350 - 2500 ,,Plano 
+15-530,"10.5mm Diameter x 9.45mm FL, MgF2 Coated, Aspheric Condenser Lens",10.5000,3.8000,1.1000,9.4500,8.1000,0.5600,0.9000,Plano ,Plano ,10.5000,N-F2 ,MgF2 (400-700nm) ,400 - 700 ,,Plano 
+19-511,"12mm Dia. x 19mm FL, Aspheric Condenser Lens",12.0000,5.0000,3.1200,19.0000,15.7000,0.3200,1.5800,Plano ,∞ ,12.0000,H-K51 ,Uncoated ,350 - 2000 ,,Plano 
+21-194,"12mm Dia. x 19mm FL, MgF2 Coated, Aspheric Condenser Lens",12.0000,5.0000,3.1200,19.0000,15.7000,0.3200,1.5800,Plano ,∞ ,12.0000,H-K51 ,MgF2 (400-700nm) ,400 - 700 ,,Plano 
+72-482,"12mm Dia. x 19mm FL, Aspheric Condenser Lens, VIS-EXT",12.0000,5.0000,3.1200,19.0000,15.7000,0.3200,1.5800,Plano ,∞ ,12.0000,H-K51 ,VIS-EXT (350-700nm) ,350 - 700 ,,Plano 
+72-501,"12mm Dia. x 19mm FL, Aspheric Condenser Lens, NIR I",12.0000,5.0000,3.1200,19.0000,15.7000,0.3200,1.5800,Plano ,∞ ,12.0000,H-K51 ,NIR I (600-1050nm) ,350 - 700 ,,Plano 
+43-370,"12.7mm Diameter x 15mm FL, PCX Condenser Lens",12.7000,4.5200,,15.0000,,0.4200,1.1800,Plano ,Plano ,,Float Glass ,Uncoated ,350 - 2000 ,,Plano 
+15-529,"12.7mm Diameter x 15mm FL, MgF2 Coated, PCX Condenser Lens",12.7000,4.5200,,15.0000,,0.4200,1.1800,Plano ,Plano ,,Float Glass ,MgF2 (400-700nm) ,400 - 700 ,,Plano 
+19-513,"12.9mm Dia. x 14mm FL, Aspheric Condenser Lens",12.9000,5.7000,2.5200,14.0000,10.2000,0.4600,1.0900,Plano ,∞ ,12.9000,H-K9L ,Uncoated ,330 - 2000 ,,Plano 
+21-196,"12.9mm Dia. x 14mm FL, MgF2 Coated, Aspheric Condenser Lens",12.9000,5.7000,2.5200,14.0000,10.2000,0.4600,1.0900,Plano ,∞ ,12.9000,H-K9L ,MgF2 (400-700nm) ,400 - 700 ,,Plano 
+72-484,"12.9mm Dia. x 14mm FL, Aspheric Condenser Lens, VIS-EXT",12.9000,5.7000,2.5200,14.0000,10.2000,0.4600,1.0900,Plano ,∞ ,12.9000,H-K9L ,VIS-EXT (350-700nm) ,350 - 700 ,,Plano 
+72-504,"12.9mm Dia. x 14mm FL, Aspheric Condenser Lens, NIR I",12.9000,5.7000,2.5200,14.0000,10.2000,0.4600,1.0900,Plano ,∞ ,12.9000,H-K9L ,NIR I (600-1050nm) ,350 - 700 ,,Plano 
+46-660,"15mm Diameter x 12mm FL, Aspheric Condenser Lens",15.0000,7.5000,2.0000,12.0000,8.2000,0.6300,0.8000,Plano ,Plano ,15.0000,B270 ,Uncoated ,350 - 2500 ,,Plano 
+15-531,"15mm Diameter x 12mm FL, MgF2 Coated, Aspheric Condenser Lens",15.0000,7.5000,2.0000,12.0000,8.2000,0.6300,0.8000,Plano ,Plano ,15.0000,B270 ,MgF2 (400-700nm) ,400 - 700 ,,Plano 
+22-843,"18mm Dia. x 15.5mm FL, Aspheric Condenser Lens",18.0000,7.0000,1.4400,15.5000,10.8700,0.5800,0.8600,Plano ,Plano ,18.0000,H-K9L ,Uncoated ,,,Plano 
+23-814,"18mm Dia. x 15.5mm FL, MgF2 Coated, Aspheric Condenser Lens",18.0000,7.0000,1.4400,15.5000,10.8700,0.5800,0.8600,Plano ,Plano ,18.0000,H-K9L ,MgF2  (400-700nm) ,400 - 700 ,,Plano 
+72-495,"18mm Dia. x 15.5mm FL, Aspheric Condenser Lens, VIS-EXT",18.0000,7.0000,1.4400,15.5000,10.8700,0.5800,0.8600,Plano ,Plano ,18.0000,H-K9L ,VIS-EXT (350-700nm) ,350 - 700 ,,Plano 
+72-515,"18mm Dia. x 15.5mm FL, Aspheric Condenser Lens, NIR I",18.0000,7.0000,1.4400,15.5000,10.8700,0.5800,0.8600,Plano ,Plano ,18.0000,H-K9L ,NIR I (600-1050nm) ,350 - 700 ,,Plano 
+43-483,"20.4mm Diameter x 25mm FL, PCX Condenser Lens",20.4000,5.2900,,25.0000,,0.4000,1.2300,Plano ,Plano ,,Float Glass ,Uncoated ,350 - 2000 ,,Plano 
+15-533,"20.4mm Diameter x 25mm FL, MgF2 Coated, PCX Condenser Lens",20.4000,5.2900,,25.0000,,0.4000,1.2300,Plano ,Plano ,,Float Glass ,MgF2 (400-700nm) ,400 - 700 ,,Plano 
+46-684,"24mm Diameter x 19.7mm FL, Aspheric Condenser Lens",24.0000,10.4000,2.0000,19.7000,11.7000,0.6600,0.8000,Plano ,Plano ,24.0000,B270 ,Uncoated ,350 - 2500 ,,Plano 
+15-534,"24mm Diameter x 19.7mm FL, MgF2 Coated, Aspheric Condenser Lens",24.0000,10.4000,2.0000,19.7000,11.7000,0.6600,0.8000,Plano ,Plano ,24.0000,B270 ,MgF2 (400-700nm) ,400 - 700 ,,Plano 
+19-516,"24.9mm Dia. x 17mm FL, Aspheric Condenser Lens",24.9000,11.0000,1.9000,17.0000,9.8000,0.7300,0.6800,Plano ,∞ ,24.9000,H-K51 ,Uncoated ,350 - 2000 ,,Plano 
+21-197,"24.9mm Dia. x 17mm FL, MgF2 Coated, Aspheric Condenser Lens",24.9000,11.0000,1.9000,17.0000,9.8000,0.7300,0.6800,Plano ,∞ ,24.9000,H-K51 ,MgF2 (400-700nm) ,400 - 700 ,,Plano 
+72-485,"24.9mm Dia. x 17mm FL, Aspheric Condenser Lens, VIS-EXT",24.9000,11.0000,1.9000,17.0000,9.8000,0.7300,0.6800,Plano ,∞ ,24.9000,H-K51 ,VIS-EXT (350-700nm) ,350 - 700 ,,Plano 
+72-505,"24.9mm Dia. x 17mm FL, Aspheric Condenser Lens, NIR I",24.9000,11.0000,1.9000,17.0000,9.8000,0.7300,0.6800,Plano ,∞ ,24.9000,H-K51 ,NIR I (600-1050nm) ,350 - 700 ,,Plano 
+19-517,"25mm Dia. x 25mm FL, Aspheric Condenser Lens",25.0000,8.5000,1.8100,25.0000,19.4000,0.5000,1.0000,Plano ,∞ ,25.0000,H-K51 ,Uncoated ,350 - 2000 ,,Plano 
+21-198,"25mm Dia. x 25mm FL, MgF2 Coated, Aspheric Condenser Lens",25.0000,8.5000,1.8100,25.0000,19.4000,0.5000,1.0000,Plano ,∞ ,25.0000,H-K51 ,MgF2 (400-700nm) ,400 - 700 ,,Plano 
+72-506,"25mm Dia. x 25mm FL, Aspheric Condenser Lens, NIR I",25.0000,8.5000,1.8100,25.0000,19.4000,0.5000,1.0000,Plano ,∞ ,25.0000,H-K51 ,NIR I (600-1050nm) ,350 - 700 ,,Plano 
+72-486,"25mm Dia. x 25mm FL, Aspheric Condenser Lens, VIS-EXT",25.0000,8.5000,1.8100,25.0000,19.4000,0.5000,1.0000,Plano ,∞ ,25.0000,H-K51 ,VIS-EXT (350-700nm) ,350 - 700 ,,Plano 
+43-484,"25.4mm Diameter x 25.4mm FL, PCX Condenser Lens",25.4000,7.1100,,25.4000,,0.5000,1.0000,Plano ,Plano ,,Float Glass ,Uncoated ,350 - 2000 ,,Plano 
+15-535,"25.4mm Diameter x 25.4mm FL, MgF2 Coated, PCX Condenser Lens",25.4000,7.1100,,25.4000,,0.5000,1.0000,Plano ,Plano ,,Float Glass ,MgF2 (400-700nm) ,400 - 700 ,,Plano 
+43-987,"27mm Diameter x 13mm FL, Aspheric Condenser Lens",27.0000,9.2500,2.0000,13.0000,6.9000,0.8800,0.6000,Plano ,Plano ,23.0000,B270 ,Uncoated ,350 - 2500 ,,Plano 
+15-536,"27mm Diameter x 13mm FL, MgF2 Coated, Aspheric Condenser Lens",27.0000,9.2500,2.0000,13.0000,6.9000,0.8800,0.6000,Plano ,Plano ,23.0000,B270 ,MgF2 (400-700nm) ,400 - 700 ,,Plano 
+43-988,"35mm Diameter x 26.2mm FL, Aspheric Condenser Lens",35.0000,13.9000,4.0000,26.2000,16.3000,0.6100,0.8000,Plano ,Plano ,31.1000,B270 ,Uncoated ,350 - 2500 ,,Plano 
+15-537,"35mm Diameter x 26.2mm FL, MgF2 Coated, Aspheric Condenser Lens",35.0000,13.9000,4.0000,26.2000,16.3000,0.6100,0.8000,Plano ,Plano ,31.1000,B270 ,MgF2 (400-700nm) ,400 - 700 ,,Plano 
+46-685,"40mm Diameter x 28.5mm FL, Aspheric Condenser Lens",40.0000,15.0000,2.0000,28.5000,18.7000,0.6300,0.8000,Plano ,Plano ,36.0000,B270 ,Uncoated ,350 - 2500 ,,Plano 
+15-539,"40mm Diameter x 28.5mm FL, MgF2 Coated, Aspheric Condenser Lens",40.0000,15.0000,2.0000,28.5000,18.7000,0.6300,0.8000,Plano ,Plano ,36.0000,B270 ,MgF2 (400-700nm) ,400 - 700 ,,Plano 
+46-661,"50mm Diameter x 35.7mm FL, Aspheric Condenser Lens",50.0000,16.7000,2.0000,35.7000,24.7000,0.6400,0.8000,Plano ,Plano ,47.0000,B270 ,Uncoated ,350 - 2500 ,,Plano 
+15-540,"50mm Diameter x 35.7mm FL, MgF2 Coated, Aspheric Condenser Lens",50.0000,16.7000,2.0000,35.7000,24.7000,0.6400,0.8000,Plano ,Plano ,47.0000,B270 ,MgF2 (400-700nm) ,400 - 700 ,,Plano 
+43-593,"50mm Diameter x 44mm FL, PCX Condenser Lens",50.0000,18.9000,,44.0000,,0.5700,0.8800,Plano ,Plano ,,B270 ,Uncoated ,350 - 2500 ,,Plano 
+15-541,"50mm Diameter x 44mm FL, MgF2 Coated, PCX Condenser Lens",50.0000,18.8000,,44.0000,,0.5700,0.8800,Plano ,Plano ,,B270 ,MgF2 (400-700nm) ,400 - 700 ,,Plano 
+46-244,"75mm Diameter x 50mm FL , Aspheric Condenser Lens",75.0000,30.0000,3.0000,50.0000,30.5000,0.7500,0.7000,Plano ,Plano ,75.0000,B270 ,Uncoated ,350 - 2500 ,,Plano 
+15-542,"75mm Diameter x 50mm FL , MgF2 Coated, Aspheric Condenser Lens",75.0000,30.0000,3.0000,50.0000,30.5000,0.7500,0.7000,Plano ,Plano ,75.0000,B270 ,MgF2 (400-700nm) ,400 - 700 ,,Plano 
+84-880,"80mm Diameter x 59mm FL, Aspheric Condenser Lens",80.0000,32.8000,2.8000,59.0000,37.5000,0.6500,0.8000,Plano ,Plano ,77.0000,B270 ,Uncoated ,350 - 2500 ,,Plano 
+15-543,"80mm Diameter x 59mm FL, MgF2 Coated, Aspheric Condenser Lens",80.0000,32.8000,2.8000,59.0000,37.5000,0.6500,0.8000,Plano ,Plano ,77.0000,B270 ,MgF2 (400-700nm) ,400 - 700 ,,Plano 
