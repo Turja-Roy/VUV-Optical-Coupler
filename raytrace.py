@@ -422,7 +422,12 @@ def main():
     if args['mode'] == 'analyze':
         from scripts.analysis import analyze_combos
         
-        _, lenses = find_combos('combine', use_database=use_database, db=lens_db)
+        # Prepare database filters including sql_query if provided
+        db_filters = {}
+        if args.get('sql_query'):
+            db_filters['sql_query'] = args['sql_query']
+        
+        _, lenses = find_combos('combine', use_database=use_database, db=lens_db, **db_filters)
         
         # Load analyze params from config if available
         analyze_n_rays = args['n_rays']
@@ -596,7 +601,12 @@ def main():
         combos, lenses = particular_combo(args['lens1'], args['lens2'], use_database=use_database, db=lens_db)
         batch_run = False
     else:
-        combos, lenses = find_combos(args['method'], use_database=use_database, db=lens_db)
+        # Prepare database filters including sql_query if provided
+        db_filters = {}
+        if args.get('sql_query'):
+            db_filters['sql_query'] = args['sql_query']
+        
+        combos, lenses = find_combos(args['method'], use_database=use_database, db=lens_db, **db_filters)
         batch_run = len(combos) > 100
 
     print(f"Total lens combinations: {len(combos)}")

@@ -10,7 +10,8 @@ def fetch_lens_data_from_db(db: LensDatabase,
                            lens_type: Optional[str] = None,
                            min_focal_length: Optional[float] = None,
                            max_focal_length: Optional[float] = None,
-                           vendor: Optional[str] = None) -> Dict:
+                           vendor: Optional[str] = None,
+                           sql_query: Optional[str] = None) -> Dict:
     """
     Fetch lenses from database with optional filtering.
     
@@ -26,17 +27,25 @@ def fetch_lens_data_from_db(db: LensDatabase,
         Maximum focal length in mm
     vendor : str, optional
         Filter by vendor name
+    sql_query : str, optional
+        Custom SQL query to filter lenses. When provided, other filter parameters are ignored.
+        Example: "SELECT * FROM lenses WHERE focal_length_mm BETWEEN 15 AND 30"
         
     Returns:
     --------
     dict : Dictionary mapping item_number to lens data dict (in optimization format)
     """
-    db_lenses = db.get_all_lenses(
-        lens_type=lens_type,
-        min_focal_length=min_focal_length,
-        max_focal_length=max_focal_length,
-        vendor=vendor
-    )
+    # Use custom SQL query if provided
+    if sql_query:
+        db_lenses = db.execute_custom_query(sql_query)
+    else:
+        # Use standard filtering
+        db_lenses = db.get_all_lenses(
+            lens_type=lens_type,
+            min_focal_length=min_focal_length,
+            max_focal_length=max_focal_length,
+            vendor=vendor
+        )
     
     lenses = {}
     for db_lens in db_lenses:
@@ -59,7 +68,7 @@ def fetch_lens_data(method, use_database=False, db=None, **db_filters):
     db : LensDatabase, optional
         Database connection (required if use_database=True)
     **db_filters : optional
-        Additional filters for database queries (lens_type, min_focal_length, etc.)
+        Additional filters for database queries (lens_type, min_focal_length, sql_query, etc.)
         
     Returns:
     --------

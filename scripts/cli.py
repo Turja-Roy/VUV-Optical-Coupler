@@ -40,6 +40,9 @@ Options:
                                   Options: Plano-Convex, Bi-Convex, Aspheric
     --vendor <name>               Filter lenses by vendor for list-lenses
                                   Options: ThorLabs, Edmund Optics
+    --query <sql>                 Custom SQL query to filter lenses (requires --use-database)
+                                  Use SELECT * FROM lenses WHERE ... to filter lenses
+                                  Only SELECT statements are allowed for safety
     --coupling-threshold <value>  Minimum coupling for analyze mode (required for analyze)
     --results-file <path>         Path to results CSV file (required for analyze and wavelength-analyze)
     --results-dir <path>          Path to results directory (required for wavelength-analyze-plot)
@@ -146,6 +149,15 @@ Examples:
     
     # Run optimization using database lenses
     python raytrace.py particular LA4001 LA4647 --use-database
+    
+    # Use custom SQL query to filter lenses by focal length
+    python raytrace.py select --use-database --query "SELECT * FROM lenses WHERE focal_length_mm BETWEEN 15 AND 30"
+    
+    # Filter by vendor and lens type with SQL
+    python raytrace.py combine --use-database --query "SELECT * FROM lenses WHERE vendor='ThorLabs' AND lens_type='Bi-Convex'"
+    
+    # Complex filtering with multiple conditions
+    python raytrace.py select --use-database --query "SELECT * FROM lenses WHERE diameter_mm >= 12.7 AND focal_length_mm < 50 ORDER BY focal_length_mm"
 """)
 
 
@@ -177,7 +189,8 @@ def parse_arguments():
         'db_path': None,
         'use_database': False,
         'lens_type': None,
-        'vendor': None
+        'vendor': None,
+        'sql_query': None
     }
 
     if len(sys.argv) < 2:
@@ -466,6 +479,14 @@ def parse_arguments():
                 i += 2
             else:
                 print("Error: --vendor requires a value")
+                sys.exit(1)
+        
+        elif arg == '--query':
+            if i + 1 < len(sys.argv):
+                args['sql_query'] = sys.argv[i + 1]
+                i += 2
+            else:
+                print("Error: --query requires a SQL query string")
                 sys.exit(1)
 
         elif arg == 'continue':

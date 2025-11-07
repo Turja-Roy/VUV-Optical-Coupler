@@ -223,6 +223,64 @@ class LensDatabase:
         cursor.execute(query, params)
         return [dict(row) for row in cursor.fetchall()]
     
+    def execute_custom_query(self, sql_query: str) -> List[Dict]:
+        """
+        Execute a custom SQL query on the lenses table.
+        
+        Parameters:
+        -----------
+        sql_query : str
+            SQL query string. Must be a SELECT statement for safety.
+            Example: "SELECT * FROM lenses WHERE focal_length_mm BETWEEN 15 AND 30"
+            
+        Returns:
+        --------
+        List of lens dictionaries matching the query
+        
+        Raises:
+        -------
+        ValueError
+            If the query is not a SELECT statement or contains unsafe operations
+        """
+        # Validate query is read-only (SELECT only)
+        query_normalized = sql_query.strip().upper()
+        
+        # Check if it starts with SELECT
+        if not query_normalized.startswith('SELECT'):
+            raise ValueError("Only SELECT queries are allowed for safety. Query must start with SELECT.")
+        
+        # Check for dangerous operations (basic SQL injection protection)
+        dangerous_keywords = ['DROP', 'DELETE', 'INSERT', 'UPDATE', 'ALTER', 'CREATE', 
+                             'TRUNCATE', 'REPLACE', 'EXEC', 'EXECUTE', '--', ';--']
+        
+        for keyword in dangerous_keywords:
+            if keyword in query_normalized:
+                raise ValueError(f"Query contains unsafe operation '{keyword}'. Only SELECT queries are allowed.")
+        
+        # Check that query references the lenses table
+        if 'LENSES' not in query_normalized and 'FROM' in query_normalized:
+            raise ValueError("Query must reference the 'lenses' table.")
+        
+        # Execute the query
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute(sql_query)
+            results = [dict(row) for row in cursor.fetchall()]
+            
+            # Validate that results have the expected lens fields
+            if results:
+                required_fields = ['item_number', 'focal_length_mm', 'diameter_mm']
+                for field in required_fields:
+                    if field not in results[0]:
+                        raise ValueError(f"Query results missing required field: {field}. "
+                                       f"Use 'SELECT * FROM lenses WHERE ...' to ensure all fields are included.")
+            
+            return results
+        except Exception as e:
+            if isinstance(e, ValueError):
+                raise
+            raise ValueError(f"Error executing SQL query: {str(e)}")
+    
     def get_lens_count(self) -> int:
         """Get total number of lenses in database."""
         cursor = self.conn.cursor()
