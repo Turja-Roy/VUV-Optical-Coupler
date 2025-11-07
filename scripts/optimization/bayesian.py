@@ -1,5 +1,5 @@
 import numpy as np
-from scripts.PlanoConvex import PlanoConvex
+from scripts.lens_factory import create_lens
 from scripts import consts as C
 from scripts.raytrace_helpers import sample_rays
 from scripts.raytrace_helpers_vectorized import trace_system_vectorized as trace_system
@@ -49,8 +49,8 @@ def optimize(lenses, name1, name2, n_calls=100, n_rays=1000, alpha=0.7, medium='
                 return 1e6
             
             z_fiber = z_l2 + f2
-            lens1 = PlanoConvex(z_l1, d1['R_mm'], d1['tc_mm'], d1['te_mm'], d1['dia']/2.0, flipped=flipped1)
-            lens2 = PlanoConvex(z_l2, d2['R_mm'], d2['tc_mm'], d2['te_mm'], d2['dia']/2.0, flipped=flipped2)
+            lens1 = create_lens(d1, z_l1, flipped=flipped1)
+            lens2 = create_lens(d2, z_l2, flipped=flipped2)
             
             accepted, transmission = trace_system(origins, dirs, lens1, lens2, z_fiber, 
                                    C.FIBER_CORE_DIAM_MM/2.0, C.ACCEPTANCE_HALF_RAD,
@@ -67,8 +67,8 @@ def optimize(lenses, name1, name2, n_calls=100, n_rays=1000, alpha=0.7, medium='
         z_fiber_opt = z_l2_opt + f2
         
         origins_final, dirs_final = sample_rays(2000)
-        lens1 = PlanoConvex(z_l1_opt, d1['R_mm'], d1['tc_mm'], d1['te_mm'], d1['dia']/2.0, flipped=flipped1)
-        lens2 = PlanoConvex(z_l2_opt, d2['R_mm'], d2['tc_mm'], d2['te_mm'], d2['dia']/2.0, flipped=flipped2)
+        lens1 = create_lens(d1, z_l1_opt, flipped=flipped1)
+        lens2 = create_lens(d2, z_l2_opt, flipped=flipped2)
         accepted, transmission = trace_system(origins_final, dirs_final, lens1, lens2, z_fiber_opt,
                                C.FIBER_CORE_DIAM_MM/2.0, C.ACCEPTANCE_HALF_RAD,
                                medium, C.PRESSURE_ATM, C.TEMPERATURE_K, C.HUMIDITY_FRACTION)

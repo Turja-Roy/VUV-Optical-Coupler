@@ -2,7 +2,7 @@ import numpy as np
 from tqdm import tqdm
 
 from scripts.data_io import write_temp
-from scripts.PlanoConvex import PlanoConvex
+from scripts.lens_factory import create_lens
 from scripts import consts as C
 from scripts.visualizers import plot_system_rays
 from scripts.raytrace_helpers import sample_rays
@@ -24,18 +24,8 @@ def evaluate_config(z_l1, z_l2, origins, dirs, d1, d2, z_fiber, n_rays, medium='
     if z_l2 <= z_l1 + d1['tc_mm'] + 0.5:
         return 0.0, np.zeros(n_rays, dtype=bool)
         
-    lens1 = PlanoConvex(vertex_z_front=z_l1,
-                        R_front_mm=d1['R_mm'],
-                        center_thickness_mm=d1['tc_mm'],
-                        edge_thickness_mm=d1['te_mm'],
-                        ap_rad_mm=d1['dia']/2.0,
-                        flipped=flipped1)
-    lens2 = PlanoConvex(vertex_z_front=z_l2,
-                        R_front_mm=d2['R_mm'],
-                        center_thickness_mm=d2['tc_mm'],
-                        edge_thickness_mm=d2['te_mm'],
-                        ap_rad_mm=d2['dia']/2.0,
-                        flipped=flipped2)
+    lens1 = create_lens(d1, z_l1, flipped=flipped1)
+    lens2 = create_lens(d2, z_l2, flipped=flipped2)
     accepted, transmission = trace_system(origins, dirs, lens1, lens2,
                             z_fiber, C.FIBER_CORE_DIAM_MM/2.0,
                             C.ACCEPTANCE_HALF_RAD,
