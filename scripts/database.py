@@ -61,22 +61,6 @@ class OptimizationDatabase:
             )
         """)
         
-        # Lenses table - stores lens specifications
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS lenses (
-                item_number TEXT PRIMARY KEY,
-                diameter_mm REAL NOT NULL,
-                focal_length_mm REAL NOT NULL,
-                radius_curvature_mm REAL NOT NULL,
-                center_thickness_mm REAL NOT NULL,
-                edge_thickness_mm REAL NOT NULL,
-                back_focal_length_mm REAL NOT NULL,
-                vendor TEXT,
-                notes TEXT,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        
         # Create indexes for faster queries
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_results_run_id 
@@ -182,55 +166,6 @@ class OptimizationDatabase:
         
         self.conn.commit()
     
-    def insert_lens(self, item_number: str, diameter_mm: float, 
-                   focal_length_mm: float, radius_curvature_mm: float,
-                   center_thickness_mm: float, edge_thickness_mm: float,
-                   back_focal_length_mm: float, vendor: Optional[str] = None,
-                   notes: Optional[str] = None) -> None:
-        """Insert or update lens specification."""
-        cursor = self.conn.cursor()
-        
-        cursor.execute("""
-            INSERT OR REPLACE INTO lenses 
-                (item_number, diameter_mm, focal_length_mm, radius_curvature_mm,
-                 center_thickness_mm, edge_thickness_mm, back_focal_length_mm,
-                 vendor, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (item_number, diameter_mm, focal_length_mm, radius_curvature_mm,
-              center_thickness_mm, edge_thickness_mm, back_focal_length_mm,
-              vendor, notes))
-        
-        self.conn.commit()
-    
-    def insert_lenses_from_dict(self, lenses: Dict[str, Dict]) -> None:
-        """Bulk insert lenses from dictionary (as returned by data_io)."""
-        cursor = self.conn.cursor()
-        
-        data = [
-            (
-                item_num,
-                lens_data['dia'],
-                lens_data['f_mm'],
-                lens_data['R_mm'],
-                lens_data['tc_mm'],
-                lens_data['te_mm'],
-                lens_data['BFL_mm'],
-                None,  # vendor
-                None   # notes
-            )
-            for item_num, lens_data in lenses.items()
-        ]
-        
-        cursor.executemany("""
-            INSERT OR REPLACE INTO lenses 
-                (item_number, diameter_mm, focal_length_mm, radius_curvature_mm,
-                 center_thickness_mm, edge_thickness_mm, back_focal_length_mm,
-                 vendor, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, data)
-        
-        self.conn.commit()
-    
     def get_run(self, run_id: str) -> Optional[Dict]:
         """Retrieve run metadata by run_id."""
         cursor = self.conn.cursor()
@@ -331,19 +266,6 @@ class OptimizationDatabase:
         query += " ORDER BY timestamp DESC"
         
         cursor.execute(query, params)
-        return [dict(row) for row in cursor.fetchall()]
-    
-    def get_lens(self, item_number: str) -> Optional[Dict]:
-        """Retrieve lens specification."""
-        cursor = self.conn.cursor()
-        cursor.execute("SELECT * FROM lenses WHERE item_number = ?", (item_number,))
-        row = cursor.fetchone()
-        return dict(row) if row else None
-    
-    def get_all_lenses(self) -> List[Dict]:
-        """Retrieve all lens specifications."""
-        cursor = self.conn.cursor()
-        cursor.execute("SELECT * FROM lenses ORDER BY item_number")
         return [dict(row) for row in cursor.fetchall()]
     
     def export_to_csv(self, run_id: str, output_path: str) -> None:

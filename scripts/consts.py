@@ -28,6 +28,7 @@ USE_VECTORIZED_TRACING = True  # Use vectorized ray tracing (10-15x faster)
 # Database settings
 USE_DATABASE = True  # Enable SQLite database for storing results
 DATABASE_PATH = './results/optimization.db'  # Path to database file
+LENS_DATABASE_PATH = './data/lenses.db'  # Path to lens catalog database
 
 MEDIUM = 'air'
 PRESSURE_ATM = 1.0
