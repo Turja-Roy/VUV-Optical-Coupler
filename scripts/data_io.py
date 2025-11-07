@@ -1,10 +1,96 @@
 import pandas as pd
 from scripts import consts as C
-from typing import Optional
+from typing import Optional, Dict, List
+from scripts.database import OptimizationDatabase
+from scripts.lens_database import LensDatabase
+from scripts.lens_factory import convert_db_lens_to_dict
 
 
-def fetch_lens_data(method):
-    """Fetch lens data from CSV files and return as dictionaries."""
+def fetch_lens_data_from_db(db: LensDatabase, 
+                           lens_type: Optional[str] = None,
+                           min_focal_length: Optional[float] = None,
+                           max_focal_length: Optional[float] = None,
+                           vendor: Optional[str] = None) -> Dict:
+    """
+    Fetch lenses from database with optional filtering.
+    
+    Parameters:
+    -----------
+    db : LensDatabase
+        Database connection
+    lens_type : str, optional
+        Filter by lens type ('Plano-Convex', 'Bi-Convex', 'Aspheric')
+    min_focal_length : float, optional
+        Minimum focal length in mm
+    max_focal_length : float, optional
+        Maximum focal length in mm
+    vendor : str, optional
+        Filter by vendor name
+        
+    Returns:
+    --------
+    dict : Dictionary mapping item_number to lens data dict (in optimization format)
+    """
+    db_lenses = db.get_all_lenses(
+        lens_type=lens_type,
+        min_focal_length=min_focal_length,
+        max_focal_length=max_focal_length,
+        vendor=vendor
+    )
+    
+    lenses = {}
+    for db_lens in db_lenses:
+        item_number = db_lens['item_number']
+        lenses[item_number] = convert_db_lens_to_dict(db_lens)
+    
+    return lenses
+
+
+def fetch_lens_data(method, use_database=False, db=None, **db_filters):
+    """
+    Fetch lens data from CSV files or database and return as dictionaries.
+    
+    Parameters:
+    -----------
+    method : str
+        Selection method ('select', 'select_ext', 'combine')
+    use_database : bool, optional
+        If True, fetch from database instead of CSV (default: False)
+    db : LensDatabase, optional
+        Database connection (required if use_database=True)
+    **db_filters : optional
+        Additional filters for database queries (lens_type, min_focal_length, etc.)
+        
+    Returns:
+    --------
+    For 'select' or 'select_ext': (lens1, lens2, lenses) tuple
+    For 'combine': lenses dict only
+    
+    Notes:
+    ------
+    All returned lens dictionaries now include 'lens_type' field for compatibility
+    with lens_factory.create_lens(). Legacy CSV data defaults to 'Plano-Convex'.
+    """
+    # Database mode
+    if use_database:
+        if db is None:
+            raise ValueError("Database connection required when use_database=True")
+        
+        lenses = fetch_lens_data_from_db(db, **db_filters)
+        
+        if method == 'select' or method == 'select_ext':
+            # For select mode, split into L1 and L2 based on focal length
+            # This is a heuristic - could be improved with explicit L1/L2 designation
+            all_focal_lengths = sorted([l['f_mm'] for l in lenses.values()])
+            median_f = all_focal_lengths[len(all_focal_lengths) // 2] if all_focal_lengths else 20.0
+            
+            lens1 = {k: v for k, v in lenses.items() if v['f_mm'] <= median_f}
+            lens2 = {k: v for k, v in lenses.items() if v['f_mm'] > median_f}
+            return lens1, lens2, lenses
+        else:
+            return lenses
+    
+    # CSV mode (legacy)
     lens1, lens2, lenses = {}, {}, {}
 
     if method == 'select' or method == 'select_ext':
@@ -16,19 +102,25 @@ def fetch_lens_data(method):
             l2_candidates = pd.read_csv('./data/l2_candidates.csv')
 
         for _, row in l1_candidates.iterrows():
-            lens1[row['Item #']] = {'dia': row['Diameter (mm)'],
-                                    'f_mm': row['Focal Length (mm)'],
-                                    'R_mm': row['Radius of Curvature (mm)'],
-                                    'tc_mm': row['Center Thickness (mm)'],
-                                    'te_mm': row['Edge Thickness (mm)'],
-                                    'BFL_mm': row['Back Focal Length (mm)']}
+            lens1[row['Item #']] = {
+                'dia': row['Diameter (mm)'],
+                'f_mm': row['Focal Length (mm)'],
+                'R_mm': row['Radius of Curvature (mm)'],
+                'tc_mm': row['Center Thickness (mm)'],
+                'te_mm': row['Edge Thickness (mm)'],
+                'BFL_mm': row['Back Focal Length (mm)'],
+                'lens_type': 'Plano-Convex'  # CSV data is all plano-convex
+            }
         for _, row in l2_candidates.iterrows():
-            lens2[row['Item #']] = {'dia': row['Diameter (mm)'],
-                                    'f_mm': row['Focal Length (mm)'],
-                                    'R_mm': row['Radius of Curvature (mm)'],
-                                    'tc_mm': row['Center Thickness (mm)'],
-                                    'te_mm': row['Edge Thickness (mm)'],
-                                    'BFL_mm': row['Back Focal Length (mm)']}
+            lens2[row['Item #']] = {
+                'dia': row['Diameter (mm)'],
+                'f_mm': row['Focal Length (mm)'],
+                'R_mm': row['Radius of Curvature (mm)'],
+                'tc_mm': row['Center Thickness (mm)'],
+                'te_mm': row['Edge Thickness (mm)'],
+                'BFL_mm': row['Back Focal Length (mm)'],
+                'lens_type': 'Plano-Convex'  # CSV data is all plano-convex
+            }
         lenses = lens1 | lens2
         return lens1, lens2, lenses
 
@@ -36,19 +128,35 @@ def fetch_lens_data(method):
         lenses_candidates = pd.read_csv('./data/Combined_Lenses.csv')
 
         for _, row in lenses_candidates.iterrows():
-            lenses[row['Item #']] = {'dia': row['Diameter (mm)'],
-                                     'f_mm': row['Focal Length (mm)'],
-                                     'R_mm': row['Radius of Curvature (mm)'],
-                                     'tc_mm': row['Center Thickness (mm)'],
-                                     'te_mm': row['Edge Thickness (mm)'],
-                                     'BFL_mm': row['Back Focal Length (mm)']}
+            lenses[row['Item #']] = {
+                'dia': row['Diameter (mm)'],
+                'f_mm': row['Focal Length (mm)'],
+                'R_mm': row['Radius of Curvature (mm)'],
+                'tc_mm': row['Center Thickness (mm)'],
+                'te_mm': row['Edge Thickness (mm)'],
+                'BFL_mm': row['Back Focal Length (mm)'],
+                'lens_type': 'Plano-Convex'  # CSV data is all plano-convex
+            }
         return lenses
 
 
-def find_combos(method):
-    """Generate all lens combinations to evaluate (based on method)"""
+def find_combos(method, use_database=False, db=None, **db_filters):
+    """
+    Generate all lens combinations to evaluate (based on method).
+    
+    Parameters:
+    -----------
+    method : str
+        'select', 'select_ext', or 'combine'
+    use_database : bool, optional
+        If True, load lenses from database instead of CSV
+    db : LensDatabase, optional
+        Database instance to use (required if use_database=True)
+    **db_filters : dict, optional
+        Additional filters for database queries (e.g., lens_type, vendor)
+    """
     if method == 'select' or method == 'select_ext':
-        lens1, lens2, lenses = fetch_lens_data(method)
+        lens1, lens2, lenses = fetch_lens_data(method, use_database=use_database, db=db, **db_filters)
         combos = []
         for a in lens1:
             for b in lens2:
@@ -56,7 +164,7 @@ def find_combos(method):
         return combos, lenses
 
     else:  # method == 'combine'
-        lenses = fetch_lens_data(method)
+        lenses = fetch_lens_data(method, use_database=use_database, db=db, **db_filters)
         combos = []
         for a in lenses:
             for b in lenses:
@@ -64,27 +172,69 @@ def find_combos(method):
         return combos, lenses
 
 
-def particular_combo(name1, name2):
-    lens_candidates = pd.read_csv('./data/Combined_Lenses.csv')
-
+def particular_combo(name1, name2, use_database=False, db=None):
+    """
+    Get a specific lens pair for testing.
+    
+    Parameters:
+    -----------
+    name1 : str
+        First lens item number
+    name2 : str
+        Second lens item number
+    use_database : bool, optional
+        If True, fetch from database instead of CSV (default: False)
+    db : LensDatabase, optional
+        Database connection (required if use_database=True)
+        
+    Returns:
+    --------
+    tuple : (combos, lenses) where combos is [(name1, name2)] and lenses is dict
+    """
     lens1, lens2, lenses = {}, {}, {}
+    
+    if use_database:
+        if db is None:
+            raise ValueError("Database connection required when use_database=True")
+        
+        # Fetch both lenses from database
+        db_lens1 = db.get_lens(name1)
+        db_lens2 = db.get_lens(name2)
+        
+        if db_lens1 is None:
+            raise ValueError(f"Lens '{name1}' not found in database")
+        if db_lens2 is None:
+            raise ValueError(f"Lens '{name2}' not found in database")
+        
+        lens1[name1] = convert_db_lens_to_dict(db_lens1)
+        lens2[name2] = convert_db_lens_to_dict(db_lens2)
+        lenses = lens1 | lens2
+    else:
+        # CSV mode (legacy)
+        lens_candidates = pd.read_csv('./data/Combined_Lenses.csv')
 
-    lens1_data = lens_candidates[lens_candidates['Item #'] == name1].iloc[0]
-    lens2_data = lens_candidates[lens_candidates['Item #'] == name2].iloc[0]
+        lens1_data = lens_candidates[lens_candidates['Item #'] == name1].iloc[0]
+        lens2_data = lens_candidates[lens_candidates['Item #'] == name2].iloc[0]
 
-    lens1[name1] = {'dia': lens1_data['Diameter (mm)'],
-                    'f_mm': lens1_data['Focal Length (mm)'],
-                    'R_mm': lens1_data['Radius of Curvature (mm)'],
-                    'tc_mm': lens1_data['Center Thickness (mm)'],
-                    'te_mm': lens1_data['Edge Thickness (mm)'],
-                    'BFL_mm': lens1_data['Back Focal Length (mm)']}
-    lens2[name2] = {'dia': lens2_data['Diameter (mm)'],
-                    'f_mm': lens2_data['Focal Length (mm)'],
-                    'R_mm': lens2_data['Radius of Curvature (mm)'],
-                    'tc_mm': lens2_data['Center Thickness (mm)'],
-                    'te_mm': lens2_data['Edge Thickness (mm)'],
-                    'BFL_mm': lens2_data['Back Focal Length (mm)']}
-    lenses = lens1 | lens2
+        lens1[name1] = {
+            'dia': lens1_data['Diameter (mm)'],
+            'f_mm': lens1_data['Focal Length (mm)'],
+            'R_mm': lens1_data['Radius of Curvature (mm)'],
+            'tc_mm': lens1_data['Center Thickness (mm)'],
+            'te_mm': lens1_data['Edge Thickness (mm)'],
+            'BFL_mm': lens1_data['Back Focal Length (mm)'],
+            'lens_type': 'Plano-Convex'  # CSV data is all plano-convex
+        }
+        lens2[name2] = {
+            'dia': lens2_data['Diameter (mm)'],
+            'f_mm': lens2_data['Focal Length (mm)'],
+            'R_mm': lens2_data['Radius of Curvature (mm)'],
+            'tc_mm': lens2_data['Center Thickness (mm)'],
+            'te_mm': lens2_data['Edge Thickness (mm)'],
+            'BFL_mm': lens2_data['Back Focal Length (mm)'],
+            'lens_type': 'Plano-Convex'  # CSV data is all plano-convex
+        }
+        lenses = lens1 | lens2
 
     # Create the specific combination requested
     combos = [(name1, name2)]
@@ -125,13 +275,13 @@ def write_results(method, results, run_id, batch=False, batch_num=None, lens_pai
         ['coupling', 'total_len_mm'],
         ascending=[False, True]).reset_index(drop=True)
 
-    # Write to database if enabled AND it's a final aggregation (not a batch)
-    # Per-test writes are now handled in the optimization functions themselves
-    # This only writes to DB for analyze mode or final aggregations
-    if use_database and db is not None and not batch:
+    # Write to database if enabled
+    # For modes with per-test writes (grid_search), this writes final aggregation
+    # For batch modes (select with powell), this writes batch results
+    # For analyze modes, this writes all results
+    if use_database and db is not None:
         try:
             # Ensure run exists in database first
-            # Check if run already exists
             existing_run = db.get_run(run_id)
             if not existing_run:
                 # Insert run metadata (use alpha if provided, otherwise use default 0.7)
@@ -149,10 +299,15 @@ def write_results(method, results, run_id, batch=False, batch_num=None, lens_pai
                     config=config
                 )
             
-            # For analyze mode, check if results need to be written to database
-            # (per-test writes don't happen in analyze mode)
-            if 'analyze' in method:
-                # Add method to each result dict for database storage
+            # Write results to database (batch or final)
+            # For batch writes, only write if this is a batch chunk (not final aggregation)
+            # For non-batch, write the final results
+            if batch:
+                # This is a batch chunk - write these results
+                results_with_method = [dict(r, method=method) for r in rows]
+                db.insert_results_batch(run_id, results_with_method)
+            elif not batch and 'analyze' in method:
+                # Analyze mode - write all results
                 results_with_method = [dict(r, method=method) for r in rows]
                 db.insert_results_batch(run_id, results_with_method)
         except Exception as e:
