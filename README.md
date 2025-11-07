@@ -93,6 +93,66 @@ Speedup:         13.9x
 
 ## Database Storage
 
+### Two-Database Architecture
+
+The system uses **two separate SQLite databases** for optimal organization:
+
+1. **Lens Catalog Database** (`./data/lenses.db`)
+   - Stores lens specifications and properties
+   - 202 lenses from ThorLabs and Edmund Optics
+   - Managed by `LensDatabase` class
+   - Read-only during optimization
+
+2. **Optimization Results Database** (`./results/optimization.db`)
+   - Stores optimization run metadata and results
+   - Tracks performance across different methods and parameters
+   - Managed by `OptimizationDatabase` class
+   - Updated with each optimization run
+
+**This separation provides:**
+- Faster lens queries (indexed catalog)
+- Independent lens library updates
+- Cleaner results database (no lens data duplication)
+- Easy lens catalog sharing between projects
+
+### Managing the Lens Database
+
+**Import lenses from CSV files:**
+```bash
+# Import to default location (./data/lenses.db)
+python raytrace.py import-lenses
+
+# Import to custom database
+python raytrace.py import-lenses --db custom_lenses.db
+```
+
+**Add new lenses from CSV:**
+```bash
+# ThorLabs format
+python -m scripts.add_lenses_from_csv new_lenses.csv --format thorlabs
+
+# Edmund Optics format
+python -m scripts.add_lenses_from_csv new_lenses.csv --format edmund --vendor "Edmund Optics"
+
+# Dry run (preview without importing)
+python -m scripts.add_lenses_from_csv new_lenses.csv --format thorlabs --dry-run
+```
+
+**List available lenses:**
+```bash
+# From database
+python raytrace.py list-lenses --use-database
+
+# Filter by type
+python raytrace.py list-lenses --use-database --lens-type Bi-Convex
+
+# Filter by vendor
+python raytrace.py list-lenses --use-database --vendor ThorLabs
+
+# From CSV files (fallback)
+python raytrace.py list-lenses
+```
+
 ### SQLite Backend for Results
 
 All optimization results can be automatically stored in an SQLite database for efficient querying and analysis:
