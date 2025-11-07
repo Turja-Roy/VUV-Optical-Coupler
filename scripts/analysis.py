@@ -9,6 +9,11 @@ from scripts.data_io import write_temp
 from scripts.visualizers import plot_system_rays
 
 
+def _get_r_mm(lens_data):
+    """Helper to get radius of curvature from lens data (handles both R_mm and R1_mm)."""
+    return lens_data.get('R1_mm', lens_data.get('R_mm'))
+
+
 def _setup_logger(run_id):
     logger = logging.getLogger("raytrace_analyze")
     
@@ -217,8 +222,8 @@ def evaluate_fixed_config_at_wavelength(lenses, lens1, lens2, z_l1, z_l2, z_fibe
     
     try:
         origins, dirs = sample_rays(n_rays)
-        lens1_obj = PlanoConvex(z_l1, d1['R_mm'], d1['tc_mm'], d1['te_mm'], d1['dia']/2.0, flipped=flipped1)
-        lens2_obj = PlanoConvex(z_l2, d2['R_mm'], d2['tc_mm'], d2['te_mm'], d2['dia']/2.0, flipped=flipped2)
+        lens1_obj = PlanoConvex(z_l1, _get_r_mm(d1), d1['tc_mm'], d1['te_mm'], d1['dia']/2.0, flipped=flipped1)
+        lens2_obj = PlanoConvex(z_l2, _get_r_mm(d2), d2['tc_mm'], d2['te_mm'], d2['dia']/2.0, flipped=flipped2)
         
         accepted, transmission = trace_system(origins, dirs, lens1_obj, lens2_obj,
                                 z_fiber, C.FIBER_CORE_DIAM_MM/2.0, C.ACCEPTANCE_HALF_RAD,

@@ -8,6 +8,17 @@ from scripts.raytrace_helpers import sample_rays
 from scripts import consts as C
 
 
+def _get_r_mm(lens_data):
+    """
+    Helper function to get radius of curvature from lens data.
+    Handles both legacy format (R_mm) and new database format (R1_mm).
+    
+    For plano-convex lenses in new format, R1_mm is the curved surface.
+    For bi-convex lenses, this returns R1_mm (front surface).
+    """
+    return lens_data.get('R1_mm', lens_data.get('R_mm'))
+
+
 def _draw_planoconvex_2d(ax, z_pos, lens_data, flipped, alpha=0.2):
     """
     Draw a plano-convex lens profile in 2D with actual curved surface.
@@ -26,7 +37,7 @@ def _draw_planoconvex_2d(ax, z_pos, lens_data, flipped, alpha=0.2):
     alpha : float
         Transparency for the fill
     """
-    R = lens_data['R_mm']
+    R = _get_r_mm(lens_data)
     tc = lens_data['tc_mm']
     te = lens_data['te_mm']
     ap_rad = lens_data['dia'] / 2.0
@@ -87,7 +98,7 @@ def _draw_planoconvex_3d(ax, z_pos, lens_data, flipped, alpha=0.3):
     alpha : float
         Transparency for the surfaces
     """
-    R = lens_data['R_mm']
+    R = _get_r_mm(lens_data)
     tc = lens_data['tc_mm']
     ap_rad = lens_data['dia'] / 2.0
     
@@ -162,9 +173,9 @@ def _plot_rays_on_axis(ax, lenses, result, n_plot_rays=1000):
 
     origins, dirs = sample_rays(n_plot_rays)
 
-    lens1 = PlanoConvex(z_l1, lens1_data['R_mm'], lens1_data['tc_mm'],
+    lens1 = PlanoConvex(z_l1, _get_r_mm(lens1_data), lens1_data['tc_mm'],
                         lens1_data['te_mm'], lens1_data['dia']/2.0, flipped=flipped1)
-    lens2 = PlanoConvex(z_l2, lens2_data['R_mm'], lens2_data['tc_mm'],
+    lens2 = PlanoConvex(z_l2, _get_r_mm(lens2_data), lens2_data['tc_mm'],
                         lens2_data['te_mm'], lens2_data['dia']/2.0, flipped=flipped2)
 
     for i in range(n_plot_rays):
@@ -255,9 +266,9 @@ def _plot_rays_2d_dual_view(fig, lenses, result, n_plot_rays=1000):
 
     origins, dirs = sample_rays(n_plot_rays)
 
-    lens1 = PlanoConvex(z_l1, lens1_data['R_mm'], lens1_data['tc_mm'],
+    lens1 = PlanoConvex(z_l1, _get_r_mm(lens1_data), lens1_data['tc_mm'],
                         lens1_data['te_mm'], lens1_data['dia']/2.0, flipped=flipped1)
-    lens2 = PlanoConvex(z_l2, lens2_data['R_mm'], lens2_data['tc_mm'],
+    lens2 = PlanoConvex(z_l2, _get_r_mm(lens2_data), lens2_data['tc_mm'],
                         lens2_data['te_mm'], lens2_data['dia']/2.0, flipped=flipped2)
 
     # Create two subplots for X-Z and Y-Z views
@@ -392,9 +403,9 @@ def _plot_single_2d_view(ax, lenses, result, n_plot_rays=500, projection='xz'):
 
     origins, dirs = sample_rays(n_plot_rays)
 
-    lens1 = PlanoConvex(z_l1, lens1_data['R_mm'], lens1_data['tc_mm'],
+    lens1 = PlanoConvex(z_l1, _get_r_mm(lens1_data), lens1_data['tc_mm'],
                         lens1_data['te_mm'], lens1_data['dia']/2.0, flipped=flipped1)
-    lens2 = PlanoConvex(z_l2, lens2_data['R_mm'], lens2_data['tc_mm'],
+    lens2 = PlanoConvex(z_l2, _get_r_mm(lens2_data), lens2_data['tc_mm'],
                         lens2_data['te_mm'], lens2_data['dia']/2.0, flipped=flipped2)
 
     coord_idx = 0 if projection == 'xz' else 1  # X=0, Y=1
@@ -728,7 +739,7 @@ def plot_spot_diagram(best, lenses, run_id):
         d = dirs[i].copy()
 
         out1 = PlanoConvex(vertex_z_front=best['z_l1'],
-                           R_front_mm=lenses[best['lens1']]['R_mm'],
+                           R_front_mm=_get_r_mm(lenses[best['lens1']]),
                            center_thickness_mm=lenses[best['lens1']]['tc_mm'],
                            edge_thickness_mm=lenses[best['lens1']]['te_mm'],
                            ap_rad_mm=lenses[best['lens1']]['dia']/2.0,
@@ -738,7 +749,7 @@ def plot_spot_diagram(best, lenses, run_id):
             continue
         o1, d1 = out1[0], out1[1]
         out2 = PlanoConvex(vertex_z_front=best['z_l2'],
-                           R_front_mm=lenses[best['lens2']]['R_mm'],
+                           R_front_mm=_get_r_mm(lenses[best['lens2']]),
                            center_thickness_mm=lenses[best['lens2']]['tc_mm'],
                            edge_thickness_mm=lenses[best['lens2']]['te_mm'],
                            ap_rad_mm=lenses[best['lens2']]['dia']/2.0,

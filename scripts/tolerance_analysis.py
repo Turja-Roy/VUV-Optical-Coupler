@@ -12,6 +12,11 @@ except ImportError:
     VECTORIZED_AVAILABLE = False
 
 
+def _get_r_mm(lens_data):
+    """Helper to get radius of curvature from lens data (handles both R_mm and R1_mm)."""
+    return lens_data.get('R1_mm', lens_data.get('R_mm'))
+
+
 def analyze_tolerance(lens_data, result, n_rays=2000, n_samples=21, 
                      z_range_mm=0.5, medium='air'):
     """
@@ -81,9 +86,9 @@ def analyze_tolerance(lens_data, result, n_rays=2000, n_samples=21,
     
     # Helper function to evaluate coupling
     def evaluate_coupling(z_l1, z_l2, z_fiber_val):
-        lens1 = PlanoConvex(z_l1, d1['R_mm'], d1['tc_mm'], d1['te_mm'], 
+        lens1 = PlanoConvex(z_l1, _get_r_mm(d1), d1['tc_mm'], d1['te_mm'], 
                            d1['dia']/2.0, flipped=flipped1)
-        lens2 = PlanoConvex(z_l2, d2['R_mm'], d2['tc_mm'], d2['te_mm'], 
+        lens2 = PlanoConvex(z_l2, _get_r_mm(d2), d2['tc_mm'], d2['te_mm'], 
                            d2['dia']/2.0, flipped=flipped2)
         
         accepted, transmission = trace_system(
