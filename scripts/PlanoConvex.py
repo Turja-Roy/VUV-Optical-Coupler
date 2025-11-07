@@ -45,12 +45,18 @@ class PlanoConvex:
         Trace a ray through the lens.
 
         Parameters:
-        - o: 3D origin point
-        - d: 3D direction vector (normalized)
-        - n1: input refractive index
+        o : array
+            3D origin point of the ray
+        d : array
+            3D direction vector (normalized)
+        n1 : float
+            Input refractive index
 
         Returns:
         - (o_out, d_out, success)
+            o_out: Exit point
+            d_out: Exit direction
+            success: True if ray successfully traced
         """
         if not self.flipped:
             # Normal orientation: curved face first, flat face second
@@ -71,7 +77,7 @@ class PlanoConvex:
         - n1: input refractive index
 
         Returns:
-        - (entry_point, dir_in_glass, exit_point, dir_out, success)
+        tuple : (entry_point, dir_in_glass, exit_point, dir_out, success)
           where:
             entry_point: point where ray enters the lens
             dir_in_glass: refracted direction inside the lens
