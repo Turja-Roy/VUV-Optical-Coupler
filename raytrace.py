@@ -21,12 +21,19 @@ def main():
         plot_style = loader.get_plot_style(args['_config'])
         orientation_mode = loader.get_orientation_mode(args['_config'])
     
-    # Initialize database connection if enabled
-    db = None
-    if C.USE_DATABASE:
+    # Initialize database connections if enabled via config or --use-database flag
+    opt_db = None  # For storing optimization results
+    lens_db = None  # For reading lens catalog
+    use_database = args.get('use_database', False) or C.USE_DATABASE
+    opt_db_path = args.get('db_path') if args.get('db_path') else C.DATABASE_PATH
+    
+    if use_database:
         from scripts.database import OptimizationDatabase
-        db = OptimizationDatabase(C.DATABASE_PATH)
-        print(f"Database enabled: {C.DATABASE_PATH}")
+        from scripts.lens_database import LensDatabase
+        opt_db = OptimizationDatabase(opt_db_path)
+        lens_db = LensDatabase()  # Uses default ./data/lenses.db
+        print(f"Optimization database enabled: {opt_db_path}")
+        print(f"Lens database enabled: {lens_db.db_path}")
 
     # Build run_id based on mode and method
     if args['mode'] == 'compare':
@@ -79,6 +86,117 @@ def main():
             db_path=dashboard_db,
             results_dir='./results'
         )
+        return
+    
+    # Handle import-lenses mode
+    if args['mode'] == 'import-lenses':
+        from scripts.lens_database import LensDatabase
+        from scripts.import_lenses_to_db import import_all_lenses
+        
+        lens_db_path = args['db_path'] if args['db_path'] else './data/lenses.db'
+        
+        print("\n" + "="*60)
+        print("Import Lenses to Database")
+        print("="*60)
+        print(f"Database: {lens_db_path}")
+        print("="*60 + "\n")
+        
+        import_lens_db = LensDatabase(lens_db_path)
+        stats = import_all_lenses(import_lens_db)
+        
+        print("\n" + "="*60)
+        print("Import Complete!")
+        print("="*60)
+        print(f"Total lenses imported: {stats['total']}")
+        print(f"  ThorLabs: {stats['thorlabs']}")
+        print(f"  Edmund Optics: {stats['edmund_optics']}")
+        if stats.get('statistics'):
+            print(f"\nBreakdown by type:")
+            for lens_type, count in sorted(stats['statistics']['by_type'].items()):
+                print(f"  {lens_type}: {count}")
+        print(f"\nDatabase location: {lens_db_path}")
+        print("="*60 + "\n")
+        
+        return
+    
+    # Handle list-lenses mode
+    if args['mode'] == 'list-lenses':
+        if args['use_database']:
+            from scripts.lens_database import LensDatabase
+            
+            list_lens_db_path = args['db_path'] if args['db_path'] else './data/lenses.db'
+            list_lens_db = LensDatabase(list_lens_db_path)
+            
+            print("\n" + "="*60)
+            print("Available Lenses from Database")
+            print("="*60)
+            print(f"Database: {list_lens_db_path}")
+            if args['lens_type']:
+                print(f"Filter: Type = {args['lens_type']}")
+            if args['vendor']:
+                print(f"Filter: Vendor = {args['vendor']}")
+            print("="*60 + "\n")
+            
+            lenses = list_lens_db.get_all_lenses(
+                lens_type=args['lens_type'],
+                vendor=args['vendor']
+            )
+            
+            if not lenses:
+                print("No lenses found matching the criteria.")
+                return
+            
+            print(f"Found {len(lenses)} lenses:\n")
+            
+            # Group by vendor and type for better display
+            by_vendor_type = {}
+            for lens in lenses:
+                vendor = lens['vendor']
+                lens_type = lens['lens_type']
+                key = (vendor, lens_type)
+                if key not in by_vendor_type:
+                    by_vendor_type[key] = []
+                by_vendor_type[key].append(lens)
+            
+            for (vendor, lens_type), lens_list in sorted(by_vendor_type.items()):
+                print(f"\n{vendor} - {lens_type} ({len(lens_list)} lenses)")
+                print("-" * 60)
+                for lens in lens_list:
+                    name = lens['item_number']
+                    f_mm = lens['focal_length_mm']
+                    dia_mm = lens['diameter_mm']
+                    tc_mm = lens['center_thickness_mm']
+                    r1_mm = lens['radius_r1_mm']
+                    r2_mm = lens['radius_r2_mm']
+                    
+                    info = f"{name:12} f={f_mm:6.2f}mm dia={dia_mm:5.1f}mm tc={tc_mm:4.2f}mm"
+                    if r2_mm is not None and r2_mm > 0:
+                        info += f" R1={r1_mm:6.2f}mm R2={r2_mm:6.2f}mm"
+                    else:
+                        info += f" R={r1_mm:6.2f}mm"
+                    print(f"  {info}")
+            
+            print(f"\nTotal: {len(lenses)} lenses")
+        else:
+            # List from CSV files
+            from scripts.data_io import fetch_lens_data
+            
+            print("\n" + "="*60)
+            print("Available Lenses from CSV Files")
+            print("="*60 + "\n")
+            
+            # Use 'combine' method to load all lenses from Combined_Lenses.csv
+            lenses = fetch_lens_data('combine', use_database=False, db=None)
+            
+            print(f"Found {len(lenses)} lenses:\n")
+            for name, specs in sorted(lenses.items()):
+                lens_type = specs.get('lens_type', 'Plano-Convex')
+                info = f"{name:12} {lens_type:15} f={specs['f_mm']:6.2f}mm dia={specs['dia']:5.1f}mm"
+                print(f"  {info}")
+            
+            print(f"\nTotal: {len(lenses)} lenses")
+        
+        print()
         return
 
     # Handle wavelength-analyze-plot mode
@@ -304,7 +422,7 @@ def main():
     if args['mode'] == 'analyze':
         from scripts.analysis import analyze_combos
         
-        _, lenses = find_combos('combine')
+        _, lenses = find_combos('combine', use_database=use_database, db=lens_db)
         
         # Load analyze params from config if available
         analyze_n_rays = args['n_rays']
@@ -347,7 +465,7 @@ def main():
         for method, results in all_results.items():
             if results:
                 print(f"\nSaving {method} results...")
-                write_results(f'analyze_{method}', results, run_id, db=db, alpha=args['alpha'])
+                write_results(f'analyze_{method}', results, run_id, db=opt_db, alpha=args['alpha'])
         
         combined_results = []
         for method, results in all_results.items():
@@ -355,7 +473,7 @@ def main():
         
         if combined_results:
             print(f"\nSaving combined results...")
-            write_results('analyze_combined', combined_results, run_id, db=db, alpha=args['alpha'])
+            write_results('analyze_combined', combined_results, run_id, db=opt_db, alpha=args['alpha'])
             
             print("\n" + "="*60)
             print("Analysis Complete!")
@@ -380,7 +498,7 @@ def main():
     # Handle compare mode
     if args['mode'] == 'compare':
         from scripts.optimization.optimization_runner import compare_optimizers
-        combos, lenses = particular_combo(args['lens1'], args['lens2'])
+        combos, lenses = particular_combo(args['lens1'], args['lens2'], use_database=use_database, db=lens_db)
         compare_optimizers(lenses, (args['lens1'], args['lens2']),
                            run_id, alpha=args['alpha'], medium=args['medium'])
         return
@@ -429,7 +547,7 @@ def main():
         print("="*70)
         
         # First, run optimization to get baseline configuration
-        combos, lenses = particular_combo(args['lens1'], args['lens2'])
+        combos, lenses = particular_combo(args['lens1'], args['lens2'], use_database=use_database, db=lens_db)
         
         print("\nStep 1: Finding optimal configuration...")
         from scripts.optimization.optimization_runner import run_combos
@@ -437,7 +555,7 @@ def main():
         results = run_combos(
             lenses, combos, run_id, method=args['optimizer'],
             alpha=args['alpha'], n_rays=args['n_rays'],
-            batch_num=None, medium=args['medium'], db=db,
+            batch_num=None, medium=args['medium'], db=opt_db,
             plot_style=tolerance_plot_style, orientation_mode=tolerance_orientation_mode
         )
         
@@ -475,10 +593,10 @@ def main():
 
     # Get lens combinations
     if args['mode'] == 'particular':
-        combos, lenses = particular_combo(args['lens1'], args['lens2'])
+        combos, lenses = particular_combo(args['lens1'], args['lens2'], use_database=use_database, db=lens_db)
         batch_run = False
     else:
-        combos, lenses = find_combos(args['method'])
+        combos, lenses = find_combos(args['method'], use_database=use_database, db=lens_db)
         batch_run = len(combos) > 100
 
     print(f"Total lens combinations: {len(combos)}")
@@ -490,22 +608,22 @@ def main():
     def runner_func(lenses, combos, run_id, batch_num): return run_combos(
         lenses, combos, run_id, method=args['optimizer'],
         alpha=args['alpha'], n_rays=1000, batch_num=batch_num,
-        medium=args['medium'], db=db, plot_style=plot_style, orientation_mode=orientation_mode
+        medium=args['medium'], db=opt_db, plot_style=plot_style, orientation_mode=orientation_mode
     )
 
     # Run optimization
     if args['continue'] and batch_run:
         results = run_batches_continue(combos, lenses, run_id,
-                                       args['method'], runner_func, db=db, alpha=args['alpha'])
+                                       args['method'], runner_func, db=opt_db, alpha=args['alpha'])
     elif batch_run:
         results = run_batches(combos, lenses, run_id,
-                              args['method'], runner_func, db=db, alpha=args['alpha'])
+                              args['method'], runner_func, db=opt_db, alpha=args['alpha'])
     else:
         results = runner_func(lenses, combos, run_id, None)
         lens_pair = (args['lens1'], args['lens2']) if args['mode'] == 'particular' else None
         # For particular mode, method is in 'optimizer', otherwise it's in 'method'
         method_name = args.get('optimizer') or args.get('method')
-        write_results(method_name, results, run_id, lens_pair=lens_pair, db=db, alpha=args['alpha'])
+        write_results(method_name, results, run_id, lens_pair=lens_pair, db=opt_db, alpha=args['alpha'])
 
     # Analyze results
     if results:
@@ -552,6 +670,7 @@ def main():
 
         print(f"\nResults saved to: results/{run_id}/")
         print(f"Plots saved to: plots/{run_id}/")
+
 
 
 if __name__ == "__main__":

@@ -20,6 +20,8 @@ Commands:
     wavelength-analyze-plot       Create plots from wavelength analysis results
     tolerance <lens1> <lens2>     Analyze manufacturing tolerance sensitivity
     dashboard                     Start web dashboard for viewing results
+    import-lenses                 Import lenses from CSV files into database
+    list-lenses                   List available lenses from database or CSV
 
 Options:
     --config <file>               Load configuration from YAML file
@@ -32,6 +34,12 @@ Options:
                                   Higher = prioritize coupling more
     --medium <type>               Medium for light propagation (default: air)
                                   Options: air, argon, helium
+    --use-database                Use database instead of CSV files for lens data
+    --db <path>                   Path to database file (default: results/optimization.db)
+    --lens-type <type>            Filter lenses by type for list-lenses
+                                  Options: Plano-Convex, Bi-Convex, Aspheric
+    --vendor <name>               Filter lenses by vendor for list-lenses
+                                  Options: ThorLabs, Edmund Optics
     --coupling-threshold <value>  Minimum coupling for analyze mode (required for analyze)
     --results-file <path>         Path to results CSV file (required for analyze and wavelength-analyze)
     --results-dir <path>          Path to results directory (required for wavelength-analyze-plot)
@@ -45,7 +53,6 @@ Options:
     --z-range <mm>                Range for tolerance analysis z-displacement (default: 0.5)
     --n-samples <count>           Number of tolerance test samples (default: 21)
     --port <number>               Port for dashboard server (default: 5000)
-    --db <path>                   Path to database for dashboard (default: auto-detect)
     continue                      Continue incomplete batch run
     <YYYY-MM-DD>                  Specify run date
 
@@ -121,6 +128,24 @@ Examples:
     
     # Dashboard with custom port and database
     python raytrace.py dashboard --port 8080 --db results/custom.db
+    
+    # Import lenses from CSV files into database
+    python raytrace.py import-lenses
+    
+    # Import to custom database location
+    python raytrace.py import-lenses --db custom_lenses.db
+    
+    # List all available lenses from database
+    python raytrace.py list-lenses --use-database
+    
+    # List only Bi-Convex lenses
+    python raytrace.py list-lenses --use-database --lens-type Bi-Convex
+    
+    # List ThorLabs lenses only
+    python raytrace.py list-lenses --use-database --vendor ThorLabs
+    
+    # Run optimization using database lenses
+    python raytrace.py particular LA4001 LA4647 --use-database
 """)
 
 
@@ -149,7 +174,10 @@ def parse_arguments():
         'config_file': None,
         'profile': None,
         'port': 5000,
-        'db_path': None
+        'db_path': None,
+        'use_database': False,
+        'lens_type': None,
+        'vendor': None
     }
 
     if len(sys.argv) < 2:
@@ -198,13 +226,19 @@ def parse_arguments():
     
     elif sys.argv[1] == 'dashboard':
         args['mode'] = 'dashboard'
+    
+    elif sys.argv[1] == 'import-lenses':
+        args['mode'] = 'import-lenses'
+    
+    elif sys.argv[1] == 'list-lenses':
+        args['mode'] = 'list-lenses'
 
     else:
         print(f"Error: Unknown command '{sys.argv[1]}'")
         print_usage()
         sys.exit(1)
 
-    i = 2 if args['mode'] in ['method', 'analyze', 'wavelength-analyze', 'wavelength-analyze-plot', 'dashboard'] else 4
+    i = 2 if args['mode'] in ['method', 'analyze', 'wavelength-analyze', 'wavelength-analyze-plot', 'dashboard', 'import-lenses', 'list-lenses'] else 4
     while i < len(sys.argv):
         arg = sys.argv[i]
 
@@ -408,6 +442,30 @@ def parse_arguments():
                 i += 2
             else:
                 print("Error: --db requires a file path")
+                sys.exit(1)
+        
+        elif arg == '--use-database':
+            args['use_database'] = True
+            i += 1
+        
+        elif arg == '--lens-type':
+            if i + 1 < len(sys.argv):
+                lens_type = sys.argv[i + 1]
+                if lens_type not in ['Plano-Convex', 'Bi-Convex', 'Aspheric']:
+                    print("Error: --lens-type must be one of: Plano-Convex, Bi-Convex, Aspheric")
+                    sys.exit(1)
+                args['lens_type'] = lens_type
+                i += 2
+            else:
+                print("Error: --lens-type requires a value")
+                sys.exit(1)
+        
+        elif arg == '--vendor':
+            if i + 1 < len(sys.argv):
+                args['vendor'] = sys.argv[i + 1]
+                i += 2
+            else:
+                print("Error: --vendor requires a value")
                 sys.exit(1)
 
         elif arg == 'continue':
