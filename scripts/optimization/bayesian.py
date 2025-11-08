@@ -3,6 +3,14 @@ from scripts.lens_factory import create_lens
 from scripts import consts as C
 from scripts.raytrace_helpers import sample_rays
 from scripts.raytrace_helpers_vectorized import trace_system_vectorized as trace_system
+from scripts.optimization.fiber_position_optimizer import evaluate_both_fiber_positions
+import logging
+
+logger = logging.getLogger(__name__)
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 try:
     from skopt import gp_minimize
@@ -11,6 +19,14 @@ try:
     SKOPT_AVAILABLE = True
 except ImportError:
     SKOPT_AVAILABLE = False
+
+
+def calc_sag(R, ap_rad):
+    """Calculate sag = R - sqrt(R² - ap_rad²) for lens surface curvature"""
+    R_abs = abs(R)
+    if ap_rad >= R_abs:
+        return 0.0
+    return R_abs - np.sqrt(R_abs**2 - ap_rad**2)
 
 
 def optimize(lenses, name1, name2, n_calls=100, n_rays=1000, alpha=0.7, medium='air', orientation_mode='both'):
@@ -45,7 +61,23 @@ def optimize(lenses, name1, name2, n_calls=100, n_rays=1000, alpha=0.7, medium='
         
         @use_named_args(space)
         def objective(z_l1, z_l2):
-            if z_l2 <= z_l1 + d1['tc_mm'] + 0.5:
+            # Calculate physical extents accounting for surface sag
+            ap_rad1 = d1['dia'] / 2.0
+            ap_rad2 = d2['dia'] / 2.0
+            
+            # Lens 1 back extent (accounting for back surface curvature)
+            l1_end = z_l1 + d1['tc_mm']
+            if 'R2_mm' in d1 and d1.get('lens_type') in ['Bi-Convex', 'Aspheric']:
+                sag1_back = calc_sag(d1['R2_mm'], ap_rad1)
+                l1_end += sag1_back
+            
+            # Lens 2 front extent (accounting for front surface curvature)
+            l2_start = z_l2
+            if 'R1_mm' in d2 and d2.get('lens_type') in ['Bi-Convex', 'Aspheric']:
+                sag2_front = calc_sag(d2['R1_mm'], ap_rad2)
+                l2_start -= sag2_front
+            
+            if l2_start <= l1_end + 0.5:
                 return 1e6
             
             z_fiber = z_l2 + f2
@@ -63,28 +95,68 @@ def optimize(lenses, name1, name2, n_calls=100, n_rays=1000, alpha=0.7, medium='
         result = gp_minimize(objective, space, n_calls=n_calls, random_state=42, 
                             verbose=False, n_initial_points=20)
         
+        # Check if optimization returned a valid result (not the penalty value)
+        if result.fun >= 1e5:  # If objective >= 100k, it's the penalty
+            logger.error(f"OPTIMIZATION FAILED: Returned penalty value {result.fun:.0f}")
+            logger.error(f"  No valid configuration found for {name1}+{name2} with orientation {orientation_name}")
+            logger.error(f"  Skipping this orientation...")
+            continue  # Skip this orientation
+        
         z_l1_opt, z_l2_opt = result.x
-        z_fiber_opt = z_l2_opt + f2
+        
+        # Double-check: Validate final result doesn't have overlap
+        ap_rad1 = d1['dia'] / 2.0
+        ap_rad2 = d2['dia'] / 2.0
+        
+        l1_end = z_l1_opt + d1['tc_mm']
+        if 'R2_mm' in d1 and d1.get('lens_type') in ['Bi-Convex', 'Aspheric']:
+            sag1_back = calc_sag(d1['R2_mm'], ap_rad1)
+            l1_end += sag1_back
+        
+        l2_start = z_l2_opt
+        if 'R1_mm' in d2 and d2.get('lens_type') in ['Bi-Convex', 'Aspheric']:
+            sag2_front = calc_sag(d2['R1_mm'], ap_rad2)
+            l2_start -= sag2_front
+        
+        final_gap = l2_start - l1_end
+        
+        if final_gap < 0.5:
+            logger.error(f"DOUBLE-CHECK FAILED! Gap={final_gap:.3f} < 0.5 mm (this shouldn't happen!)")
+            if final_gap < 0:
+                logger.error(f"  LENSES OVERLAP BY {abs(final_gap):.3f} mm!")
+            logger.error(f"  Skipping this result...")
+            continue  # Skip this invalid result
         
         origins_final, dirs_final = sample_rays(2000)
         lens1 = create_lens(d1, z_l1_opt, flipped=flipped1)
         lens2 = create_lens(d2, z_l2_opt, flipped=flipped2)
-        accepted, transmission = trace_system(origins_final, dirs_final, lens1, lens2, z_fiber_opt,
+        
+        # Evaluate both fiber positioning methods and keep the best
+        z_fiber, coupling, fiber_method = evaluate_both_fiber_positions(
+            lens1, lens2, z_l2_opt, f2, origins_final, dirs_final, medium
+        )
+        
+        # Get accepted rays for the chosen fiber position
+        accepted, transmission = trace_system(origins_final, dirs_final, lens1, lens2, z_fiber,
                                C.FIBER_CORE_DIAM_MM/2.0, C.ACCEPTANCE_HALF_RAD,
                                medium, C.PRESSURE_ATM, C.TEMPERATURE_K, C.HUMIDITY_FRACTION)
-        avg_transmission = np.mean(transmission[accepted]) if np.any(accepted) else 0.0
-        coupling = (np.count_nonzero(accepted) / 2000) * avg_transmission
         
         results.append({
             'lens1': name1, 'lens2': name2, 'f1_mm': f1, 'f2_mm': f2,
-            'z_l1': z_l1_opt, 'z_l2': z_l2_opt, 'z_fiber': z_fiber_opt,
-            'total_len_mm': z_fiber_opt, 'coupling': coupling,
+            'z_l1': z_l1_opt, 'z_l2': z_l2_opt, 'z_fiber': z_fiber,
+            'total_len_mm': z_fiber, 'coupling': coupling,
             'orientation': orientation_name,
+            'fiber_position_method': fiber_method,
             'origins': origins_final, 'dirs': dirs_final, 'accepted': accepted
         })
+    
+    # If no valid configurations found, return appropriate empty result
+    if not results:
+        logger.warning(f"No valid configurations found for {name1}+{name2}")
+        return [] if orientation_mode == 'both' else None
     
     # Return list if 'both' mode, otherwise return single result
     if orientation_mode == 'both':
         return results
     else:
-        return results[0] if results else None
+        return results[0]

@@ -7,6 +7,7 @@ from scripts import consts as C
 from scripts.visualizers import plot_system_rays
 from scripts.raytrace_helpers import sample_rays
 from scripts.raytrace_helpers_vectorized import trace_system_vectorized as trace_system
+from scripts.optimization.fiber_position_optimizer import evaluate_both_fiber_positions
 
 import logging
 from pathlib import Path
@@ -99,6 +100,31 @@ def run_grid(run_id, lenses, name1, name2,
                     best = {'z_l1': z_l1, 'z_l2': z_l2, 'z_fiber': z_fiber,
                             'coupling': coupling, 'accepted': accepted,
                             'origins': origins_ref, 'dirs': dirs_ref}
+
+        # Final evaluation: test both fiber positioning methods with high ray count
+        origins_final, dirs_final = sample_rays(2000)
+        lens1_final = create_lens(d1, best['z_l1'], flipped=flipped1)
+        lens2_final = create_lens(d2, best['z_l2'], flipped=flipped2)
+        
+        z_fiber_best, coupling_best, fiber_method = evaluate_both_fiber_positions(
+            lens1_final, lens2_final, best['z_l2'], f2, 
+            origins_final, dirs_final, medium
+        )
+        
+        # Update best result with dual positioning results
+        best['z_fiber'] = z_fiber_best
+        best['coupling'] = coupling_best
+        best['fiber_position_method'] = fiber_method
+        best['origins'] = origins_final
+        best['dirs'] = dirs_final
+        
+        # Recompute accepted rays with final configuration for plotting
+        accepted_final, _ = trace_system(
+            origins_final, dirs_final, lens1_final, lens2_final,
+            z_fiber_best, C.FIBER_CORE_DIAM_MM/2.0, C.ACCEPTANCE_HALF_RAD,
+            medium, C.PRESSURE_ATM, C.TEMPERATURE_K, C.HUMIDITY_FRACTION
+        )
+        best['accepted'] = accepted_final
 
         best.update({'lens1': name1, 'lens2': name2, 'f1_mm': f1,
                     'f2_mm': f2, 'total_len_mm': best['z_fiber'],
