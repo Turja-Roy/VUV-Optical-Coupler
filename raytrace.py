@@ -131,16 +131,24 @@ def main():
             print("Available Lenses from Database")
             print("="*60)
             print(f"Database: {list_lens_db_path}")
-            if args['lens_type']:
-                print(f"Filter: Type = {args['lens_type']}")
-            if args['vendor']:
-                print(f"Filter: Vendor = {args['vendor']}")
+            if args['sql_query']:
+                print(f"Filter: Custom SQL query")
+                print(f"  Query: {args['sql_query']}")
+            else:
+                if args['lens_type']:
+                    print(f"Filter: Type = {args['lens_type']}")
+                if args['vendor']:
+                    print(f"Filter: Vendor = {args['vendor']}")
             print("="*60 + "\n")
             
-            lenses = list_lens_db.get_all_lenses(
-                lens_type=args['lens_type'],
-                vendor=args['vendor']
-            )
+            # Use custom SQL query if provided, otherwise use standard filters
+            if args['sql_query']:
+                lenses = list_lens_db.execute_custom_query(args['sql_query'])
+            else:
+                lenses = list_lens_db.get_all_lenses(
+                    lens_type=args['lens_type'],
+                    vendor=args['vendor']
+                )
             
             if not lenses:
                 print("No lenses found matching the criteria.")

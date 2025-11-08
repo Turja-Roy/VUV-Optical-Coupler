@@ -24,7 +24,7 @@ fiber:
 
 # Medium properties (air, argon, or helium)
 medium:
-  type: air               # Options: 'air', 'argon', 'helium'
+  type: argon               # Options: 'air', 'argon', 'helium'
   pressure_atm: 1.0       # Atmospheric pressure
   temperature_k: 293.15   # Room temperature (20°C)
   humidity_fraction: 0.01 # Relative humidity (1%)
@@ -72,7 +72,7 @@ output:
   save_plots: true
   save_csv: true
   plot_style: '2d'  # Options: '2d', '3d', 'both'
-  orientation: 'both'  # Options: 'ScffcF', 'SfccfF', 'both'
+  orientation: 'SfccfF'  # Options: 'ScffcF', 'SfccfF', 'both'
 
 # Database settings
 database:
