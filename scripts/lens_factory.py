@@ -9,6 +9,7 @@ Supports both legacy dict format (with 'R_mm') and new format (with 'R1_mm', 'R2
 
 from scripts.PlanoConvex import PlanoConvex
 from scripts.BiConvex import BiConvex
+from scripts.Aspheric import Aspheric
 from typing import Dict, Union
 
 
@@ -28,7 +29,7 @@ def create_lens(lens_data: Dict, vertex_z: float, flipped: bool = False):
         - 'te_mm': edge thickness in mm
         - 'R_mm' (legacy) or 'R1_mm' (new): front surface radius
         - 'lens_type' (optional): 'Plano-Convex', 'Bi-Convex', or 'Aspheric'
-        - 'R2_mm' (optional, for bi-convex): back surface radius
+        - 'R2_mm' (optional, for bi-convex/aspheric): back surface radius
         
     vertex_z : float
         Z position of the front vertex of the lens (mm)
@@ -43,7 +44,6 @@ def create_lens(lens_data: Dict, vertex_z: float, flipped: bool = False):
     Raises:
     -------
     ValueError : If lens type is unknown or required parameters are missing
-    NotImplementedError : If lens type is 'Aspheric' (not yet implemented)
     
     Examples:
     ---------
@@ -54,6 +54,12 @@ def create_lens(lens_data: Dict, vertex_z: float, flipped: bool = False):
     # New format (bi-convex from database)
     lens_data = {'dia': 12.7, 'f_mm': 15.0, 'R1_mm': 6.9, 'R2_mm': -6.9, 
                  'tc_mm': 6.0, 'te_mm': 1.8, 'lens_type': 'Bi-Convex'}
+    lens = create_lens(lens_data, vertex_z=10.0, flipped=False)
+    
+    # Aspheric lens (k=0 approximation)
+    lens_data = {'dia': 25.4, 'f_mm': 16.0, 'R1_mm': 7.18, 'R2_mm': 70.0,
+                 'tc_mm': 16.0, 'te_mm': 2.0, 'lens_type': 'Aspheric',
+                 'conic_constant': 0.0}
     lens = create_lens(lens_data, vertex_z=10.0, flipped=False)
     """
     # Determine lens type
@@ -98,9 +104,26 @@ def create_lens(lens_data: Dict, vertex_z: float, flipped: bool = False):
         )
     
     elif lens_type == 'Aspheric':
-        raise NotImplementedError(
-            "Aspheric lenses are not yet implemented. "
-            "Please use Plano-Convex or Bi-Convex lenses."
+        r2_mm = lens_data.get('R2_mm')
+        if r2_mm is None:
+            raise ValueError("Aspheric lens requires 'R2_mm' field in lens_data")
+        
+        # Get aspheric parameters if available (currently all NULL in database)
+        # NOTE: Currently k=0 and no coefficients means aspheric surfaces are
+        # traced as spheres with base radius. This is documented in Aspheric class.
+        conic_constant = lens_data.get('conic_constant', 0.0)
+        aspheric_coeffs = lens_data.get('aspheric_coeffs', None)
+        
+        return Aspheric(
+            vertex_z_front=vertex_z,
+            R_front_mm=r1_mm,  # Base radius of aspheric front surface
+            R_back_mm=r2_mm,   # Radius of spherical back surface
+            center_thickness_mm=center_thickness_mm,
+            edge_thickness_mm=edge_thickness_mm,
+            ap_rad_mm=aperture_radius_mm,
+            conic_constant=conic_constant,
+            aspheric_coeffs=aspheric_coeffs,
+            flipped=flipped
         )
     
     else:
@@ -141,6 +164,8 @@ def convert_db_lens_to_dict(db_lens: Dict) -> Dict:
         'te_mm': db_lens['edge_thickness_mm'],
         'BFL_mm': db_lens['back_focal_length_mm'],
         'lens_type': db_lens.get('lens_type', 'Plano-Convex'),
+        'conic_constant': db_lens.get('conic_constant'),
+        'aspheric_coeffs': db_lens.get('aspheric_coeffs'),
         'numerical_aperture': db_lens.get('numerical_aperture'),
         'substrate': db_lens.get('substrate'),
         'coating': db_lens.get('coating'),
