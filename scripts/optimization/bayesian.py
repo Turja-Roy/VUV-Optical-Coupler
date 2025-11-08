@@ -77,7 +77,7 @@ def optimize(lenses, name1, name2, n_calls=100, n_rays=1000, alpha=0.7, medium='
                 sag2_front = calc_sag(d2['R1_mm'], ap_rad2)
                 l2_start -= sag2_front
             
-            if l2_start <= l1_end + 0.5:
+            if z_l1 < C.SOURCE_TO_LENS_OFFSET or l2_start <= l1_end + 0.5:
                 return 1e6
             
             z_fiber = z_l2 + f2
