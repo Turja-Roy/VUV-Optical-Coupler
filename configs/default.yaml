@@ -81,11 +81,16 @@ database:
 
 # Tolerance analysis settings
 tolerance:
-  z_range_mm: 0.5       # Range of z-displacement to test (±mm from optimal)
+  z_range_mm: 1.0       # Range of z-displacement to test (±mm from optimal)
   n_samples: 21         # Number of displacement samples (should be odd)
   n_rays: 2000          # Rays per tolerance test (higher = more accurate)
-  test_lateral: false   # Test x/y lateral displacements (future feature)
-  test_tilt: false      # Test angular tilts (future feature)
+  test_lateral: true   # Test x/y lateral displacements (future feature)
+  test_tilt: true      # Test angular tilts (future feature)
+
+# Batch tolerance analysis settings (for tolerance batch mode)
+batch_tolerance:
+  results_file: results/2025-11-07_combine_powell_argon/results_combine_2025-11-07_combine_powell_argon.csv                  # Path to optimization results CSV (null = required on CLI)
+  coupling_threshold: 0.35            # Minimum coupling efficiency to include in analysis
 
 # Analysis settings (for analyze mode - re-optimize high-coupling results)
 analyze:

@@ -232,6 +232,177 @@ def analyze_tolerance(lens_data, result, n_rays=2000, n_samples=21,
     return results
 
 
+def run_tolerance_batch(results_file, coupling_threshold, lens_data, run_id, 
+                        n_rays=2000, n_samples=21, z_range_mm=0.5, medium='air'):
+    """
+    Run tolerance analysis on multiple lens pairs from a results file.
+    
+    This function loads optimized lens configurations from a CSV file,
+    filters by coupling threshold, and runs tolerance analysis on each
+    qualifying lens pair using their pre-optimized positions.
+    
+    Parameters:
+    -----------
+    results_file : str
+        Path to CSV file containing optimization results
+    coupling_threshold : float
+        Minimum coupling efficiency to include a lens pair
+    lens_data : dict
+        Dictionary containing lens specifications
+    run_id : str
+        Identifier for this tolerance batch run
+    n_rays : int
+        Number of rays to trace for each configuration
+    n_samples : int
+        Number of samples for each tolerance parameter
+    z_range_mm : float
+        Range of longitudinal displacement to test (±z_range_mm)
+    medium : str
+        Medium for ray tracing ('air', 'argon', 'helium')
+    
+    Returns:
+    --------
+    dict with keys:
+        - 'individual_results': list of tolerance analysis results for each pair
+        - 'summary': pandas DataFrame with comparison metrics
+    """
+    import pandas as pd
+    import logging
+    from pathlib import Path
+    
+    # Setup logger
+    logger = logging.getLogger("tolerance_batch")
+    logger.setLevel(logging.INFO)
+    
+    logs_dir = Path.cwd() / "logs"
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    logfile = logs_dir / f"{run_id}.log"
+    
+    # Only add handler if not already present
+    if not logger.handlers:
+        fh = logging.FileHandler(logfile, encoding="utf-8")
+        fmt = logging.Formatter("%(asctime)s %(levelname)s: %(message)s",
+                               datefmt="%Y-%m-%d %H:%M:%S")
+        fh.setFormatter(fmt)
+        logger.addHandler(fh)
+    
+    logger.info(f"Loading results from {results_file}")
+    print(f"\nLoading optimization results from {results_file}...")
+    
+    # Load and filter results
+    df = pd.read_csv(results_file)
+    filtered = df[df['coupling'] >= coupling_threshold]
+    
+    print(f"Found {len(filtered)} lens pairs with coupling >= {coupling_threshold}")
+    logger.info(f"Found {len(filtered)} lens pairs with coupling >= {coupling_threshold}")
+    
+    if len(filtered) == 0:
+        print("No lens pairs meet the threshold. Exiting.")
+        return {'individual_results': [], 'summary': pd.DataFrame()}
+    
+    # Required columns check
+    required_cols = ['lens1', 'lens2', 'z_l1', 'z_l2', 'z_fiber', 'coupling']
+    missing_cols = [col for col in required_cols if col not in df.columns]
+    if missing_cols:
+        error_msg = f"Missing required columns in results file: {', '.join(missing_cols)}"
+        logger.error(error_msg)
+        print(f"Error: {error_msg}")
+        return {'individual_results': [], 'summary': pd.DataFrame()}
+    
+    print(f"\nRunning tolerance analysis on {len(filtered)} lens pairs")
+    print(f"Parameters: z_range=±{z_range_mm}mm, n_samples={n_samples}, n_rays={n_rays}")
+    print(f"{'='*70}\n")
+    logger.info(f"Starting tolerance batch analysis: {len(filtered)} pairs")
+    
+    individual_results = []
+    summary_data = []
+    
+    for idx, row in filtered.iterrows():
+        lens1 = row['lens1']
+        lens2 = row['lens2']
+        
+        # Check if lenses exist in lens_data
+        if lens1 not in lens_data or lens2 not in lens_data:
+            logger.warning(f"Skipping {lens1} + {lens2}: Lens data not found")
+            print(f"Warning: Skipping {lens1} + {lens2} (lens data not found)")
+            continue
+        
+        print(f"[{len(individual_results)+1}/{len(filtered)}] Analyzing {lens1} + {lens2}")
+        logger.info(f"Analyzing {lens1} + {lens2}")
+        
+        # Create result dict from CSV row
+        result = {
+            'lens1': lens1,
+            'lens2': lens2,
+            'z_l1': row['z_l1'],
+            'z_l2': row['z_l2'],
+            'z_fiber': row['z_fiber'],
+            'coupling': row['coupling'],
+            'orientation': row.get('orientation', 'ScffcF')
+        }
+        
+        try:
+            # Run tolerance analysis on this configuration
+            tolerance_result = analyze_tolerance(
+                lens_data, result,
+                n_rays=n_rays,
+                n_samples=n_samples,
+                z_range_mm=z_range_mm,
+                medium=medium
+            )
+            
+            individual_results.append(tolerance_result)
+            
+            # Extract key metrics for summary
+            params = tolerance_result['parameters']
+            l1_metrics = tolerance_result['z_l1_sensitivity']['metrics']
+            l2_metrics = tolerance_result['z_l2_sensitivity']['metrics']
+            
+            summary_data.append({
+                'lens_pair': f"{lens1}+{lens2}",
+                'lens1': lens1,
+                'lens2': lens2,
+                'baseline_coupling': tolerance_result['baseline'],
+                'original_coupling': row['coupling'],
+                'orientation': params['orientation'],
+                'L1_tolerance_1pct_mm': l1_metrics['tolerance_1pct'],
+                'L1_max_drop': l1_metrics['max_drop'],
+                'L1_sensitivity_per_mm': l1_metrics['sensitivity'],
+                'L2_tolerance_1pct_mm': l2_metrics['tolerance_1pct'],
+                'L2_max_drop': l2_metrics['max_drop'],
+                'L2_sensitivity_per_mm': l2_metrics['sensitivity'],
+                'worse_lens': 'L1' if l1_metrics['sensitivity'] > l2_metrics['sensitivity'] else 'L2',
+                'total_len_mm': row.get('total_len_mm', 0.0),
+                'z_l1_mm': params['z_l1_opt'],
+                'z_l2_mm': params['z_l2_opt'],
+                'z_fiber_mm': params['z_fiber']
+            })
+            
+            logger.info(f"  Completed: L1 tol={l1_metrics['tolerance_1pct']}, L2 tol={l2_metrics['tolerance_1pct']}")
+            
+        except Exception as e:
+            logger.error(f"  Error analyzing {lens1} + {lens2}: {str(e)}")
+            print(f"  Error: {str(e)}")
+            continue
+    
+    print(f"\n{'='*70}")
+    print(f"Tolerance batch analysis complete!")
+    print(f"Successfully analyzed {len(individual_results)} lens pairs")
+    print(f"{'='*70}\n")
+    logger.info(f"Batch complete: {len(individual_results)} successful analyses")
+    
+    # Create summary DataFrame
+    summary_df = pd.DataFrame(summary_data)
+    if not summary_df.empty:
+        # Sort by baseline coupling descending
+        summary_df = summary_df.sort_values('baseline_coupling', ascending=False)
+    
+    return {
+        'individual_results': individual_results,
+        'summary': summary_df
+    }
+
+
 def save_tolerance_results(results, run_id, output_dir='./results'):
     """
     Save tolerance analysis results to CSV file.
@@ -303,3 +474,74 @@ def save_tolerance_results(results, run_id, output_dir='./results'):
     print(f"Saved tolerance summary: {csv_summary}")
     
     return csv_summary
+
+
+def save_tolerance_batch_results(batch_results, run_id, output_dir='./results'):
+    """
+    Save batch tolerance analysis results.
+    
+    Parameters:
+    -----------
+    batch_results : dict
+        Results dictionary from run_tolerance_batch()
+    run_id : str
+        Identifier for this run
+    output_dir : str
+        Base directory for results
+    
+    Returns:
+    --------
+    tuple: (summary_csv_path, individual_csv_paths)
+    """
+    from pathlib import Path
+    
+    # Create output directory
+    output_path = Path(output_dir) / run_id
+    output_path.mkdir(parents=True, exist_ok=True)
+    
+    individual_paths = []
+    
+    # Save individual lens pair results
+    for result in batch_results['individual_results']:
+        csv_path = save_tolerance_results(result, run_id, output_dir)
+        individual_paths.append(csv_path)
+    
+    # Save summary comparison CSV
+    summary_df = batch_results['summary']
+    if not summary_df.empty:
+        summary_csv = output_path / "tolerance_batch_summary.csv"
+        summary_df.to_csv(summary_csv, index=False)
+        print(f"\nSaved batch summary: {summary_csv}")
+        print(f"  Total lens pairs analyzed: {len(summary_df)}")
+        
+        # Print top 5 most tolerant configurations
+        print(f"\n{'='*70}")
+        print("Top 5 Most Tolerant Configurations (by worst-case 1% tolerance):")
+        print(f"{'='*70}")
+        
+        # Calculate minimum tolerance across L1 and L2
+        # Convert to numeric, treating None as NaN
+        summary_df['min_tolerance_mm'] = summary_df[['L1_tolerance_1pct_mm', 'L2_tolerance_1pct_mm']].min(axis=1)
+        
+        # Filter out rows where tolerance couldn't be calculated
+        valid_tolerances = summary_df[summary_df['min_tolerance_mm'].notna()]
+        
+        if len(valid_tolerances) == 0:
+            print("\nWarning: No valid tolerance values calculated.")
+            print("This may indicate very low coupling efficiency or poor optical configurations.")
+        else:
+            # Sort by min tolerance and take top 5
+            top_tolerant = valid_tolerances.nlargest(min(5, len(valid_tolerances)), 'min_tolerance_mm')
+            
+            for idx, row in top_tolerant.iterrows():
+                print(f"\n{row['lens_pair']}:")
+                print(f"  Coupling: {row['baseline_coupling']:.4f}")
+                if row['min_tolerance_mm'] is not None:
+                    print(f"  Min tolerance: ±{row['min_tolerance_mm']:.3f} mm ({row['worse_lens']})")
+                    print(f"  L1: ±{row['L1_tolerance_1pct_mm']:.3f} mm, L2: ±{row['L2_tolerance_1pct_mm']:.3f} mm")
+                else:
+                    print(f"  Tolerance: N/A (could not calculate 1% drop threshold)")
+        
+        return summary_csv, individual_paths
+    
+    return None, individual_paths

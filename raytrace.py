@@ -547,60 +547,116 @@ def main():
         else:
             tolerance_n_rays = args['n_rays']
         
-        print("\n" + "="*70)
-        print("TOLERANCE ANALYSIS MODE")
-        print("="*70)
-        print(f"Lens pair: {args['lens1']} + {args['lens2']}")
-        print(f"Optimizer: {args['optimizer']}")
-        print(f"Medium: {args['medium']}")
-        print(f"Tolerance parameters:")
-        print(f"  Z-displacement range: ±{args['z_range']:.2f} mm")
-        print(f"  Number of samples: {args['n_samples']}")
-        print(f"  Rays per test: {tolerance_n_rays}")
-        print("="*70)
-        
-        # First, run optimization to get baseline configuration
-        combos, lenses = particular_combo(args['lens1'], args['lens2'], use_database=use_database, db=lens_db)
-        
-        print("\nStep 1: Finding optimal configuration...")
-        from scripts.optimization.optimization_runner import run_combos
-        
-        results = run_combos(
-            lenses, combos, run_id, method=args['optimizer'],
-            alpha=args['alpha'], n_rays=args['n_rays'],
-            batch_num=None, medium=args['medium'], db=opt_db,
-            plot_style=tolerance_plot_style, orientation_mode=tolerance_orientation_mode
-        )
-        
-        if not results or len(results) == 0:
-            print("Error: Optimization failed, no results returned")
-            return
-        
-        # Get best result
-        best_result = max(results, key=lambda x: x['coupling'])
-        
-        print("\nStep 2: Running tolerance analysis...")
-        tolerance_results = analyze_tolerance(
-            lenses, best_result,
-            n_rays=tolerance_n_rays,
-            n_samples=args['n_samples'],
-            z_range_mm=args['z_range'],
-            medium=args['medium']
-        )
-        
-        # Save results
-        print("\nStep 3: Saving results...")
-        save_tolerance_results(tolerance_results, run_id)
-        
-        # Generate plots
-        print("\nStep 4: Generating plots...")
-        plot_tolerance_results(tolerance_results, run_id)
-        
-        print("\n" + "="*70)
-        print("TOLERANCE ANALYSIS COMPLETE")
-        print("="*70)
-        print(f"Results saved to: results/{run_id}/")
-        print(f"Plots saved to: plots/{run_id}/")
+        # Check if batch mode (results file provided) or single-pair mode
+        if args['lens1'] is None:
+            # BATCH MODE: Run tolerance analysis on multiple lens pairs from results file
+            from scripts.tolerance_analysis import run_tolerance_batch, save_tolerance_batch_results
+            from scripts.visualizers import plot_tolerance_comparison
+            
+            print("\n" + "="*70)
+            print("TOLERANCE ANALYSIS - BATCH MODE")
+            print("="*70)
+            print(f"Results file: {args['results_file']}")
+            print(f"Coupling threshold: {args['coupling_threshold']:.2%}")
+            print(f"Medium: {args['medium']}")
+            print(f"Tolerance parameters:")
+            print(f"  Z-displacement range: ±{args['z_range']:.2f} mm")
+            print(f"  Number of samples: {args['n_samples']}")
+            print(f"  Rays per test: {tolerance_n_rays}")
+            print("="*70)
+            
+            # Load lenses from database
+            combos, lenses = find_combos('combine', use_database=use_database, db=lens_db)
+            
+            # Run batch tolerance analysis
+            print("\nRunning tolerance analysis on qualifying lens pairs...")
+            batch_results = run_tolerance_batch(
+                results_file=args['results_file'],
+                coupling_threshold=args['coupling_threshold'],
+                lens_data=lenses,
+                run_id=run_id,
+                n_rays=tolerance_n_rays,
+                n_samples=args['n_samples'],
+                z_range_mm=args['z_range'],
+                medium=args['medium']
+            )
+            
+            if len(batch_results['individual_results']) == 0:
+                print("\nNo lens pairs qualified for tolerance analysis.")
+                print(f"Try lowering the coupling threshold (currently {args['coupling_threshold']:.2%})")
+                return
+            
+            # Save results
+            print("\nSaving results...")
+            save_tolerance_batch_results(batch_results, run_id)
+            
+            # Generate comparison plot
+            print("\nGenerating comparison plots...")
+            plot_tolerance_comparison(batch_results['summary'], run_id)
+            
+            print("\n" + "="*70)
+            print("BATCH TOLERANCE ANALYSIS COMPLETE")
+            print("="*70)
+            print(f"Analyzed {len(batch_results['individual_results'])} lens pair(s)")
+            print(f"Results saved to: results/{run_id}/")
+            print(f"Plots saved to: plots/{run_id}/")
+            
+        else:
+            # SINGLE-PAIR MODE: Run tolerance analysis on one lens pair
+            print("\n" + "="*70)
+            print("TOLERANCE ANALYSIS MODE")
+            print("="*70)
+            print(f"Lens pair: {args['lens1']} + {args['lens2']}")
+            print(f"Optimizer: {args['optimizer']}")
+            print(f"Medium: {args['medium']}")
+            print(f"Tolerance parameters:")
+            print(f"  Z-displacement range: ±{args['z_range']:.2f} mm")
+            print(f"  Number of samples: {args['n_samples']}")
+            print(f"  Rays per test: {tolerance_n_rays}")
+            print("="*70)
+            
+            # First, run optimization to get baseline configuration
+            combos, lenses = particular_combo(args['lens1'], args['lens2'], use_database=use_database, db=lens_db)
+            
+            print("\nStep 1: Finding optimal configuration...")
+            from scripts.optimization.optimization_runner import run_combos
+            
+            results = run_combos(
+                lenses, combos, run_id, method=args['optimizer'],
+                alpha=args['alpha'], n_rays=args['n_rays'],
+                batch_num=None, medium=args['medium'], db=opt_db,
+                plot_style=tolerance_plot_style, orientation_mode=tolerance_orientation_mode
+            )
+            
+            if not results or len(results) == 0:
+                print("Error: Optimization failed, no results returned")
+                return
+            
+            # Get best result
+            best_result = max(results, key=lambda x: x['coupling'])
+            
+            print("\nStep 2: Running tolerance analysis...")
+            tolerance_results = analyze_tolerance(
+                lenses, best_result,
+                n_rays=tolerance_n_rays,
+                n_samples=args['n_samples'],
+                z_range_mm=args['z_range'],
+                medium=args['medium']
+            )
+            
+            # Save results
+            print("\nStep 3: Saving results...")
+            save_tolerance_results(tolerance_results, run_id)
+            
+            # Generate plots
+            print("\nStep 4: Generating plots...")
+            plot_tolerance_results(tolerance_results, run_id)
+            
+            print("\n" + "="*70)
+            print("TOLERANCE ANALYSIS COMPLETE")
+            print("="*70)
+            print(f"Results saved to: results/{run_id}/")
+            print(f"Plots saved to: plots/{run_id}/")
         
         return
 

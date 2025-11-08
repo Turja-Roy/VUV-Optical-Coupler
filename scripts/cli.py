@@ -93,11 +93,17 @@ Examples:
     # Analyze high-coupling results with all methods
     python raytrace.py analyze --results-file results/2025-10-16/results_*.csv --coupling-threshold 0.2
     
-    # Analyze manufacturing tolerance sensitivity
+    # Analyze manufacturing tolerance sensitivity (single lens pair)
     python raytrace.py tolerance LA4001 LA4647 --opt powell
     
     # Tolerance with custom parameters
     python raytrace.py tolerance LA4001 LA4647 --opt powell --z-range 1.0 --n-samples 41 --n-rays 5000
+    
+    # Batch tolerance analysis on high-coupling results
+    python raytrace.py tolerance --results-file results/2025-11-07_combine_powell_argon/batch_combine_1.csv --coupling-threshold 0.35
+    
+    # Batch tolerance with custom parameters
+    python raytrace.py tolerance --results-file results/2025-11-07_combine_powell_argon/batch_combine_1.csv --coupling-threshold 0.35 --z-range 1.0 --n-samples 41
     
     # Run wavelength analysis on specific lens combinations
     python raytrace.py wavelength-analyze --results-file results/2025-10-17/36-681+LA4647.csv
@@ -216,13 +222,18 @@ def parse_arguments():
         args['lens2'] = sys.argv[3]
     
     elif sys.argv[1] == 'tolerance':
-        if len(sys.argv) < 4:
-            print("Error: tolerance mode requires two lens names")
-            print_usage()
-            sys.exit(1)
+        # Tolerance mode supports two forms:
+        # 1. Single pair: tolerance <lens1> <lens2> [options]
+        # 2. Batch mode: tolerance --results-file <file> --coupling-threshold <threshold> [options]
         args['mode'] = 'tolerance'
-        args['lens1'] = sys.argv[2]
-        args['lens2'] = sys.argv[3]
+        if len(sys.argv) >= 4 and not sys.argv[2].startswith('--'):
+            # Single pair mode
+            args['lens1'] = sys.argv[2]
+            args['lens2'] = sys.argv[3]
+        else:
+            # Batch mode - lens1 and lens2 will remain None
+            # Validation will happen after parsing all arguments
+            pass
 
     elif sys.argv[1] in ['select', 'select-ext', 'combine']:
         args['mode'] = 'method'
@@ -251,7 +262,15 @@ def parse_arguments():
         print_usage()
         sys.exit(1)
 
-    i = 2 if args['mode'] in ['method', 'analyze', 'wavelength-analyze', 'wavelength-analyze-plot', 'dashboard', 'import-lenses', 'list-lenses'] else 4
+    # Determine starting index for argument parsing
+    if args['mode'] in ['method', 'analyze', 'wavelength-analyze', 'wavelength-analyze-plot', 'dashboard', 'import-lenses', 'list-lenses']:
+        i = 2
+    elif args['mode'] == 'tolerance' and args.get('lens1') is None:
+        # Batch tolerance mode starts parsing from index 2
+        i = 2
+    else:
+        # Single pair modes start parsing from index 4
+        i = 4
     while i < len(sys.argv):
         arg = sys.argv[i]
 
@@ -586,6 +605,15 @@ def parse_arguments():
                 if '--aggregate' not in sys.argv and 'aggregate' in config['wavelength_plot']:
                     args['aggregate'] = config['wavelength_plot']['aggregate']
             
+            # Apply batch tolerance mode config defaults
+            if args['mode'] == 'tolerance' and 'batch_tolerance' in config:
+                # Only apply batch_tolerance defaults if in batch mode (no lens1/lens2)
+                if args.get('lens1') is None and args.get('lens2') is None:
+                    if args['results_file'] is None and 'results_file' in config['batch_tolerance']:
+                        args['results_file'] = config['batch_tolerance']['results_file']
+                    if args['coupling_threshold'] is None and 'coupling_threshold' in config['batch_tolerance']:
+                        args['coupling_threshold'] = config['batch_tolerance']['coupling_threshold']
+            
         except (FileNotFoundError, ValueError) as e:
             print(f"Error loading configuration: {e}")
             sys.exit(1)
@@ -612,5 +640,24 @@ def parse_arguments():
             print("Error: wavelength-analyze-plot mode requires --results-dir (or set wavelength_plot.results_dir in config)")
             print_usage()
             sys.exit(1)
+    
+    if args['mode'] == 'tolerance':
+        # Validate tolerance mode arguments
+        if args.get('lens1') is None and args.get('lens2') is None:
+            # Batch mode - require results_file and coupling_threshold
+            if args['results_file'] is None:
+                print("Error: tolerance batch mode requires --results-file (or set batch_tolerance.results_file in config)")
+                print_usage()
+                sys.exit(1)
+            if args['coupling_threshold'] is None:
+                print("Error: tolerance batch mode requires --coupling-threshold (or set batch_tolerance.coupling_threshold in config)")
+                print_usage()
+                sys.exit(1)
+        elif args.get('lens1') is None or args.get('lens2') is None:
+            # One is set but not the other - error
+            print("Error: tolerance single-pair mode requires both lens1 and lens2")
+            print_usage()
+            sys.exit(1)
+        # else: both lens1 and lens2 are set - single pair mode is valid
 
     return args

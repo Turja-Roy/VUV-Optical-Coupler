@@ -582,6 +582,8 @@ python raytrace.py wavelength-analyze-plot \
 
 Assess manufacturing sensitivity by analyzing how coupling efficiency varies with small displacements in lens positions.
 
+##### Single Lens Pair Mode
+
 ```bash
 # Analyze tolerance for a specific lens pair
 python raytrace.py tolerance LA4001 LA4647 --opt powell
@@ -599,17 +601,55 @@ python raytrace.py tolerance LA4001 LA4647 \
 python raytrace.py tolerance LA4001 LA4647 --opt powell --medium argon
 ```
 
+##### Batch Mode
+
+Analyze tolerance for multiple lens pairs from optimization results:
+
+```bash
+# Batch tolerance analysis on high-coupling results
+python raytrace.py tolerance \
+  --results-file results/2025-11-07_combine_powell_argon/batch_combine_1.csv \
+  --coupling-threshold 0.35 \
+  --z-range 1.0 \
+  --n-samples 41 \
+  --n-rays 5000 \
+  --medium argon \
+  --use-database
+
+# Use config file with defaults (results_file and coupling_threshold from config)
+python raytrace.py tolerance --profile tolerance_test --use-database
+
+# Or override specific config values via CLI
+python raytrace.py tolerance \
+  --profile tolerance_test \
+  --coupling-threshold 0.35 \
+  --use-database
+```
+
+**Batch mode benefits:**
+- Test tolerance on multiple optimized configurations at once
+- Compare tolerance characteristics across different lens pairs
+- Identify most manufacturable designs (highest tolerance to misalignment)
+- Uses pre-optimized positions from results file (no re-optimization needed)
+
 **What it does**:
 - First optimizes the lens pair to find best configuration
 - Systematically perturbs each lens position (z_l1, z_l2) independently
 - Measures coupling efficiency at each position
 - Generates tolerance curves showing sensitivity to misalignment
 
-**Output files**:
+**Output files (single-pair mode)**:
 - `tolerance_L1_<lens1>+<lens2>.csv` - L1 position sweep data
 - `tolerance_L2_<lens1>+<lens2>.csv` - L2 position sweep data
 - `tolerance_summary_<lens1>+<lens2>.csv` - Summary statistics
 - `tolerance_<lens1>+<lens2>.png` - Tolerance curve plot
+
+**Output files (batch mode)**:
+- `tolerance_L1_<lens1>+<lens2>.csv` - L1 sweep data for each pair
+- `tolerance_L2_<lens1>+<lens2>.csv` - L2 sweep data for each pair
+- `tolerance_summary_<lens1>+<lens2>.csv` - Individual pair summary
+- `tolerance_batch_summary.csv` - Comparison across all pairs
+- `tolerance_batch_comparison.png` - Bar chart comparing all configurations
 
 **Configuration options** (in YAML config files):
 ```yaml
@@ -617,6 +657,10 @@ tolerance:
   z_range_mm: 1.0      # ±1.0mm range around optimal position
   n_samples: 41        # Number of positions to test (41 = 0.05mm steps)
   n_rays: 5000         # Rays per position (higher = more accurate)
+
+batch_tolerance:
+  results_file: results/combine_*/batch_combine_1.csv  # Results CSV for batch mode
+  coupling_threshold: 0.35    # Minimum coupling to include in batch analysis
 ```
 
 **Interpreting results**:

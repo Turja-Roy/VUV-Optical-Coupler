@@ -1750,3 +1750,140 @@ def plot_tolerance_results(results, run_id, output_dir='./plots'):
     plt.savefig(filename, dpi=150, bbox_inches='tight')
     print(f"Saved tolerance plot: {filename}")
     plt.close(fig)
+
+
+def plot_tolerance_comparison(summary_df, run_id, output_dir='./plots'):
+    """
+    Generate comparison plots for batch tolerance analysis results.
+    
+    This creates bar charts comparing tolerance metrics across multiple
+    lens pairs to identify which configurations are most/least sensitive
+    to misalignment.
+    
+    Parameters:
+    -----------
+    summary_df : pandas.DataFrame
+        Summary DataFrame from run_tolerance_batch()
+    run_id : str
+        Identifier for this run
+    output_dir : str
+        Base directory for plots
+    """
+    import os
+    from pathlib import Path
+    import numpy as np
+    
+    if summary_df.empty:
+        print("Warning: Empty summary DataFrame, skipping comparison plots")
+        return
+    
+    # Create output directory
+    output_path = Path(output_dir) / run_id
+    output_path.mkdir(parents=True, exist_ok=True)
+    
+    # Calculate minimum tolerance for each pair (worst-case between L1 and L2)
+    summary_df = summary_df.copy()
+    summary_df['min_tolerance_mm'] = summary_df[['L1_tolerance_1pct_mm', 'L2_tolerance_1pct_mm']].min(axis=1)
+    
+    # Filter out rows where tolerance couldn't be calculated
+    valid_df = summary_df[summary_df['min_tolerance_mm'].notna()].copy()
+    
+    if len(valid_df) == 0:
+        print("Warning: No valid tolerance values to plot")
+        return
+    
+    # Sort by min_tolerance descending (most tolerant first)
+    valid_df = valid_df.sort_values('min_tolerance_mm', ascending=False)
+    
+    # Limit to top 20 pairs if there are many
+    n_pairs = len(valid_df)
+    n_total = len(summary_df)
+    if n_pairs > 20:
+        print(f"Note: Showing top 20 most tolerant configurations (out of {n_pairs} with valid tolerances, {n_total} total)")
+        valid_df = valid_df.head(20)
+    
+    lens_pairs = valid_df['lens_pair'].values
+    l1_tol = valid_df['L1_tolerance_1pct_mm'].values
+    l2_tol = valid_df['L2_tolerance_1pct_mm'].values
+    min_tol = valid_df['min_tolerance_mm'].values
+    baseline_coupling = valid_df['baseline_coupling'].values
+    
+    # Create figure with two subplots
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 10))
+    
+    # Plot 1: Tolerance comparison bar chart
+    x = np.arange(len(lens_pairs))
+    width = 0.35
+    
+    bars1 = ax1.bar(x - width/2, l1_tol, width, label='L1 Tolerance', 
+                    color='#1f77b4', alpha=0.8)
+    bars2 = ax1.bar(x + width/2, l2_tol, width, label='L2 Tolerance', 
+                    color='#ff7f0e', alpha=0.8)
+    
+    # Add horizontal line at mean tolerance
+    mean_min_tol = min_tol.mean()
+    ax1.axhline(y=mean_min_tol, color='red', linestyle='--', linewidth=2, 
+                label=f'Mean min tolerance ({mean_min_tol:.3f} mm)')
+    
+    ax1.set_xlabel('Lens Pair', fontsize=11)
+    ax1.set_ylabel('1% Drop Tolerance (mm)', fontsize=11)
+    ax1.set_title('Tolerance Comparison: Position Sensitivity', 
+                  fontsize=12, fontweight='bold')
+    ax1.set_xticks(x)
+    ax1.set_xticklabels(lens_pairs, rotation=45, ha='right', fontsize=9)
+    ax1.legend(loc='upper right', fontsize=10)
+    ax1.grid(True, alpha=0.3, axis='y')
+    
+    # Highlight the best (most tolerant) configuration
+    if len(x) > 0 and len(ax1.patches) >= 2:
+        # First bar of L1 (left) and first bar of L2 (right)
+        ax1.patches[0].set_edgecolor('green')
+        ax1.patches[0].set_linewidth(2.5)
+        if len(ax1.patches) > len(x):
+            ax1.patches[len(x)].set_edgecolor('green')
+            ax1.patches[len(x)].set_linewidth(2.5)
+    
+    # Plot 2: Coupling vs Min Tolerance scatter
+    colors = ['#2ca02c' if tol >= mean_min_tol else '#d62728' for tol in min_tol]
+    scatter = ax2.scatter(baseline_coupling, min_tol, c=colors, s=150, alpha=0.7, 
+                         edgecolors='black', linewidth=1.5)
+    
+    # Add lens pair labels to points
+    for i, (coupling, tol, pair) in enumerate(zip(baseline_coupling, min_tol, lens_pairs)):
+        # Only label every other point if too many
+        if n_pairs <= 10 or i % 2 == 0:
+            ax2.annotate(pair, (coupling, tol), fontsize=7, 
+                        xytext=(5, 5), textcoords='offset points', alpha=0.8)
+    
+    # Add reference lines
+    ax2.axhline(y=mean_min_tol, color='gray', linestyle='--', linewidth=1.5, 
+                label=f'Mean tolerance ({mean_min_tol:.3f} mm)')
+    
+    ax2.set_xlabel('Baseline Coupling Efficiency', fontsize=11)
+    ax2.set_ylabel('Min 1% Tolerance (mm)', fontsize=11)
+    ax2.set_title('Coupling Efficiency vs. Tolerance Trade-off', 
+                  fontsize=12, fontweight='bold')
+    ax2.legend(loc='best', fontsize=10)
+    ax2.grid(True, alpha=0.3)
+    
+    # Add text box with statistics
+    stats_text = f'Best: {lens_pairs[0]} (±{min_tol[0]:.3f} mm)\n'
+    stats_text += f'Worst: {lens_pairs[-1]} (±{min_tol[-1]:.3f} mm)\n'
+    stats_text += f'Mean: ±{mean_min_tol:.3f} mm\n'
+    stats_text += f'Std: ±{min_tol.std():.3f} mm'
+    
+    ax2.text(0.02, 0.98, stats_text, transform=ax2.transAxes, 
+            fontsize=9, verticalalignment='top',
+            bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+    
+    # Add overall title
+    fig.suptitle(f'Batch Tolerance Analysis Comparison\n{len(lens_pairs)} Lens Pairs', 
+                 fontsize=14, fontweight='bold', y=0.995)
+    
+    plt.tight_layout(rect=(0, 0, 1, 0.985))
+    
+    # Save plot
+    filename = output_path / "tolerance_batch_comparison.png"
+    plt.savefig(filename, dpi=150, bbox_inches='tight')
+    print(f"Saved tolerance comparison plot: {filename}")
+    plt.close(fig)

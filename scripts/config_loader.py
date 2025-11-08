@@ -201,6 +201,34 @@ class ConfigLoader:
             'test_tilt': tol.get('test_tilt', defaults['test_tilt'])
         }
     
+    def get_batch_tolerance_params(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Extract batch tolerance analysis parameters from config.
+        
+        Parameters
+        ----------
+        config : dict
+            Configuration dictionary
+            
+        Returns
+        -------
+        batch_tolerance_params : dict
+            Dictionary with keys: results_file, coupling_threshold
+        """
+        defaults = {
+            'results_file': None,
+            'coupling_threshold': None
+        }
+        
+        if 'batch_tolerance' not in config:
+            return defaults
+        
+        batch_tol = config['batch_tolerance']
+        return {
+            'results_file': batch_tol.get('results_file', defaults['results_file']),
+            'coupling_threshold': batch_tol.get('coupling_threshold', defaults['coupling_threshold'])
+        }
+    
     def get_analyze_params(self, config: Dict[str, Any]) -> Dict[str, Any]:
         """
         Extract analyze mode parameters from config.
