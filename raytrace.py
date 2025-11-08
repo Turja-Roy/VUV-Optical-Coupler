@@ -594,6 +594,13 @@ def main():
             print("\nGenerating comparison plots...")
             plot_tolerance_comparison(batch_results['summary'], run_id)
             
+            # Generate individual tolerance plots for each pair
+            print(f"\nGenerating individual tolerance plots for {len(batch_results['individual_results'])} lens pairs...")
+            for i, result in enumerate(batch_results['individual_results'], 1):
+                lens_pair = f"{result['parameters']['lens1']}+{result['parameters']['lens2']}"
+                print(f"  [{i}/{len(batch_results['individual_results'])}] Plotting {lens_pair}")
+                plot_tolerance_results(result, run_id)
+            
             print("\n" + "="*70)
             print("BATCH TOLERANCE ANALYSIS COMPLETE")
             print("="*70)

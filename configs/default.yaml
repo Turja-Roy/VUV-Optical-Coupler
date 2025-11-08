@@ -89,7 +89,7 @@ tolerance:
 
 # Batch tolerance analysis settings (for tolerance batch mode)
 batch_tolerance:
-  results_file: results/2025-11-07_combine_powell_argon/results_combine_2025-11-07_combine_powell_argon.csv                  # Path to optimization results CSV (null = required on CLI)
+  results_file: results/2025-11-07_combine_differential_evolution_argon/results_combine_2025-11-07_combine_differential_evolution_argon.csv                  # Path to optimization results CSV (null = required on CLI)
   coupling_threshold: 0.35            # Minimum coupling efficiency to include in analysis
 
 # Analysis settings (for analyze mode - re-optimize high-coupling results)

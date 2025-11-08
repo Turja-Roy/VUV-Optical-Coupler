@@ -8,21 +8,21 @@ rays:
 
 # Optimization settings - use fast Powell for baseline
 optimization:
-  method: powell
+  method: differential_evolution
 
 # Tolerance analysis settings
 tolerance:
   z_range_mm: 1.0       # Wide range: ±1.0mm displacement
   n_samples: 41         # High resolution: 41 samples
   n_rays: 5000          # Many rays for accurate tolerance measurement
-  test_lateral: false
-  test_tilt: false
+  test_lateral: true
+  test_tilt: true
 
 # Batch tolerance mode settings (optional - for batch analysis)
 # To use batch mode:
 #   python raytrace.py tolerance --results-file results/2025-11-07_combine_powell_argon/batch_combine_1.csv --coupling-threshold 0.35 --config configs/tolerance_test.yaml
 batch_tolerance:
-  results_file: results/2025-11-07_combine_powell_argon/results_combine_2025-11-07_combine_powell_argon.csv
+  results_file: results/2025-11-07_combine_differential_evolution_argon/results_combine_2025-11-07_combine_differential_evolution_argon.csv                  # Path to optimization results CSV (null = required on CLI)
   coupling_threshold: 0.35  # Minimum coupling to include in tolerance analysis
 
 # Medium - use air for realistic conditions

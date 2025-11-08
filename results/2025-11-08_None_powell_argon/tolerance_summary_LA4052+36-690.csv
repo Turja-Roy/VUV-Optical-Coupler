@@ -1,2 +1,2 @@
 lens_pair,orientation,baseline_coupling,z_l1_opt_mm,z_l2_opt_mm,z_fiber_mm,L1_max_drop,L1_worst_displacement_mm,L1_tolerance_1pct_mm,L1_sensitivity_per_mm,L2_max_drop,L2_worst_displacement_mm,L2_tolerance_1pct_mm,L2_sensitivity_per_mm,n_rays,n_samples,z_range_mm,medium
-LA4052+36-690,SfccfF,0.36,15.979975800287312,24.688725228438603,64.6887252284386,0.25849999999999995,-1.0,1.0,0.25849999999999995,0.15699999999999997,1.0,1.0,0.15699999999999997,2000,21,1.0,argon
+LA4052+36-690,SfccfF,0.353,15.979975800287312,24.688725228438603,64.6887252284386,0.25379999999999997,-1.0,1.0,0.25379999999999997,0.1692,1.0,1.0,0.1692,5000,41,1.0,argon
