@@ -27,36 +27,19 @@ def evaluate_config_fast(params, d1, d2, origins, dirs, n_rays, alpha=0.7, mediu
     
     # Lens 1 back extent (accounting for back surface curvature)
     l1_end = z_l1 + d1['tc_mm']
-    sag1_back = 0.0
     if 'R2_mm' in d1 and d1.get('lens_type') in ['Bi-Convex', 'Aspheric']:
         sag1_back = calc_sag(d1['R2_mm'], ap_rad1)
         l1_end += sag1_back
     
     # Lens 2 front extent (accounting for front surface curvature)
     l2_start = z_l2
-    sag2_front = 0.0
     if 'R1_mm' in d2 and d2.get('lens_type') in ['Bi-Convex', 'Aspheric']:
         sag2_front = calc_sag(d2['R1_mm'], ap_rad2)
         l2_start -= sag2_front
     
     min_gap = 0.5
-    gap = l2_start - l1_end
-    
-    # DEBUG: Log constraint evaluation
-    logger.debug(f"CONSTRAINT CHECK: z_l1={z_l1:.3f}, z_l2={z_l2:.3f}")
-    logger.debug(f"  L1: type={d1.get('lens_type')}, tc={d1['tc_mm']:.3f}, sag_back={sag1_back:.3f}, end={l1_end:.3f}")
-    logger.debug(f"  L2: type={d2.get('lens_type')}, sag_front={sag2_front:.3f}, start={l2_start:.3f}")
-    logger.debug(f"  Gap={gap:.3f} (min_gap={min_gap})")
-    
-    if z_l1 < C.SOURCE_TO_LENS_OFFSET:
-        logger.warning(f"CONSTRAINT VIOLATED: z_l1={z_l1:.3f} < SOURCE_OFFSET={C.SOURCE_TO_LENS_OFFSET}")
+    if z_l1 < C.SOURCE_TO_LENS_OFFSET or l2_start <= l1_end + min_gap:
         return 1e6
-    
-    if gap < min_gap:
-        logger.warning(f"CONSTRAINT VIOLATED: gap={gap:.3f} < min_gap={min_gap} (OVERLAP: {min_gap - gap:.3f} mm) -> returning 1e6")
-        return 1e6
-    
-    logger.debug(f"  CONSTRAINT SATISFIED (gap={gap:.3f} >= {min_gap})")
     
     z_fiber = z_l2 + d2['f_mm']
     
@@ -92,16 +75,12 @@ def optimize(lenses, name1, name2, n_rays=1000, alpha=0.7, medium='air', orienta
         orientations = [o for o in orientations if o[2] == orientation_mode]
     
     for flipped1, flipped2, orientation_name in orientations:
-        print(f">>> Testing orientation: {orientation_name} (flipped1={flipped1}, flipped2={flipped2})")
         result = minimize(
             evaluate_config_fast, x0,
             args=(d1, d2, origins, dirs, n_rays, alpha, medium, flipped1, flipped2),
             method='Powell',
             options={'maxiter': 200, 'xtol': 0.01, 'ftol': 0.001}
         )
-        
-        print(f"\n>>> OPTIMIZATION RESULT: success={result.success}, fun={result.fun:.6f}, nfev={result.nfev}")
-        print(f">>> Final positions: z_l1={result.x[0]:.3f}, z_l2={result.x[1]:.3f}\n")
         
         # Check if optimization returned a valid result (not the penalty value)
         if result.fun >= 1e5:  # If objective >= 100k, it's the penalty
@@ -117,20 +96,16 @@ def optimize(lenses, name1, name2, n_rays=1000, alpha=0.7, medium='air', orienta
         ap_rad2 = d2['dia'] / 2.0
         
         l1_end = z_l1 + d1['tc_mm']
-        sag1_back = 0.0
         if 'R2_mm' in d1 and d1.get('lens_type') in ['Bi-Convex', 'Aspheric']:
             sag1_back = calc_sag(d1['R2_mm'], ap_rad1)
             l1_end += sag1_back
         
         l2_start = z_l2
-        sag2_front = 0.0
         if 'R1_mm' in d2 and d2.get('lens_type') in ['Bi-Convex', 'Aspheric']:
             sag2_front = calc_sag(d2['R1_mm'], ap_rad2)
             l2_start -= sag2_front
         
         final_gap = l2_start - l1_end
-        logger.info(f"FINAL RESULT: {name1}+{name2}, orientation={orientation_name}")
-        logger.info(f"  z_l1={z_l1:.3f}, z_l2={z_l2:.3f}, gap={final_gap:.3f}")
         
         if final_gap < 0.5:
             logger.error(f"DOUBLE-CHECK FAILED! Gap={final_gap:.3f} < 0.5 mm (this shouldn't happen!)")
