@@ -374,6 +374,287 @@ def _trace_flat_curved_vectorized(origins, directions, n_medium, lens_params):
     return origins_out, directions_out, success
 
 
+def trace_biconvex_vectorized(origins, directions, n_medium, lens_params, flipped=False):
+    """
+    Vectorized ray tracing through a bi-convex lens.
+    
+    BiConvex lenses have two spherical surfaces (front and back).
+    
+    Parameters
+    ----------
+    origins : ndarray, shape (n_rays, 3)
+        Ray starting points
+    directions : ndarray, shape (n_rays, 3)
+        Ray direction vectors
+    n_medium : float
+        Refractive index of surrounding medium
+    lens_params : dict
+        Lens parameters with keys:
+        - 'vertex_z_front': front surface z position
+        - 'R_front_mm': radius of curvature for front surface
+        - 'R_back_mm': radius of curvature for back surface
+        - 'center_thickness_mm': thickness at center
+        - 'ap_rad_mm': aperture radius
+        - 'n_glass': glass refractive index
+        - 'center_z_front': center of front sphere
+        - 'center_z_back': center of back sphere
+    flipped : bool
+        If True, lens is flipped (radii are already swapped in lens object)
+    
+    Returns
+    -------
+    origins_out : ndarray, shape (n_rays, 3)
+        Exit points from lens (NaN for failed rays)
+    directions_out : ndarray, shape (n_rays, 3)
+        Exit directions from lens (NaN for failed rays)
+    success : ndarray, shape (n_rays,), dtype=bool
+        True where rays successfully traced through lens
+    """
+    n_rays = origins.shape[0]
+    n_glass = lens_params['n_glass']
+    ap_rad = lens_params['ap_rad_mm']
+    R_front = lens_params['R_front_mm']
+    R_back = lens_params['R_back_mm']
+    center_front = np.array([0.0, 0.0, lens_params['center_z_front']])
+    center_back = np.array([0.0, 0.0, lens_params['center_z_back']])
+    
+    # Initialize output arrays
+    origins_out = np.full((n_rays, 3), np.nan)
+    directions_out = np.full((n_rays, 3), np.nan)
+    success = np.zeros(n_rays, dtype=bool)
+    
+    # Front surface (sphere)
+    t_front, hit_front = intersect_ray_sphere_vectorized(origins, directions, center_front, R_front)
+    
+    if not np.any(hit_front):
+        return origins_out, directions_out, success
+    
+    # Calculate intersection points
+    p_front = origins + t_front[:, np.newaxis] * directions  # (n_rays, 3)
+    
+    # Check aperture
+    r_front = np.sqrt(p_front[:, 0]**2 + p_front[:, 1]**2)
+    aperture_ok = r_front <= ap_rad
+    active = hit_front & aperture_ok
+    
+    if not np.any(active):
+        return origins_out, directions_out, success
+    
+    # Surface normals (pointing out of glass)
+    normals_front = (p_front - center_front) / R_front  # (n_rays, 3)
+    
+    # Refract into glass
+    dirs_in, refract_ok = refract_vec_vectorized(normals_front, directions, n_medium, n_glass)
+    active = active & refract_ok
+    
+    if not np.any(active):
+        return origins_out, directions_out, success
+    
+    # Back surface (sphere)
+    t_back, hit_back = intersect_ray_sphere_vectorized(p_front, dirs_in, center_back, R_back)
+    active = active & hit_back
+    
+    if not np.any(active):
+        return origins_out, directions_out, success
+    
+    # Back intersection points
+    p_back = p_front + t_back[:, np.newaxis] * dirs_in
+    
+    # Check back aperture
+    r_back = np.sqrt(p_back[:, 0]**2 + p_back[:, 1]**2)
+    aperture_back_ok = r_back <= ap_rad
+    active = active & aperture_back_ok
+    
+    if not np.any(active):
+        return origins_out, directions_out, success
+    
+    # Surface normals at back (pointing out of glass)
+    # For convex back surface, center is on -z side, so outward normal points away from center
+    normals_back = -(p_back - center_back) / R_back
+    
+    # Refract out of glass
+    dirs_out, refract_out_ok = refract_vec_vectorized(normals_back, dirs_in, n_glass, n_medium)
+    active = active & refract_out_ok
+    
+    # Store successful rays
+    origins_out[active] = p_back[active]
+    directions_out[active] = dirs_out[active]
+    success[active] = True
+    
+    return origins_out, directions_out, success
+
+
+def trace_aspheric_vectorized(origins, directions, n_medium, lens_params, flipped=False):
+    """
+    Vectorized ray tracing through an aspheric lens.
+    
+    NOTE: Currently uses spherical approximation (k=0) for both surfaces.
+    Aspheric lenses have an aspheric front surface (approximated as sphere) 
+    and a spherical, plano, or concave back surface.
+    
+    Parameters
+    ----------
+    origins : ndarray, shape (n_rays, 3)
+        Ray starting points
+    directions : ndarray, shape (n_rays, 3)
+        Ray direction vectors
+    n_medium : float
+        Refractive index of surrounding medium
+    lens_params : dict
+        Lens parameters with keys:
+        - 'vertex_z_front': front surface z position
+        - 'vertex_z_back': back surface z position
+        - 'R_front_mm': base radius of aspheric front surface (approximated as sphere)
+        - 'R_back_mm': radius of back surface (can be positive, negative, or >1000 for plano)
+        - 'ap_rad_mm': aperture radius
+        - 'n_glass': glass refractive index
+        - 'center_z_front': center of front sphere
+        - 'center_z_back': center of back sphere (None for plano)
+        - 'back_surface_type': 'plano', 'convex', or 'concave'
+    flipped : bool
+        If True, lens is flipped (radii are already swapped in lens object)
+    
+    Returns
+    -------
+    origins_out : ndarray, shape (n_rays, 3)
+        Exit points from lens (NaN for failed rays)
+    directions_out : ndarray, shape (n_rays, 3)
+        Exit directions from lens (NaN for failed rays)
+    success : ndarray, shape (n_rays,), dtype=bool
+        True where rays successfully traced through lens
+    """
+    n_rays = origins.shape[0]
+    n_glass = lens_params['n_glass']
+    ap_rad = lens_params['ap_rad_mm']
+    R_front = lens_params['R_front_mm']
+    R_back = lens_params['R_back_mm']
+    vertex_z_back = lens_params['vertex_z_back']
+    center_front = np.array([0.0, 0.0, lens_params['center_z_front']])
+    back_surface_type = lens_params['back_surface_type']
+    
+    # Initialize output arrays
+    origins_out = np.full((n_rays, 3), np.nan)
+    directions_out = np.full((n_rays, 3), np.nan)
+    success = np.zeros(n_rays, dtype=bool)
+    
+    # Front surface (aspheric, approximated as sphere with k=0)
+    t_front, hit_front = intersect_ray_sphere_vectorized(origins, directions, center_front, R_front)
+    
+    if not np.any(hit_front):
+        return origins_out, directions_out, success
+    
+    # Calculate intersection points
+    p_front = origins + t_front[:, np.newaxis] * directions  # (n_rays, 3)
+    
+    # Check aperture
+    r_front = np.sqrt(p_front[:, 0]**2 + p_front[:, 1]**2)
+    aperture_ok = r_front <= ap_rad
+    active = hit_front & aperture_ok
+    
+    if not np.any(active):
+        return origins_out, directions_out, success
+    
+    # Surface normals (pointing out of glass)
+    normals_front = (p_front - center_front) / R_front  # (n_rays, 3)
+    
+    # Refract into glass
+    dirs_in, refract_ok = refract_vec_vectorized(normals_front, directions, n_medium, n_glass)
+    active = active & refract_ok
+    
+    if not np.any(active):
+        return origins_out, directions_out, success
+    
+    # Back surface - handle three types: plano, convex, concave
+    if back_surface_type == 'plano':
+        # Planar back surface
+        dz_ok = np.abs(dirs_in[:, 2]) > 1e-9
+        active = active & dz_ok
+        
+        if not np.any(active):
+            return origins_out, directions_out, success
+        
+        t_back = np.full(n_rays, np.nan)
+        t_back[active] = (vertex_z_back - p_front[active, 2]) / dirs_in[active, 2]
+        
+        # Check for forward propagation
+        forward = t_back > 0
+        active = active & forward
+        
+        if not np.any(active):
+            return origins_out, directions_out, success
+        
+        # Back intersection points
+        p_back = p_front + t_back[:, np.newaxis] * dirs_in
+        
+        # Check back aperture
+        r_back = np.sqrt(p_back[:, 0]**2 + p_back[:, 1]**2)
+        aperture_back_ok = r_back <= ap_rad
+        active = active & aperture_back_ok
+        
+        if not np.any(active):
+            return origins_out, directions_out, success
+        
+        # Surface normal for plane (points outward from glass, toward -z)
+        normals_back = np.tile([0, 0, -1], (n_rays, 1))
+        
+    elif back_surface_type == 'convex':
+        # Convex spherical back surface
+        center_back = np.array([0.0, 0.0, lens_params['center_z_back']])
+        t_back, hit_back = intersect_ray_sphere_vectorized(p_front, dirs_in, center_back, R_back)
+        active = active & hit_back
+        
+        if not np.any(active):
+            return origins_out, directions_out, success
+        
+        # Back intersection points
+        p_back = p_front + t_back[:, np.newaxis] * dirs_in
+        
+        # Check back aperture
+        r_back = np.sqrt(p_back[:, 0]**2 + p_back[:, 1]**2)
+        aperture_back_ok = r_back <= ap_rad
+        active = active & aperture_back_ok
+        
+        if not np.any(active):
+            return origins_out, directions_out, success
+        
+        # Surface normals at back (pointing out of glass, toward +z)
+        normals_back = -(p_back - center_back) / R_back
+        
+    else:  # concave
+        # Concave spherical back surface
+        center_back = np.array([0.0, 0.0, lens_params['center_z_back']])
+        t_back, hit_back = intersect_ray_sphere_vectorized(p_front, dirs_in, center_back, abs(R_back))
+        active = active & hit_back
+        
+        if not np.any(active):
+            return origins_out, directions_out, success
+        
+        # Back intersection points
+        p_back = p_front + t_back[:, np.newaxis] * dirs_in
+        
+        # Check back aperture
+        r_back = np.sqrt(p_back[:, 0]**2 + p_back[:, 1]**2)
+        aperture_back_ok = r_back <= ap_rad
+        active = active & aperture_back_ok
+        
+        if not np.any(active):
+            return origins_out, directions_out, success
+        
+        # Surface normals at back (pointing out of glass)
+        normals_back = (p_back - center_back) / abs(R_back)
+    
+    # Refract out of glass
+    dirs_out, refract_out_ok = refract_vec_vectorized(normals_back, dirs_in, n_glass, n_medium)
+    active = active & refract_out_ok
+    
+    # Store successful rays
+    origins_out[active] = p_back[active]
+    directions_out[active] = dirs_out[active]
+    success[active] = True
+    
+    return origins_out, directions_out, success
+
+
 def trace_system_vectorized(origins, dirs, lens1, lens2,
                             z_fiber, fiber_rad, acceptance_half_rad, 
                             medium='air', pressure_atm=1.0, temp_k=293.15, humidity_fraction=0.01):
@@ -417,27 +698,50 @@ def trace_system_vectorized(origins, dirs, lens1, lens2,
     n_rays = origins.shape[0]
     n_medium = medium_refractive_index(C.WAVELENGTH_NM, medium, pressure_atm, temp_k)
     
-    # Extract lens parameters
-    lens1_params = {
-        'vertex_z_front': lens1.vertex_z_front,
-        'R_front_mm': lens1.R_front_mm,
-        'center_thickness_mm': lens1.center_thickness_mm,
-        'edge_thickness_mm': lens1.edge_thickness_mm,
-        'ap_rad_mm': lens1.ap_rad_mm,
-        'n_glass': lens1.n_glass
-    }
+    # Detect lens type and extract appropriate parameters
+    def get_lens_params_and_tracer(lens):
+        """Extract parameters and select appropriate tracer function for a lens."""
+        lens_type = type(lens).__name__
+        
+        # Common parameters for all lens types
+        params = {
+            'vertex_z_front': lens.vertex_z_front,
+            'R_front_mm': lens.R_front_mm,
+            'center_thickness_mm': lens.center_thickness_mm,
+            'ap_rad_mm': lens.ap_rad_mm,
+            'n_glass': lens.n_glass
+        }
+        
+        if lens_type == 'PlanoConvex':
+            # PlanoConvex: has edge_thickness_mm
+            params['edge_thickness_mm'] = lens.edge_thickness_mm
+            return params, trace_planoconvex_vectorized
+            
+        elif lens_type == 'BiConvex':
+            # BiConvex: has R_back_mm and sphere centers
+            params['R_back_mm'] = lens.R_back_mm
+            params['center_z_front'] = lens.center_z_front
+            params['center_z_back'] = lens.center_z_back
+            return params, trace_biconvex_vectorized
+            
+        elif lens_type == 'Aspheric':
+            # Aspheric: has R_back_mm, back surface type, and centers
+            params['R_back_mm'] = lens.R_back_mm
+            params['vertex_z_back'] = lens.vertex_z_back
+            params['center_z_front'] = lens.center_z_front
+            params['center_z_back'] = lens.center_z_back
+            params['back_surface_type'] = lens.back_surface_type
+            return params, trace_aspheric_vectorized
+            
+        else:
+            raise ValueError(f"Unsupported lens type for vectorized tracing: {lens_type}")
     
-    lens2_params = {
-        'vertex_z_front': lens2.vertex_z_front,
-        'R_front_mm': lens2.R_front_mm,
-        'center_thickness_mm': lens2.center_thickness_mm,
-        'edge_thickness_mm': lens2.edge_thickness_mm,
-        'ap_rad_mm': lens2.ap_rad_mm,
-        'n_glass': lens2.n_glass
-    }
+    # Get parameters and tracer for each lens
+    lens1_params, trace_lens1 = get_lens_params_and_tracer(lens1)
+    lens2_params, trace_lens2 = get_lens_params_and_tracer(lens2)
     
     # Trace through lens 1
-    origins1_out, dirs1_out, success1 = trace_planoconvex_vectorized(
+    origins1_out, dirs1_out, success1 = trace_lens1(
         origins, dirs, n_medium, lens1_params, flipped=lens1.flipped
     )
     
@@ -452,7 +756,7 @@ def trace_system_vectorized(origins, dirs, lens1, lens2,
                                                pressure_atm, temp_k, humidity_fraction)
     
     # Trace through lens 2
-    origins2_out, dirs2_out, success2 = trace_planoconvex_vectorized(
+    origins2_out, dirs2_out, success2 = trace_lens2(
         origins1_out, dirs1_out, n_medium, lens2_params, flipped=lens2.flipped
     )
     

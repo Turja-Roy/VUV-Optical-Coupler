@@ -4,6 +4,8 @@ from matplotlib.patches import Circle, Rectangle, Patch
 from matplotlib.lines import Line2D
 
 from scripts.PlanoConvex import PlanoConvex
+from scripts.BiConvex import BiConvex
+from scripts.Aspheric import Aspheric
 from scripts.raytrace_helpers import sample_rays
 from scripts import consts as C
 
@@ -78,6 +80,356 @@ def _draw_planoconvex_2d(ax, z_pos, lens_data, flipped, alpha=0.2):
         
         # Fill the lens body
         ax.fill(z_outline, y_outline, color='b', alpha=alpha, edgecolor='b', linewidth=1.5)
+
+
+def _draw_biconvex_2d(ax, z_pos, lens_data, flipped, alpha=0.2):
+    """
+    Draw a bi-convex lens profile in 2D with actual curved surfaces.
+    
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes
+        Axis to draw on
+    z_pos : float
+        Z position of the front vertex of the lens
+    lens_data : dict
+        Dictionary containing 'R1_mm', 'R2_mm', 'tc_mm', 'te_mm', 'dia'
+    flipped : bool
+        If False: R1 front, R2 back (normal orientation)
+        If True: R2 front, R1 back (flipped orientation)
+    alpha : float
+        Transparency for the fill
+    """
+    tc = lens_data['tc_mm']
+    te = lens_data['te_mm']
+    ap_rad = lens_data['dia'] / 2.0
+    
+    # Get radii - swap if flipped
+    # IMPORTANT: Take absolute values to match BiConvex class behavior
+    # Some lenses have negative R2 values in the database
+    if not flipped:
+        R_front = abs(lens_data['R1_mm'])
+        R_back = abs(lens_data.get('R2_mm', lens_data['R1_mm']))  # Fallback to R1 if R2 missing
+    else:
+        R_front = abs(lens_data.get('R2_mm', lens_data['R1_mm']))
+        R_back = abs(lens_data['R1_mm'])
+    
+    # Generate points for curved surface profiles
+    n_points = 100
+    y_curve = np.linspace(-ap_rad, ap_rad, n_points)
+    
+    # Front curved surface: z = z_pos + R_front - sqrt(R_front^2 - y^2)
+    z_front = z_pos + R_front - np.sqrt(np.maximum(R_front**2 - y_curve**2, 0))
+    
+    # Back curved surface: z = (z_pos + tc) - R_back + sqrt(R_back^2 - y^2)
+    z_back = (z_pos + tc) - R_back + np.sqrt(np.maximum(R_back**2 - y_curve**2, 0))
+    
+    # Build lens outline: front curve (bottom to top) + back curve (top to bottom, reversed) + close
+    z_outline = np.concatenate([z_front, z_back[::-1], [z_front[0]]])
+    y_outline = np.concatenate([y_curve, y_curve[::-1], [y_curve[0]]])
+    
+    # Fill the lens body
+    ax.fill(z_outline, y_outline, color='b', alpha=alpha, edgecolor='b', linewidth=1.5)
+
+
+def _draw_biconvex_3d(ax, z_pos, lens_data, flipped, alpha=0.3):
+    """
+    Draw a bi-convex lens in 3D with two curved surfaces.
+    
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes3D
+        3D axis to draw on
+    z_pos : float
+        Z position of the front vertex of the lens
+    lens_data : dict
+        Dictionary containing 'R1_mm', 'R2_mm', 'tc_mm', 'dia'
+    flipped : bool
+        If False: R1 front, R2 back (normal orientation)
+        If True: R2 front, R1 back (flipped orientation)
+    alpha : float
+        Transparency for the surfaces
+    """
+    tc = lens_data['tc_mm']
+    ap_rad = lens_data['dia'] / 2.0
+    
+    # Get radii - swap if flipped
+    # IMPORTANT: Take absolute values to match BiConvex class behavior
+    # Some lenses have negative R2 values in the database
+    if not flipped:
+        R_front = abs(lens_data['R1_mm'])
+        R_back = abs(lens_data.get('R2_mm', lens_data['R1_mm']))
+    else:
+        R_front = abs(lens_data.get('R2_mm', lens_data['R1_mm']))
+        R_back = abs(lens_data['R1_mm'])
+    
+    # Azimuthal angle (full circle)
+    theta = np.linspace(0, 2*np.pi, 50)
+    
+    # 1. Curved front surface (spherical cap bulging outward)
+    # Sphere center at (0, 0, z_pos + R_front)
+    # Polar angle range determined by aperture radius
+    phi_max_front = np.arcsin(min(ap_rad / R_front, 1.0))
+    phi_front = np.linspace(np.pi - phi_max_front, np.pi, 30)
+    
+    theta_grid, phi_grid = np.meshgrid(theta, phi_front)
+    x_front = R_front * np.sin(phi_grid) * np.cos(theta_grid)
+    y_front = R_front * np.sin(phi_grid) * np.sin(theta_grid)
+    z_front = z_pos + R_front + R_front * np.cos(phi_grid)
+    
+    ax.plot_surface(x_front, y_front, z_front, alpha=alpha, color='b')
+    
+    # 2. Curved back surface (spherical cap bulging outward)
+    # Sphere center at (0, 0, z_pos + tc - R_back)
+    phi_max_back = np.arcsin(min(ap_rad / R_back, 1.0))
+    phi_back = np.linspace(0, phi_max_back, 30)
+    
+    theta_grid, phi_grid = np.meshgrid(theta, phi_back)
+    x_back = R_back * np.sin(phi_grid) * np.cos(theta_grid)
+    y_back = R_back * np.sin(phi_grid) * np.sin(theta_grid)
+    z_back = (z_pos + tc - R_back) + R_back * np.cos(phi_grid)
+    
+    ax.plot_surface(x_back, y_back, z_back, alpha=alpha, color='b')
+
+
+def _draw_aspheric_2d(ax, z_pos, lens_data, flipped, alpha=0.2):
+    """
+    Draw an aspheric lens profile in 2D with actual curved surfaces.
+    
+    NOTE: Currently uses spherical approximation (k=0) for visualization.
+    This matches the ray tracing approximation in Aspheric class.
+    
+    Handles three back surface types:
+    - Convex (R2 > 0): Curved outward
+    - Concave (R2 < 0): Curved inward
+    - Plano (|R2| > 1000): Flat surface
+    
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes
+        Axis to draw on
+    z_pos : float
+        Z position of the front vertex of the lens
+    lens_data : dict
+        Dictionary containing 'R1_mm', 'R2_mm', 'tc_mm', 'te_mm', 'dia'
+    flipped : bool
+        If False: R1 front (aspheric), R2 back (spherical) - normal orientation
+        If True: R2 front (spherical), R1 back (aspheric) - flipped orientation
+    alpha : float
+        Transparency for the fill
+    """
+    tc = lens_data['tc_mm']
+    te = lens_data['te_mm']
+    ap_rad = lens_data['dia'] / 2.0
+    
+    # Get radii - swap if flipped (preserve sign!)
+    if not flipped:
+        R_front = lens_data['R1_mm']  # Aspheric front (base radius, k=0 approx)
+        R_back = lens_data.get('R2_mm', lens_data['R1_mm'])  # Spherical back
+    else:
+        R_front = lens_data.get('R2_mm', lens_data['R1_mm'])  # Spherical front
+        R_back = lens_data['R1_mm']  # Aspheric back (base radius, k=0 approx)
+    
+    # Detect back surface type
+    if abs(R_back) > 1000.0:
+        back_type = 'plano'
+    elif R_back > 0:
+        back_type = 'convex'
+    else:
+        back_type = 'concave'
+    
+    # Generate points for surface profiles
+    n_points = 100
+    y_curve = np.linspace(-ap_rad, ap_rad, n_points)
+    
+    # Front curved surface: z = z_pos + abs(R_front) - sqrt(R_front^2 - y^2)
+    # (Aspheric front is always convex in our lenses)
+    R_front_abs = abs(R_front)
+    z_front = z_pos + R_front_abs - np.sqrt(np.maximum(R_front_abs**2 - y_curve**2, 0))
+    
+    # Back surface depends on type
+    if back_type == 'plano':
+        # Flat back surface at z = z_pos + tc
+        z_back = np.full_like(y_curve, z_pos + tc)
+        
+    elif back_type == 'convex':
+        # Convex back: z = (z_pos + tc) - R_back + sqrt(R_back^2 - y^2)
+        z_back = (z_pos + tc) - R_back + np.sqrt(np.maximum(R_back**2 - y_curve**2, 0))
+        
+    else:  # concave
+        # Concave back: center at z_c = (z_pos + tc) - R_back, surface at z = z_c - sqrt(R_back^2 - y^2)
+        # This simplifies to: z = (z_pos + tc) + |R_back| - sqrt(R_back^2 - y^2)
+        R_back_abs = abs(R_back)
+        center_z_back = z_pos + tc - R_back  # Center on +z side of vertex (R_back is negative)
+        
+        # ISSUE: If |R_back| < aperture radius, the concave sphere doesn't reach the edge
+        # We need to blend with edge thickness constraint
+        te = lens_data.get('te_mm', tc)  # edge thickness, default to center if not available
+        
+        # Calculate z for concave sphere (only valid where |y| <= |R_back|)
+        discriminant = R_back**2 - y_curve**2
+        z_back = np.zeros_like(y_curve)
+        
+        # For points within concave radius: use sphere equation
+        valid_mask = discriminant >= 0
+        z_back[valid_mask] = center_z_back - np.sqrt(discriminant[valid_mask])
+        
+        # For points outside concave radius: interpolate to edge thickness
+        if not np.all(valid_mask):
+            # Find the z-coordinate at the front surface edge
+            z_front_edge = z_pos + R_front_abs - np.sqrt(np.maximum(R_front_abs**2 - y_curve**2, 0))
+            z_back_edge = z_front_edge + te
+            
+            # At edge: back surface must be at z_front_edge + te
+            # Blend from last valid concave point to edge
+            z_back[~valid_mask] = z_back_edge[~valid_mask]
+    
+    # Build lens outline: front curve (bottom to top) + back curve (top to bottom, reversed) + close
+    z_outline = np.concatenate([z_front, z_back[::-1], [z_front[0]]])
+    y_outline = np.concatenate([y_curve, y_curve[::-1], [y_curve[0]]])
+    
+    # Fill the lens body with blue color (same as other lens types)
+    ax.fill(z_outline, y_outline, color='b', alpha=alpha, edgecolor='b', linewidth=1.5)
+
+
+def _draw_aspheric_3d(ax, z_pos, lens_data, flipped, alpha=0.3):
+    """
+    Draw an aspheric lens in 3D with two surfaces.
+    
+    NOTE: Currently uses spherical approximation (k=0) for visualization.
+    This matches the ray tracing approximation in Aspheric class.
+    
+    Handles three back surface types:
+    - Convex (R2 > 0): Curved outward spherical cap
+    - Concave (R2 < 0): Curved inward spherical cap
+    - Plano (|R2| > 1000): Flat circular disk
+    
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes3D
+        3D axis to draw on
+    z_pos : float
+        Z position of the front vertex of the lens
+    lens_data : dict
+        Dictionary containing 'R1_mm', 'R2_mm', 'tc_mm', 'dia'
+    flipped : bool
+        If False: R1 front (aspheric), R2 back (spherical) - normal orientation
+        If True: R2 front (spherical), R1 back (aspheric) - flipped orientation
+    alpha : float
+        Transparency for the surfaces
+    """
+    tc = lens_data['tc_mm']
+    ap_rad = lens_data['dia'] / 2.0
+    
+    # Get radii - swap if flipped (preserve sign!)
+    if not flipped:
+        R_front = lens_data['R1_mm']  # Aspheric front (base radius, k=0 approx)
+        R_back = lens_data.get('R2_mm', lens_data['R1_mm'])  # Spherical back
+    else:
+        R_front = lens_data.get('R2_mm', lens_data['R1_mm'])  # Spherical front
+        R_back = lens_data['R1_mm']  # Aspheric back (base radius, k=0 approx)
+    
+    # Detect back surface type
+    if abs(R_back) > 1000.0:
+        back_type = 'plano'
+    elif R_back > 0:
+        back_type = 'convex'
+    else:
+        back_type = 'concave'
+    
+    # Azimuthal angle (full circle)
+    theta = np.linspace(0, 2*np.pi, 50)
+    
+    # 1. Curved front surface (spherical cap bulging outward) - using k=0 approximation
+    # Sphere center at (0, 0, z_pos + R_front)
+    # (Aspheric front is always convex in our lenses)
+    R_front_abs = abs(R_front)
+    phi_max_front = np.arcsin(min(ap_rad / R_front_abs, 1.0))
+    phi_front = np.linspace(np.pi - phi_max_front, np.pi, 30)
+    
+    theta_grid, phi_grid = np.meshgrid(theta, phi_front)
+    x_front = R_front_abs * np.sin(phi_grid) * np.cos(theta_grid)
+    y_front = R_front_abs * np.sin(phi_grid) * np.sin(theta_grid)
+    z_front = z_pos + R_front_abs + R_front_abs * np.cos(phi_grid)
+    
+    # Use same blue color as other lens types
+    ax.plot_surface(x_front, y_front, z_front, alpha=alpha, color='b')
+    
+    # 2. Back surface - depends on type
+    if back_type == 'plano':
+        # Flat circular disk at z = z_pos + tc
+        r_disk = np.linspace(0, ap_rad, 20)
+        theta_disk = np.linspace(0, 2*np.pi, 50)
+        r_grid, theta_grid = np.meshgrid(r_disk, theta_disk)
+        
+        x_back = r_grid * np.cos(theta_grid)
+        y_back = r_grid * np.sin(theta_grid)
+        z_back = np.full_like(x_back, z_pos + tc)
+        
+        ax.plot_surface(x_back, y_back, z_back, alpha=alpha, color='b')
+        
+    elif back_type == 'convex':
+        # Convex back surface (spherical cap bulging outward)
+        # Sphere center at (0, 0, z_pos + tc - R_back)
+        phi_max_back = np.arcsin(min(ap_rad / R_back, 1.0))
+        phi_back = np.linspace(0, phi_max_back, 30)
+        
+        theta_grid, phi_grid = np.meshgrid(theta, phi_back)
+        x_back = R_back * np.sin(phi_grid) * np.cos(theta_grid)
+        y_back = R_back * np.sin(phi_grid) * np.sin(theta_grid)
+        z_back = (z_pos + tc - R_back) + R_back * np.cos(phi_grid)
+        
+        ax.plot_surface(x_back, y_back, z_back, alpha=alpha, color='b')
+        
+    else:  # concave
+        # Concave back surface (spherical cap curving inward)
+        # Center at (0, 0, z_pos + tc - R_back), where R_back < 0
+        R_back_abs = abs(R_back)
+        center_z_back = z_pos + tc - R_back  # Positive since R_back is negative
+        
+        # If concave radius is smaller than aperture, only draw the valid spherical region
+        # and blend to edge thickness constraint
+        if R_back_abs < ap_rad:
+            # Only draw concave sphere up to its maximum radius
+            effective_rad = R_back_abs * 0.99  # Slightly less to avoid numerical issues
+        else:
+            effective_rad = ap_rad
+        
+        phi_max_back = np.arcsin(min(effective_rad / R_back_abs, 1.0))
+        phi_back = np.linspace(np.pi - phi_max_back, np.pi, 30)
+        
+        theta_grid, phi_grid = np.meshgrid(theta, phi_back)
+        x_back = R_back_abs * np.sin(phi_grid) * np.cos(theta_grid)
+        y_back = R_back_abs * np.sin(phi_grid) * np.sin(theta_grid)
+        z_back = center_z_back + R_back_abs * np.cos(phi_grid)
+        
+        ax.plot_surface(x_back, y_back, z_back, alpha=alpha, color='b')
+        
+        # If concave doesn't reach full aperture, add a transitional surface
+        if R_back_abs < ap_rad:
+            # Add an outer ring/cone surface to connect concave to edge
+            te = lens_data.get('te_mm', tc)
+            
+            # Create a conical/linear blend from effective_rad to ap_rad
+            r_ring = np.linspace(effective_rad, ap_rad, 10)
+            theta_ring = np.linspace(0, 2*np.pi, 50)
+            r_grid_ring, theta_grid_ring = np.meshgrid(r_ring, theta_ring)
+            
+            x_ring = r_grid_ring * np.cos(theta_grid_ring)
+            y_ring = r_grid_ring * np.sin(theta_grid_ring)
+            
+            # Z coordinate: interpolate from last concave point to edge thickness
+            # At r=effective_rad: z = center_z_back - sqrt(R_back_abs^2 - effective_rad^2)
+            z_at_effective = center_z_back - np.sqrt(R_back_abs**2 - effective_rad**2)
+            # At r=ap_rad: need to calculate based on edge thickness
+            # Front surface at edge: z_front_edge
+            z_front_edge = z_pos + R_front_abs - np.sqrt(R_front_abs**2 - ap_rad**2)
+            z_at_edge = z_front_edge + te
+            
+            # Linear interpolation in r
+            z_ring = z_at_effective + (z_at_edge - z_at_effective) * (r_grid_ring - effective_rad) / (ap_rad - effective_rad)
+            
+            ax.plot_surface(x_ring, y_ring, z_ring, alpha=alpha, color='b')
 
 
 def _draw_planoconvex_3d(ax, z_pos, lens_data, flipped, alpha=0.3):
@@ -173,10 +525,39 @@ def _plot_rays_on_axis(ax, lenses, result, n_plot_rays=1000):
 
     origins, dirs = sample_rays(n_plot_rays)
 
-    lens1 = PlanoConvex(z_l1, _get_r_mm(lens1_data), lens1_data['tc_mm'],
-                        lens1_data['te_mm'], lens1_data['dia']/2.0, flipped=flipped1)
-    lens2 = PlanoConvex(z_l2, _get_r_mm(lens2_data), lens2_data['tc_mm'],
-                        lens2_data['te_mm'], lens2_data['dia']/2.0, flipped=flipped2)
+    # Create lens1 based on its type
+    if lens1_data.get('lens_type') == 'Bi-Convex':
+        lens1 = BiConvex(z_l1, lens1_data['R1_mm'], 
+                        lens1_data.get('R2_mm', lens1_data['R1_mm']),
+                        lens1_data['tc_mm'], lens1_data['te_mm'], 
+                        lens1_data['dia']/2.0, flipped=flipped1)
+    elif lens1_data.get('lens_type') == 'Aspheric':
+        lens1 = Aspheric(z_l1, lens1_data['R1_mm'],
+                        lens1_data.get('R2_mm', lens1_data['R1_mm']),
+                        lens1_data['tc_mm'], lens1_data['te_mm'],
+                        lens1_data['dia']/2.0, 
+                        conic_constant=lens1_data.get('conic_constant', 0.0),
+                        flipped=flipped1)
+    else:
+        lens1 = PlanoConvex(z_l1, _get_r_mm(lens1_data), lens1_data['tc_mm'],
+                           lens1_data['te_mm'], lens1_data['dia']/2.0, flipped=flipped1)
+    
+    # Create lens2 based on its type
+    if lens2_data.get('lens_type') == 'Bi-Convex':
+        lens2 = BiConvex(z_l2, lens2_data['R1_mm'],
+                        lens2_data.get('R2_mm', lens2_data['R1_mm']),
+                        lens2_data['tc_mm'], lens2_data['te_mm'],
+                        lens2_data['dia']/2.0, flipped=flipped2)
+    elif lens2_data.get('lens_type') == 'Aspheric':
+        lens2 = Aspheric(z_l2, lens2_data['R1_mm'],
+                        lens2_data.get('R2_mm', lens2_data['R1_mm']),
+                        lens2_data['tc_mm'], lens2_data['te_mm'],
+                        lens2_data['dia']/2.0,
+                        conic_constant=lens2_data.get('conic_constant', 0.0),
+                        flipped=flipped2)
+    else:
+        lens2 = PlanoConvex(z_l2, _get_r_mm(lens2_data), lens2_data['tc_mm'],
+                           lens2_data['te_mm'], lens2_data['dia']/2.0, flipped=flipped2)
 
     for i in range(n_plot_rays):
         points = []
@@ -218,8 +599,21 @@ def _plot_rays_on_axis(ax, lenses, result, n_plot_rays=1000):
                 color+'-', alpha=0.5)
 
     # Draw lenses with actual curved surfaces
-    _draw_planoconvex_3d(ax, z_l1, lens1_data, flipped=flipped1, alpha=0.2)
-    _draw_planoconvex_3d(ax, z_l2, lens2_data, flipped=flipped2, alpha=0.2)
+    # Detect lens type for lens 1
+    if lens1_data.get('lens_type') == 'Bi-Convex':
+        _draw_biconvex_3d(ax, z_l1, lens1_data, flipped=flipped1, alpha=0.2)
+    elif lens1_data.get('lens_type') == 'Aspheric':
+        _draw_aspheric_3d(ax, z_l1, lens1_data, flipped=flipped1, alpha=0.2)
+    else:
+        _draw_planoconvex_3d(ax, z_l1, lens1_data, flipped=flipped1, alpha=0.2)
+    
+    # Detect lens type for lens 2
+    if lens2_data.get('lens_type') == 'Bi-Convex':
+        _draw_biconvex_3d(ax, z_l2, lens2_data, flipped=flipped2, alpha=0.2)
+    elif lens2_data.get('lens_type') == 'Aspheric':
+        _draw_aspheric_3d(ax, z_l2, lens2_data, flipped=flipped2, alpha=0.2)
+    else:
+        _draw_planoconvex_3d(ax, z_l2, lens2_data, flipped=flipped2, alpha=0.2)
 
     # Draw fiber face
     theta = np.linspace(0, 2*np.pi, 100)
@@ -266,10 +660,39 @@ def _plot_rays_2d_dual_view(fig, lenses, result, n_plot_rays=1000):
 
     origins, dirs = sample_rays(n_plot_rays)
 
-    lens1 = PlanoConvex(z_l1, _get_r_mm(lens1_data), lens1_data['tc_mm'],
-                        lens1_data['te_mm'], lens1_data['dia']/2.0, flipped=flipped1)
-    lens2 = PlanoConvex(z_l2, _get_r_mm(lens2_data), lens2_data['tc_mm'],
-                        lens2_data['te_mm'], lens2_data['dia']/2.0, flipped=flipped2)
+    # Create lens1 based on its type
+    if lens1_data.get('lens_type') == 'Bi-Convex':
+        lens1 = BiConvex(z_l1, lens1_data['R1_mm'], 
+                        lens1_data.get('R2_mm', lens1_data['R1_mm']),
+                        lens1_data['tc_mm'], lens1_data['te_mm'], 
+                        lens1_data['dia']/2.0, flipped=flipped1)
+    elif lens1_data.get('lens_type') == 'Aspheric':
+        lens1 = Aspheric(z_l1, lens1_data['R1_mm'],
+                        lens1_data.get('R2_mm', lens1_data['R1_mm']),
+                        lens1_data['tc_mm'], lens1_data['te_mm'],
+                        lens1_data['dia']/2.0, 
+                        conic_constant=lens1_data.get('conic_constant', 0.0),
+                        flipped=flipped1)
+    else:
+        lens1 = PlanoConvex(z_l1, _get_r_mm(lens1_data), lens1_data['tc_mm'],
+                           lens1_data['te_mm'], lens1_data['dia']/2.0, flipped=flipped1)
+    
+    # Create lens2 based on its type
+    if lens2_data.get('lens_type') == 'Bi-Convex':
+        lens2 = BiConvex(z_l2, lens2_data['R1_mm'],
+                        lens2_data.get('R2_mm', lens2_data['R1_mm']),
+                        lens2_data['tc_mm'], lens2_data['te_mm'],
+                        lens2_data['dia']/2.0, flipped=flipped2)
+    elif lens2_data.get('lens_type') == 'Aspheric':
+        lens2 = Aspheric(z_l2, lens2_data['R1_mm'],
+                        lens2_data.get('R2_mm', lens2_data['R1_mm']),
+                        lens2_data['tc_mm'], lens2_data['te_mm'],
+                        lens2_data['dia']/2.0,
+                        conic_constant=lens2_data.get('conic_constant', 0.0),
+                        flipped=flipped2)
+    else:
+        lens2 = PlanoConvex(z_l2, _get_r_mm(lens2_data), lens2_data['tc_mm'],
+                           lens2_data['te_mm'], lens2_data['dia']/2.0, flipped=flipped2)
 
     # Create two subplots for X-Z and Y-Z views
     ax1 = fig.add_subplot(2, 1, 1)  # X-Z view (top)
@@ -330,11 +753,27 @@ def _plot_rays_2d_dual_view(fig, lenses, result, n_plot_rays=1000):
         ax2.plot(points_z, points_y, color+'-', alpha=0.5, linewidth=0.5)
 
     # Draw lenses with actual curved profiles
-    _draw_planoconvex_2d(ax1, z_l1, lens1_data, flipped=flipped1, alpha=0.2)
-    _draw_planoconvex_2d(ax2, z_l1, lens1_data, flipped=flipped1, alpha=0.2)
+    # Detect lens type for lens 1
+    if lens1_data.get('lens_type') == 'Bi-Convex':
+        _draw_biconvex_2d(ax1, z_l1, lens1_data, flipped=flipped1, alpha=0.2)
+        _draw_biconvex_2d(ax2, z_l1, lens1_data, flipped=flipped1, alpha=0.2)
+    elif lens1_data.get('lens_type') == 'Aspheric':
+        _draw_aspheric_2d(ax1, z_l1, lens1_data, flipped=flipped1, alpha=0.2)
+        _draw_aspheric_2d(ax2, z_l1, lens1_data, flipped=flipped1, alpha=0.2)
+    else:
+        _draw_planoconvex_2d(ax1, z_l1, lens1_data, flipped=flipped1, alpha=0.2)
+        _draw_planoconvex_2d(ax2, z_l1, lens1_data, flipped=flipped1, alpha=0.2)
     
-    _draw_planoconvex_2d(ax1, z_l2, lens2_data, flipped=flipped2, alpha=0.2)
-    _draw_planoconvex_2d(ax2, z_l2, lens2_data, flipped=flipped2, alpha=0.2)
+    # Detect lens type for lens 2
+    if lens2_data.get('lens_type') == 'Bi-Convex':
+        _draw_biconvex_2d(ax1, z_l2, lens2_data, flipped=flipped2, alpha=0.2)
+        _draw_biconvex_2d(ax2, z_l2, lens2_data, flipped=flipped2, alpha=0.2)
+    elif lens2_data.get('lens_type') == 'Aspheric':
+        _draw_aspheric_2d(ax1, z_l2, lens2_data, flipped=flipped2, alpha=0.2)
+        _draw_aspheric_2d(ax2, z_l2, lens2_data, flipped=flipped2, alpha=0.2)
+    else:
+        _draw_planoconvex_2d(ax1, z_l2, lens2_data, flipped=flipped2, alpha=0.2)
+        _draw_planoconvex_2d(ax2, z_l2, lens2_data, flipped=flipped2, alpha=0.2)
     
     # Draw fiber as vertical line
     fiber_half_dia = C.FIBER_CORE_DIAM_MM / 2.0
@@ -403,10 +842,39 @@ def _plot_single_2d_view(ax, lenses, result, n_plot_rays=500, projection='xz'):
 
     origins, dirs = sample_rays(n_plot_rays)
 
-    lens1 = PlanoConvex(z_l1, _get_r_mm(lens1_data), lens1_data['tc_mm'],
-                        lens1_data['te_mm'], lens1_data['dia']/2.0, flipped=flipped1)
-    lens2 = PlanoConvex(z_l2, _get_r_mm(lens2_data), lens2_data['tc_mm'],
-                        lens2_data['te_mm'], lens2_data['dia']/2.0, flipped=flipped2)
+    # Create lens1 based on its type
+    if lens1_data.get('lens_type') == 'Bi-Convex':
+        lens1 = BiConvex(z_l1, lens1_data['R1_mm'], 
+                        lens1_data.get('R2_mm', lens1_data['R1_mm']),
+                        lens1_data['tc_mm'], lens1_data['te_mm'], 
+                        lens1_data['dia']/2.0, flipped=flipped1)
+    elif lens1_data.get('lens_type') == 'Aspheric':
+        lens1 = Aspheric(z_l1, lens1_data['R1_mm'],
+                        lens1_data.get('R2_mm', lens1_data['R1_mm']),
+                        lens1_data['tc_mm'], lens1_data['te_mm'],
+                        lens1_data['dia']/2.0, 
+                        conic_constant=lens1_data.get('conic_constant', 0.0),
+                        flipped=flipped1)
+    else:
+        lens1 = PlanoConvex(z_l1, _get_r_mm(lens1_data), lens1_data['tc_mm'],
+                           lens1_data['te_mm'], lens1_data['dia']/2.0, flipped=flipped1)
+    
+    # Create lens2 based on its type
+    if lens2_data.get('lens_type') == 'Bi-Convex':
+        lens2 = BiConvex(z_l2, lens2_data['R1_mm'],
+                        lens2_data.get('R2_mm', lens2_data['R1_mm']),
+                        lens2_data['tc_mm'], lens2_data['te_mm'],
+                        lens2_data['dia']/2.0, flipped=flipped2)
+    elif lens2_data.get('lens_type') == 'Aspheric':
+        lens2 = Aspheric(z_l2, lens2_data['R1_mm'],
+                        lens2_data.get('R2_mm', lens2_data['R1_mm']),
+                        lens2_data['tc_mm'], lens2_data['te_mm'],
+                        lens2_data['dia']/2.0,
+                        conic_constant=lens2_data.get('conic_constant', 0.0),
+                        flipped=flipped2)
+    else:
+        lens2 = PlanoConvex(z_l2, _get_r_mm(lens2_data), lens2_data['tc_mm'],
+                           lens2_data['te_mm'], lens2_data['dia']/2.0, flipped=flipped2)
 
     coord_idx = 0 if projection == 'xz' else 1  # X=0, Y=1
     coord_label = 'X' if projection == 'xz' else 'Y'
@@ -469,8 +937,21 @@ def _plot_single_2d_view(ax, lenses, result, n_plot_rays=500, projection='xz'):
         ax.plot(points_z, points_coord, color+'-', alpha=0.5, linewidth=0.5)
 
     # Draw lenses with actual curved profiles
-    _draw_planoconvex_2d(ax, z_l1, lens1_data, flipped=flipped1, alpha=0.2)
-    _draw_planoconvex_2d(ax, z_l2, lens2_data, flipped=flipped2, alpha=0.2)
+    # Detect lens type for lens 1
+    if lens1_data.get('lens_type') == 'Bi-Convex':
+        _draw_biconvex_2d(ax, z_l1, lens1_data, flipped=flipped1, alpha=0.2)
+    elif lens1_data.get('lens_type') == 'Aspheric':
+        _draw_aspheric_2d(ax, z_l1, lens1_data, flipped=flipped1, alpha=0.2)
+    else:
+        _draw_planoconvex_2d(ax, z_l1, lens1_data, flipped=flipped1, alpha=0.2)
+    
+    # Detect lens type for lens 2
+    if lens2_data.get('lens_type') == 'Bi-Convex':
+        _draw_biconvex_2d(ax, z_l2, lens2_data, flipped=flipped2, alpha=0.2)
+    elif lens2_data.get('lens_type') == 'Aspheric':
+        _draw_aspheric_2d(ax, z_l2, lens2_data, flipped=flipped2, alpha=0.2)
+    else:
+        _draw_planoconvex_2d(ax, z_l2, lens2_data, flipped=flipped2, alpha=0.2)
     
     # Draw fiber as vertical line
     fiber_half_dia = C.FIBER_CORE_DIAM_MM / 2.0
@@ -738,23 +1219,68 @@ def plot_spot_diagram(best, lenses, run_id):
         o = origins[i].copy()
         d = dirs[i].copy()
 
-        out1 = PlanoConvex(vertex_z_front=best['z_l1'],
-                           R_front_mm=_get_r_mm(lenses[best['lens1']]),
-                           center_thickness_mm=lenses[best['lens1']]['tc_mm'],
-                           edge_thickness_mm=lenses[best['lens1']]['te_mm'],
-                           ap_rad_mm=lenses[best['lens1']]['dia']/2.0,
+        # Create lens1 based on its type
+        lens1_data = lenses[best['lens1']]
+        if lens1_data.get('lens_type') == 'Bi-Convex':
+            out1 = BiConvex(vertex_z_front=best['z_l1'],
+                           R_front_mm=lens1_data['R1_mm'],
+                           R_back_mm=lens1_data.get('R2_mm', lens1_data['R1_mm']),
+                           center_thickness_mm=lens1_data['tc_mm'],
+                           edge_thickness_mm=lens1_data['te_mm'],
+                           ap_rad_mm=lens1_data['dia']/2.0,
                            flipped=flipped1
                            ).trace_ray(o, d, 1.0)
+        elif lens1_data.get('lens_type') == 'Aspheric':
+            out1 = Aspheric(vertex_z_front=best['z_l1'],
+                           R_front_mm=lens1_data['R1_mm'],
+                           R_back_mm=lens1_data.get('R2_mm', lens1_data['R1_mm']),
+                           center_thickness_mm=lens1_data['tc_mm'],
+                           edge_thickness_mm=lens1_data['te_mm'],
+                           ap_rad_mm=lens1_data['dia']/2.0,
+                           conic_constant=lens1_data.get('conic_constant', 0.0),
+                           flipped=flipped1
+                           ).trace_ray(o, d, 1.0)
+        else:
+            out1 = PlanoConvex(vertex_z_front=best['z_l1'],
+                              R_front_mm=_get_r_mm(lens1_data),
+                              center_thickness_mm=lens1_data['tc_mm'],
+                              edge_thickness_mm=lens1_data['te_mm'],
+                              ap_rad_mm=lens1_data['dia']/2.0,
+                              flipped=flipped1
+                              ).trace_ray(o, d, 1.0)
         if out1[2] is False:
             continue
         o1, d1 = out1[0], out1[1]
-        out2 = PlanoConvex(vertex_z_front=best['z_l2'],
-                           R_front_mm=_get_r_mm(lenses[best['lens2']]),
-                           center_thickness_mm=lenses[best['lens2']]['tc_mm'],
-                           edge_thickness_mm=lenses[best['lens2']]['te_mm'],
-                           ap_rad_mm=lenses[best['lens2']]['dia']/2.0,
+        
+        # Create lens2 based on its type
+        lens2_data = lenses[best['lens2']]
+        if lens2_data.get('lens_type') == 'Bi-Convex':
+            out2 = BiConvex(vertex_z_front=best['z_l2'],
+                           R_front_mm=lens2_data['R1_mm'],
+                           R_back_mm=lens2_data.get('R2_mm', lens2_data['R1_mm']),
+                           center_thickness_mm=lens2_data['tc_mm'],
+                           edge_thickness_mm=lens2_data['te_mm'],
+                           ap_rad_mm=lens2_data['dia']/2.0,
                            flipped=flipped2
                            ).trace_ray(o1, d1, 1.0)
+        elif lens2_data.get('lens_type') == 'Aspheric':
+            out2 = Aspheric(vertex_z_front=best['z_l2'],
+                           R_front_mm=lens2_data['R1_mm'],
+                           R_back_mm=lens2_data.get('R2_mm', lens2_data['R1_mm']),
+                           center_thickness_mm=lens2_data['tc_mm'],
+                           edge_thickness_mm=lens2_data['te_mm'],
+                           ap_rad_mm=lens2_data['dia']/2.0,
+                           conic_constant=lens2_data.get('conic_constant', 0.0),
+                           flipped=flipped2
+                           ).trace_ray(o1, d1, 1.0)
+        else:
+            out2 = PlanoConvex(vertex_z_front=best['z_l2'],
+                              R_front_mm=_get_r_mm(lens2_data),
+                              center_thickness_mm=lens2_data['tc_mm'],
+                              edge_thickness_mm=lens2_data['te_mm'],
+                              ap_rad_mm=lens2_data['dia']/2.0,
+                              flipped=flipped2
+                              ).trace_ray(o1, d1, 1.0)
         if out2[2] is False:
             continue
         o2, d2 = out2[0], out2[1]
