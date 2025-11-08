@@ -38,9 +38,7 @@ class LensDatabase:
                 wavelength_range_nm TEXT,
                 asphere_diameter_mm REAL,
                 conic_constant REAL,
-                vendor TEXT,
-                notes TEXT,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                vendor TEXT
             )
         """)
         
@@ -76,8 +74,7 @@ class LensDatabase:
                    wavelength_range_nm: Optional[str] = None,
                    asphere_diameter_mm: Optional[float] = None,
                    conic_constant: Optional[float] = None,
-                   vendor: Optional[str] = None,
-                   notes: Optional[str] = None) -> None:
+                   vendor: Optional[str] = None) -> None:
         """Insert or update lens specification."""
         cursor = self.conn.cursor()
         
@@ -86,12 +83,12 @@ class LensDatabase:
                 (item_number, lens_type, diameter_mm, focal_length_mm, 
                  radius_r1_mm, radius_r2_mm, center_thickness_mm, edge_thickness_mm, 
                  back_focal_length_mm, numerical_aperture, substrate, coating,
-                 wavelength_range_nm, asphere_diameter_mm, conic_constant, vendor, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 wavelength_range_nm, asphere_diameter_mm, conic_constant, vendor)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (item_number, lens_type, diameter_mm, focal_length_mm, 
               radius_r1_mm, radius_r2_mm, center_thickness_mm, edge_thickness_mm, 
               back_focal_length_mm, numerical_aperture, substrate, coating,
-              wavelength_range_nm, asphere_diameter_mm, conic_constant, vendor, notes))
+              wavelength_range_nm, asphere_diameter_mm, conic_constant, vendor))
         
         self.conn.commit()
     
@@ -139,8 +136,7 @@ class LensDatabase:
                 lens_data.get('wavelength_range_nm'),
                 lens_data.get('asphere_diameter_mm'),
                 lens_data.get('conic_constant'),
-                vendor,
-                None
+                vendor
             ))
         
         cursor.executemany("""
@@ -148,8 +144,8 @@ class LensDatabase:
                 (item_number, lens_type, diameter_mm, focal_length_mm, 
                  radius_r1_mm, radius_r2_mm, center_thickness_mm, edge_thickness_mm, 
                  back_focal_length_mm, numerical_aperture, substrate, coating,
-                 wavelength_range_nm, asphere_diameter_mm, conic_constant, vendor, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 wavelength_range_nm, asphere_diameter_mm, conic_constant, vendor)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, data)
         
         self.conn.commit()
@@ -342,11 +338,6 @@ class LensDatabase:
         """Export lenses to CSV file."""
         lenses = self.get_all_lenses(lens_type=lens_type)
         df = pd.DataFrame(lenses)
-        
-        # Drop database-specific columns
-        cols_to_drop = ['created_at']
-        df = df.drop(columns=[c for c in cols_to_drop if c in df.columns])
-        
         df.to_csv(output_path, index=False)
     
     def close(self):

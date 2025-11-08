@@ -56,10 +56,18 @@ class OptimizationDatabase:
                 f1_mm REAL NOT NULL,
                 f2_mm REAL NOT NULL,
                 computation_time_seconds REAL,
+                fiber_position_method TEXT,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (run_id) REFERENCES runs(run_id) ON DELETE CASCADE
             )
         """)
+        
+        # Migrate existing tables: add fiber_position_method column if it doesn't exist
+        try:
+            cursor.execute("SELECT fiber_position_method FROM results LIMIT 1")
+        except sqlite3.OperationalError:
+            # Column doesn't exist, add it
+            cursor.execute("ALTER TABLE results ADD COLUMN fiber_position_method TEXT")
         
         # Create indexes for faster queries
         cursor.execute("""
@@ -108,8 +116,8 @@ class OptimizationDatabase:
         cursor.execute("""
             INSERT INTO results (run_id, lens1, lens2, method, orientation,
                                z_l1, z_l2, z_fiber, total_len_mm, coupling,
-                               f1_mm, f2_mm, computation_time_seconds)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                               f1_mm, f2_mm, computation_time_seconds, fiber_position_method)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             run_id,
             result.get('lens1'),
@@ -123,7 +131,8 @@ class OptimizationDatabase:
             result['coupling'],
             result['f1_mm'],
             result['f2_mm'],
-            computation_time
+            computation_time,
+            result.get('fiber_position_method')
         ))
         
         self.conn.commit()
@@ -152,7 +161,8 @@ class OptimizationDatabase:
                 result['coupling'],
                 result['f1_mm'],
                 result['f2_mm'],
-                comp_time
+                comp_time,
+                result.get('fiber_position_method')
             )
             for result, comp_time in zip(results, computation_times_to_use)
         ]
@@ -160,8 +170,8 @@ class OptimizationDatabase:
         cursor.executemany("""
             INSERT INTO results (run_id, lens1, lens2, method, orientation,
                                z_l1, z_l2, z_fiber, total_len_mm, coupling,
-                               f1_mm, f2_mm, computation_time_seconds)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                               f1_mm, f2_mm, computation_time_seconds, fiber_position_method)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, data)
         
         self.conn.commit()

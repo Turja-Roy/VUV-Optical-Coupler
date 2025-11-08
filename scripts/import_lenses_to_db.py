@@ -46,8 +46,7 @@ def import_thorlabs_plano_convex(db: LensDatabase,
             center_thickness_mm=float(row['Center Thickness (mm)']),
             edge_thickness_mm=float(row['Edge Thickness (mm)']),
             back_focal_length_mm=float(row['Back Focal Length (mm)']),
-            vendor='ThorLabs',
-            notes='Imported from Combined_Lenses.csv'
+            vendor='ThorLabs'
         )
         count += 1
     
@@ -155,8 +154,7 @@ def import_edmund_optics_condenser(db: LensDatabase,
             wavelength_range_nm=wavelength_range,
             asphere_diameter_mm=asphere_diameter_mm,
             conic_constant=None,  # Not in this CSV
-            vendor='Edmund Optics',
-            notes=f'Imported from Edmund-Optics_condenser-lenses.csv - Type: {csv_lens_type}'
+            vendor='Edmund Optics'
         )
         count += 1
     

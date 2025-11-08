@@ -81,9 +81,7 @@ def import_lenses_to_lens_db(db_path: str, lenses: list) -> bool:
             wavelength_range_nm TEXT,
             asphere_diameter_mm REAL,
             conic_constant REAL,
-            vendor TEXT,
-            notes TEXT,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            vendor TEXT
         )
     """)
     
@@ -108,9 +106,8 @@ def import_lenses_to_lens_db(db_path: str, lenses: list) -> bool:
                 (item_number, lens_type, diameter_mm, focal_length_mm, 
                  radius_r1_mm, radius_r2_mm, center_thickness_mm, edge_thickness_mm, 
                  back_focal_length_mm, numerical_aperture, substrate, coating,
-                 wavelength_range_nm, asphere_diameter_mm, conic_constant, vendor, notes,
-                 created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 wavelength_range_nm, asphere_diameter_mm, conic_constant, vendor)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             lens['item_number'],
             lens['lens_type'],
@@ -127,9 +124,7 @@ def import_lenses_to_lens_db(db_path: str, lenses: list) -> bool:
             lens['wavelength_range_nm'],
             lens['asphere_diameter_mm'],
             lens['conic_constant'],
-            lens['vendor'],
-            lens['notes'],
-            lens['created_at']
+            lens['vendor']
         ))
     
     conn.commit()

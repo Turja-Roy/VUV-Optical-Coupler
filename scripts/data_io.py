@@ -274,7 +274,7 @@ def write_results(method, results, run_id, batch=False, batch_num=None, lens_pai
         use_database = getattr(C, 'USE_DATABASE', False)
     
     scalar_keys = ['lens1', 'lens2', 'f1_mm', 'f2_mm', 'z_l1', 'z_l2',
-                  'z_fiber', 'total_len_mm', 'coupling', 'orientation']
+                  'z_fiber', 'total_len_mm', 'coupling', 'orientation', 'fiber_position_method']
     rows = []
     for i, r in enumerate(results):
         if not isinstance(r, dict):

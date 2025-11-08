@@ -71,8 +71,7 @@ def import_thorlabs_format(csv_path: str, db: LensDatabase, vendor: str = 'ThorL
             'center_thickness_mm': float(row['Center Thickness (mm)']),
             'edge_thickness_mm': float(row['Edge Thickness (mm)']),
             'back_focal_length_mm': float(row['Back Focal Length (mm)']),
-            'vendor': vendor,
-            'notes': f'Imported from {Path(csv_path).name}'
+            'vendor': vendor
         }
         lenses_data.append(lens_data)
         count += 1
@@ -175,8 +174,7 @@ def import_edmund_format(csv_path: str, db: LensDatabase, vendor: str = 'Edmund 
             'coating': get_optional_field('Coating'),
             'wavelength_range_nm': get_optional_field('Wavelength Range (nm)'),
             'asphere_diameter_mm': get_optional_float('Asphere Diameter (mm)'),
-            'vendor': vendor,
-            'notes': f'Imported from {Path(csv_path).name} - Type: {csv_lens_type}'
+            'vendor': vendor
         }
         lenses_data.append(lens_data)
         count += 1
