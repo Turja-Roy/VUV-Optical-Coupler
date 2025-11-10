@@ -254,17 +254,24 @@ def _trace_curved_flat_vectorized(origins, directions, n_medium, lens_params):
     if not np.any(active):
         return origins_out, directions_out, success
     
-    # Calculate local thickness at each radial position
-    local_thickness = center_thickness - (center_thickness - edge_thickness) * (r_front / ap_rad)
+    # Propagate to back surface (flat plane at vertex_z_back)
+    vertex_z_back = vertex_z_front + center_thickness
     
-    # Propagate to back surface
+    # Ray-plane intersection: t = (plane_z - ray_z) / ray_dir_z
     # Safe division - only compute for active rays
-    dz_ratios = np.full(n_rays, np.nan)
+    t_back = np.full(n_rays, np.nan)
     active_mask = active & (np.abs(dirs_in[:, 2]) > 1e-9)
     if np.any(active_mask):
-        dz_ratios[active_mask] = local_thickness[active_mask] / np.abs(dirs_in[active_mask, 2])
+        t_back[active_mask] = (vertex_z_back - p_front[active_mask, 2]) / dirs_in[active_mask, 2]
     
-    p_back = p_front + dz_ratios[:, np.newaxis] * dirs_in  # (n_rays, 3)
+    # Check if intersection is forward (t > 0)
+    t_positive = t_back > 0
+    active = active & t_positive
+    
+    if not np.any(active):
+        return origins_out, directions_out, success
+    
+    p_back = p_front + t_back[:, np.newaxis] * dirs_in  # (n_rays, 3)
     
     # Check back aperture
     r_back = np.sqrt(p_back[:, 0]**2 + p_back[:, 1]**2)

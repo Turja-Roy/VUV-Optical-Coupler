@@ -4,7 +4,7 @@ from scripts import consts as C
 from scripts.calcs import transmission_through_medium, medium_refractive_index
 
 
-def sample_rays(n_rays):
+def sample_rays(n_rays, seed=None):
     """
     Sample rays using stratified quasi-random sampling.
     
@@ -20,6 +20,8 @@ def sample_rays(n_rays):
     ----------
     n_rays : int
         Number of rays to generate
+    seed : int, optional
+        Random seed for reproducibility. If None, uses current random state.
     
     Returns
     -------
@@ -36,6 +38,8 @@ def sample_rays(n_rays):
     """
     arc_radius = C.SOURCE_ARC_DIAM_MM / 2.0
 
+    if seed is not None:
+        np.random.seed(seed)
     r = np.sqrt(np.random.rand(n_rays)) * arc_radius  # radial positions
     phi = np.linspace(0, 2*np.pi, n_rays)  # angular positions around circle
 

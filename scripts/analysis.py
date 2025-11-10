@@ -202,7 +202,7 @@ def analyze_combos(results_file, coupling_threshold, lenses, run_id, alpha=0.7, 
     return all_results
 
 
-def evaluate_fixed_config_at_wavelength(lenses, lens1, lens2, z_l1, z_l2, z_fiber, wavelength, n_rays=2000, medium='air', orientation='ScffcF'):
+def evaluate_fixed_config_at_wavelength(lenses, lens1, lens2, z_l1, z_l2, z_fiber, wavelength, n_rays=2000, medium='air', orientation='ScffcF', seed=None):
     from scripts.PlanoConvex import PlanoConvex
     from scripts.raytrace_helpers import sample_rays, trace_system
     from scripts import consts as C
@@ -221,7 +221,7 @@ def evaluate_fixed_config_at_wavelength(lenses, lens1, lens2, z_l1, z_l2, z_fibe
     C.WAVELENGTH_NM = wavelength
     
     try:
-        origins, dirs = sample_rays(n_rays)
+        origins, dirs = sample_rays(n_rays, seed=seed)
         lens1_obj = PlanoConvex(z_l1, _get_r_mm(d1), d1['tc_mm'], d1['te_mm'], d1['dia']/2.0, flipped=flipped1)
         lens2_obj = PlanoConvex(z_l2, _get_r_mm(d2), d2['tc_mm'], d2['te_mm'], d2['dia']/2.0, flipped=flipped2)
         
@@ -237,7 +237,7 @@ def evaluate_fixed_config_at_wavelength(lenses, lens1, lens2, z_l1, z_l2, z_fibe
         C.WAVELENGTH_NM = original_wavelength
 
 
-def wavelength_analysis(results_file, run_id, wl_start=180, wl_end=300, wl_step=10, n_rays=2000, alpha=0.7, medium='air', methods=None, orientation_mode='both'):
+def wavelength_analysis(results_file, run_id, wl_start=180, wl_end=300, wl_step=10, n_rays=2000, alpha=0.7, medium='air', methods=None, orientation_mode='both', base_seed=42):
     logger = _setup_logger(run_id)
     
     logger.info(f"Loading lens combinations from {results_file}")
@@ -339,6 +339,10 @@ def wavelength_analysis(results_file, run_id, wl_start=180, wl_end=300, wl_step=
             print(f"  Calibrating with {method} at 200nm...")
             logger.info(f"  Calibrating with {method} at 200nm")
             
+            # Calculate seed for this method+lens combination
+            # This ensures calibration and evaluation use the same random ray samples
+            method_seed = base_seed + hash(f"{lens1}+{lens2}+{method}") % 10000
+            
             import scripts.consts as C
             original_wavelength = C.WAVELENGTH_NM
             C.WAVELENGTH_NM = 200.0
@@ -347,22 +351,22 @@ def wavelength_analysis(results_file, run_id, wl_start=180, wl_end=300, wl_step=
                 res = None
                 if method == 'differential_evolution':
                     from scripts.optimization import differential_evolution as optimizer
-                    res = optimizer.optimize(lenses, lens1, lens2, n_rays=n_rays, alpha=alpha, medium=medium, orientation_mode=orientation_mode)
+                    res = optimizer.optimize(lenses, lens1, lens2, n_rays=n_rays, alpha=alpha, medium=medium, orientation_mode=orientation_mode, seed=method_seed)
                 elif method == 'dual_annealing':
                     from scripts.optimization import dual_annealing as optimizer
-                    res = optimizer.optimize(lenses, lens1, lens2, n_rays=n_rays, alpha=alpha, medium=medium, orientation_mode=orientation_mode)
+                    res = optimizer.optimize(lenses, lens1, lens2, n_rays=n_rays, alpha=alpha, medium=medium, orientation_mode=orientation_mode, seed=method_seed)
                 elif method == 'nelder_mead':
                     from scripts.optimization import nelder_mead as optimizer
-                    res = optimizer.optimize(lenses, lens1, lens2, n_rays=n_rays, alpha=alpha, medium=medium, orientation_mode=orientation_mode)
+                    res = optimizer.optimize(lenses, lens1, lens2, n_rays=n_rays, alpha=alpha, medium=medium, orientation_mode=orientation_mode, seed=method_seed)
                 elif method == 'powell':
                     from scripts.optimization import powell as optimizer
-                    res = optimizer.optimize(lenses, lens1, lens2, n_rays=n_rays, alpha=alpha, medium=medium, orientation_mode=orientation_mode)
+                    res = optimizer.optimize(lenses, lens1, lens2, n_rays=n_rays, alpha=alpha, medium=medium, orientation_mode=orientation_mode, seed=method_seed)
                 elif method == 'grid_search':
                     from scripts.optimization import grid_search as optimizer
                     res = optimizer.run_grid(run_id, lenses, lens1, lens2, medium=medium)
                 elif method == 'bayesian':
                     from scripts.optimization import bayesian as optimizer
-                    res = optimizer.optimize(lenses, lens1, lens2, n_calls=50, n_rays=n_rays, alpha=alpha, medium=medium, orientation_mode=orientation_mode)
+                    res = optimizer.optimize(lenses, lens1, lens2, n_calls=50, n_rays=n_rays, alpha=alpha, medium=medium, orientation_mode=orientation_mode, seed=method_seed)
                 
                 # Handle both list (orientation_mode='both') and single dict returns
                 # For wavelength analysis, we only use the first/best result
@@ -391,6 +395,10 @@ def wavelength_analysis(results_file, run_id, wl_start=180, wl_end=300, wl_step=
         logger.info(f"  Calibrations ready: {len(calibrations)}/{len(methods)} methods")
         
         for method, calib in calibrations.items():
+            # Use a consistent seed for this method+lens combination
+            # This ensures reproducibility and eliminates Monte Carlo variance
+            method_seed = base_seed + hash(f"{lens1}+{lens2}+{method}") % 10000
+            
             completed_for_method = completed_wavelengths.get(method, set())
             remaining = [wl for wl in wavelengths if float(wl) not in completed_for_method]
             
@@ -404,14 +412,17 @@ def wavelength_analysis(results_file, run_id, wl_start=180, wl_end=300, wl_step=
             else:
                 print(f"  Testing {method} calibration across wavelengths...")
             logger.info(f"  Testing {method} calibration: {len(remaining)} wavelengths remaining")
+            logger.info(f"  Using random seed: {method_seed} for reproducibility")
             
             for wavelength in tqdm(remaining, desc=f"  {method}", leave=False):
                 try:
+                    # Use same seed and ray count as calibration's final evaluation
                     coupling = evaluate_fixed_config_at_wavelength(
                         lenses, lens1, lens2,
                         calib['z_l1'], calib['z_l2'], calib['z_fiber'],
-                        wavelength, n_rays=n_rays, medium=medium,
-                        orientation=calib.get('orientation', 'ScffcF')
+                        wavelength, n_rays=2000, medium=medium,
+                        orientation=calib.get('orientation', 'ScffcF'),
+                        seed=method_seed
                     )
                     
                     result_entry = {

@@ -55,9 +55,14 @@ def evaluate_config_fast(params, d1, d2, origins, dirs, n_rays, alpha=0.7, mediu
     return alpha * (1 - coupling) + (1 - alpha) * z_fiber / 80.0
 
 
-def optimize(lenses, name1, name2, n_rays=1000, alpha=0.7, medium='air', orientation_mode='both'):
+def optimize(lenses, name1, name2, n_rays=1000, alpha=0.7, medium='air', orientation_mode='both', seed=None):
     d1, d2 = lenses[name1], lenses[name2]
     f1, f2 = d1['f_mm'], d2['f_mm']
+    
+    # Set seed if provided for reproducibility
+    if seed is not None:
+        np.random.seed(seed)
+    
     origins, dirs = sample_rays(n_rays)
     
     z_l1_init = max(C.SOURCE_TO_LENS_OFFSET + 1.0, f1 * 0.8)
@@ -114,7 +119,8 @@ def optimize(lenses, name1, name2, n_rays=1000, alpha=0.7, medium='air', orienta
             logger.error(f"  Skipping this result...")
             continue  # Skip this invalid result
         
-        origins_final, dirs_final = sample_rays(2000)
+        # Use seed for final evaluation to ensure reproducibility
+        origins_final, dirs_final = sample_rays(2000, seed=seed)
         lens1 = create_lens(d1, z_l1, flipped=flipped1)
         lens2 = create_lens(d2, z_l2, flipped=flipped2)
         

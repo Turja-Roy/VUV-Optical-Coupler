@@ -122,7 +122,7 @@ wavelength:
 
 # Wavelength plot settings (for wavelength-analyze-plot mode)
 wavelength_plot:
-  results_dir: results/wavelength_analyze_2025-11-07     # Path to wavelength analysis results directory (null = required on CLI)
+  results_dir: results/wavelength_analyze_2025-11-10     # Path to wavelength analysis results directory (null = required on CLI)
   fit_types: 'all'         # List of fit types: ['polynomial', 'spline'], 'all' (for no fit + polynomial + spline), or [] for no fits
   aggregate: false      # Generate aggregated plots (per-lens, per-method)
 
