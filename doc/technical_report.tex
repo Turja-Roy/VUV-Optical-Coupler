@@ -5,8 +5,8 @@
     Optimization of Two-Lens Coupling Systems for VUV Flashlamp to Fiber Applications Using Ray Tracing and Multi-Algorithm Comparison
 }
 
-\author{Turja Roy}
-\affil{Department of Physics, University of Texas at Arlington}
+\author{Turja Roy, Dr. Jonathan Abraham Asaadi, Dr. Varghese Anto Chirayath}
+\affil{Department of Physics, University of Texas at Arlington, Arlington, TX 76019, USA}
 \date{}
 
 \begin{document}
@@ -16,7 +16,7 @@
     \maketitle
 
     \begin{abstract}
-        A comprehensive ray tracing methodology is presented for optimizing two-lens plano-convex coupling systems for vacuum ultraviolet (VUV) flashlamp-to-fiber applications. The system couples 200 nm light from a 3 mm xenon arc source into a 1 mm fiber core (NA = 0.22). Six optimization algorithms---grid search, Powell's method, differential evolution, Nelder-Mead simplex, dual annealing, and Bayesian optimization---are systematically compared using deterministic ray tracing with atmospheric absorption modeling. Systematic analysis of 24,336 commercial lens combinations identifies optimal configurations achieving coupling efficiencies up to 0.50 in argon atmosphere. Powell's method emerges as the recommended algorithm for routine optimization, while differential evolution provides robust global exploration. Atmospheric oxygen absorption represents the dominant performance-limiting factor: wavelength analysis of representative configurations reveals 20--30\% relative coupling improvement in argon versus air at 200 nm, establishing argon atmosphere as essential for high-performance VUV applications. Wavelength analysis (150--300 nm) reveals peak performance in the 220--260 nm range. Tolerance analysis establishes practical alignment requirements for laboratory implementation. The modular framework provides both a practical design tool and methodological insights for non-convex optical optimization problems.
+        A comprehensive ray tracing methodology is presented for optimizing two-lens plano-convex coupling systems for vacuum ultraviolet (VUV) flashlamp-to-fiber applications. The system couples 200 nm light from a 3 mm xenon arc source into a 1 mm fiber core (NA = 0.22). Six optimization algorithms---grid search, Powell's method, differential evolution, Nelder-Mead simplex, dual annealing, and Bayesian optimization---are systematically compared using deterministic ray tracing with atmospheric absorption modeling. Systematic analysis of 24,336 commercial lens combinations identifies optimal configurations achieving coupling efficiencies up to 0.49 in argon atmosphere. Powell's method emerges as the recommended algorithm for routine optimization, while differential evolution provides robust global exploration. Atmospheric oxygen absorption represents the dominant performance-limiting factor: wavelength analysis of representative configurations reveals 16--24\% relative coupling improvement in argon versus air at 200 nm, establishing argon atmosphere as essential for high-performance VUV applications. Wavelength analysis (150--300 nm) reveals peak performance in the 220--260 nm range. Tolerance analysis establishes practical alignment requirements for laboratory implementation. The modular framework provides both a practical design tool and methodological insights for non-convex optical optimization problems.
     \end{abstract}
     \vspace{0.5cm}
 \end{@twocolumnfalse}
@@ -386,84 +386,64 @@ Table~\ref{tab:optimization_comparison} presents a systematic comparison of all 
 \textbf{Method} & \textbf{Air $\bm{\eta}$} & \textbf{Air $\bm{L}$} & \textbf{Argon $\bm{\eta}$} & \textbf{Argon $\bm{L}$} \\
  & & \textbf{(mm)} & & \textbf{(mm)} \\
 \hline
-Grid Search & 0.121 & 141.4 & 0.213 & 172.6 \\
-Powell & 0.281 & 61.5 & 0.346 & 61.5 \\
-Nelder-Mead & 0.299 & 56.6 & 0.386 & 56.6 \\
-Diff. Evol. & \textbf{0.320} & 56.9 & 0.365 & 56.6 \\
-Dual Anneal. & 0.295 & 57.6 & 0.393 & 56.6 \\
-Bayesian & 0.208 & 77.7 & \textbf{0.398} & 78.7 \\
+Grid Search & 0.129 & 141.5 & 0.217 & 172.7 \\
+Powell & 0.412 & 56.7 & 0.478 & 56.8 \\
+Nelder-Mead & 0.398 & 56.7 & \textbf{0.488} & 56.7 \\
+Diff. Evol. & \textbf{0.415} & 56.7 & 0.463 & 56.9 \\
+Dual Anneal. & 0.404 & 56.5 & 0.471 & 57.2 \\
+Bayesian & 0.317 & 78.2 & 0.397 & 78.7 \\
 \hline
 \end{tabular}
 \end{table}
 
-Differential evolution emerges as the most effective method for this configuration, achieving the highest coupling in air (0.320) and competitive performance in argon (0.365). Powell's method provides a fast alternative (1--2 seconds per lens pair) with good convergence (air: 0.281, argon: 0.346), making it suitable for rapid screening. For the most thorough global search, differential evolution requires 10--17 seconds per pair but explores the parameter space more exhaustively. Bayesian optimization (20--22s) achieves the highest argon coupling (0.398) but with longer computation time and an additional software dependency. Dual annealing (40--51s) offers strong performance (air: 0.295, argon: 0.393) but at higher computational cost. Grid search (2--3s with default 7$\times$7 grid) provides systematic baseline comparisons but struggles with this longer-focal-length configuration.
+Differential evolution emerges as the most effective method for this configuration, achieving the highest coupling in air (0.415) and strong performance in argon (0.463). Powell's method provides a fast alternative (1--2 seconds per lens pair) with excellent convergence (air: 0.412, argon: 0.478), making it suitable for rapid screening. For the most thorough global search, differential evolution requires 10--17 seconds per pair but explores the parameter space more exhaustively. Bayesian optimization (20--22s) achieves good argon coupling (0.397) but with longer computation time and an additional software dependency. Dual annealing (40--51s) offers strong performance (air: 0.404, argon: 0.471) but at higher computational cost. Grid search (2--3s with default 7$\times$7 grid) provides systematic baseline comparisons but struggles with this longer-focal-length configuration.
 
-Nelder-Mead demonstrates robust performance on this lens pair (air: 0.299, argon: 0.386) with fast convergence (0.4--2.0s), though previous experiments showed it can fail catastrophically on other configurations, making Powell's method the safer choice for unmonitored batch processing.
+Nelder-Mead demonstrates excellent performance on this lens pair (air: 0.398, argon: 0.488), achieving the highest argon coupling with fast convergence (0.4--2.0s), though previous experiments showed it can fail catastrophically on other configurations, making Powell's method the safer choice for unmonitored batch processing.
 
 \textbf{Key findings:}
 
 \begin{itemize}[leftmargin=*]
-    \item \textit{Differential evolution} achieves the highest coupling in air (0.320) with excellent global exploration capabilities. It provides consistent performance across both media (air: 0.320, argon: 0.365), making it valuable when thoroughness is prioritized. Typical runtime: 10--17~s per lens pair.
+    \item \textit{Differential evolution} achieves the highest coupling in air (0.415) with excellent global exploration capabilities. It provides consistent performance across both media (air: 0.415, argon: 0.463), making it valuable when thoroughness is prioritized. Typical runtime: 10--17~s per lens pair.
     
-    \item \textit{Bayesian optimization} achieves the highest argon coupling (0.398) through adaptive sampling of the parameter space, though at significant computational cost (20--22~s per pair) and requiring the additional \texttt{scikit-optimize} dependency. Performance in air is moderate (0.208).
+    \item \textit{Nelder-Mead} achieves the highest argon coupling (0.488) with remarkably fast convergence (0.4--2.0~s). On this configuration, it performs excellently (air: 0.398, argon: 0.488). However, it shows critical robustness issues on other lens pairs, occasionally converging to poor local optima with near-zero coupling.
     
-    \item \textit{Dual annealing} provides strong performance in both media (air: 0.295, argon: 0.393) with robust global search capabilities, though requiring longer computation time (40--51~s per pair).
+    \item \textit{Dual annealing} provides strong performance in both media (air: 0.404, argon: 0.471) with robust global search capabilities, though requiring longer computation time (40--51~s per pair).
     
-    \item \textit{Nelder-Mead} converges fastest (0.4--2.0~s) with good performance on this configuration (air: 0.299, argon: 0.386). However, it shows critical robustness issues on other lens pairs, occasionally converging to poor local optima with near-zero coupling.
+    \item \textit{Powell's method} provides reliable local optimization with rapid convergence ($\sim$1--2~s per lens pair) and excellent coupling (air: 0.412, argon: 0.478). Its combination of speed, robustness, and high performance makes it the recommended default for batch processing of large lens catalogs.
     
-    \item \textit{Powell's method} provides reliable local optimization with rapid convergence ($\sim$1--2~s per lens pair) and good coupling (air: 0.281, argon: 0.346). Its combination of speed and robustness makes it the recommended default for batch processing of large lens catalogs.
+    \item \textit{Bayesian optimization} achieves good performance through adaptive sampling of the parameter space (air: 0.317, argon: 0.397), though at significant computational cost (20--22~s per pair) and requiring the additional \texttt{scikit-optimize} dependency.
     
-    \item \textit{Grid search} provides a systematic baseline by exhaustively sampling configurations but struggles with longer-focal-length systems. Performance is poor for this configuration (air: 0.121, argon: 0.213) and computational cost scales poorly for finer resolution.
+    \item \textit{Grid search} provides a systematic baseline by exhaustively sampling configurations but struggles with longer-focal-length systems. Performance is poor for this configuration (air: 0.129, argon: 0.217) and computational cost scales poorly for finer resolution.
     
-    \item \textit{Medium comparison:} Argon provides significant coupling improvement (23.1\% for this configuration) due to reduced O$_2$ absorption. The magnitude of improvement depends on system length and configuration (20--31\% for optimized designs; see Section 5.5). Optimal system geometries remain nearly identical across media ($\Delta L < 1$~mm for successful methods).
+    \item \textit{Medium comparison:} Argon provides significant coupling improvement (16.0\% for this configuration) due to reduced O$_2$ absorption. The magnitude of improvement depends on system length and configuration (16--24\% for optimized designs; see Section 5.5). Optimal system geometries remain nearly identical across media ($\Delta L < 1$~mm for successful methods).
 \end{itemize}
-
-% FIGURE 3: Algorithm Performance Comparison
-% Create a bar chart from Table 1 data (36-686+48-273 @ 200nm)
-% Or use: plots/wavelength_analyze_2025-11-07/per_method/differential_evolution_coupling_vs_wavelength.png
-\begin{figure}[htpb]
-    \centering
-    \includegraphics[width=\columnwidth]{images/algorithm_comparison_bar.png}
-    \caption{Coupling efficiency comparison across six optimization methods for lens pair 36-686+48-273 at 200 nm. Each method shows performance in both air (light blue bars) and argon (dark blue bars) propagation media. Differential evolution achieves highest air coupling (0.320), while Bayesian optimization leads in argon (0.398). The 23\% average improvement in argon is consistent across most methods.}
-    \label{fig:algorithm_comparison}
-\end{figure}
 
 \subsection{Multi-Objective Optimization Results}
 
 The weighted objective function with tunable parameter $\alpha$ enables exploration of the coupling-compactness trade-off.
 
-% FIGURE 4: Pareto Frontier (Multi-Objective Trade-off)
-% Create a scatter plot showing coupling vs system length for different alpha values
-% Or show multiple lens pairs on coupling-length trade-off space
-% \begin{figure}[htpb]
-%     \centering
-%     \includegraphics[width=\columnwidth]{images/pareto_frontier.png}
-%     \caption{Multi-objective optimization results showing the coupling-compactness trade-off. Each point represents an optimized configuration at different $\alpha$ values. The Pareto frontier (solid line) shows the best achievable coupling for each system length. Configuration 36-686+48-273 (highlighted) achieves strong coupling ($\eta \approx 0.32$--0.40) with moderate system length ($L \approx 57$--62 mm).}
-%     \label{fig:pareto_frontier}
-% \end{figure}
-
 For the representative high-performing lens combination 36-686 + 48-273 ($f_1 = 30$ mm, $f_2 = 50$ mm) at 200 nm with $\alpha = 0.7$ (balanced, default):
 
 \textbf{Air propagation:}
 \begin{itemize}[leftmargin=*]
-    \item Best method (Diff. Evol.): $\eta = 0.320$, $L = 56.9$~mm
-    \item Nelder-Mead: $\eta = 0.299$, $L = 56.6$~mm
-    \item Dual annealing: $\eta = 0.295$, $L = 57.6$~mm
-    \item Powell: $\eta = 0.281$, $L = 61.5$~mm
+    \item Best method (Diff. Evol.): $\eta = 0.415$, $L = 56.7$~mm
+    \item Powell: $\eta = 0.412$, $L = 56.7$~mm
+    \item Dual annealing: $\eta = 0.404$, $L = 56.5$~mm
+    \item Nelder-Mead: $\eta = 0.398$, $L = 56.7$~mm
 \end{itemize}
 
 \textbf{Argon propagation:}
 \begin{itemize}[leftmargin=*]
-    \item Best method (Bayesian): $\eta = 0.398$, $L = 78.7$~mm
-    \item Dual annealing: $\eta = 0.393$, $L = 56.6$~mm
-    \item Nelder-Mead: $\eta = 0.386$, $L = 56.6$~mm
-    \item Differential evolution: $\eta = 0.365$, $L = 56.6$~mm
-    \item Powell: $\eta = 0.346$, $L = 61.5$~mm
+    \item Best method (Nelder-Mead): $\eta = 0.488$, $L = 56.7$~mm
+    \item Powell: $\eta = 0.478$, $L = 56.8$~mm
+    \item Dual annealing: $\eta = 0.471$, $L = 57.2$~mm
+    \item Differential evolution: $\eta = 0.463$, $L = 56.9$~mm
+    \item Bayesian: $\eta = 0.397$, $L = 78.7$~mm
 \end{itemize}
 
-This lens pair achieves strong coupling efficiency ($\eta \approx 0.30$--0.32 in air, $\eta \approx 0.35$--0.40 in argon) with moderate system length ($L \approx 57$--62~mm for most methods). The optimal geometry places the first lens approximately 12.5~mm from the source window and the second lens 18--23~mm downstream, depending on the optimization method. This configuration effectively balances beam collection from the divergent source with refocusing into the fiber acceptance cone, leveraging the longer focal lengths of both lenses.
+This lens pair achieves excellent coupling efficiency ($\eta \approx 0.40$--0.42 in air, $\eta \approx 0.46$--0.49 in argon) with compact system length ($L \approx 57$~mm for most methods). The optimal geometry places the first lens approximately 12.7~mm from the source window and the second lens 18.6--18.8~mm downstream, depending on the optimization method. This configuration effectively balances beam collection from the divergent source with refocusing into the fiber acceptance cone, leveraging the longer focal lengths of both lenses.
 
-The choice of optimization method significantly affects performance: differential evolution finds the best solution in air through thorough global exploration, while Bayesian optimization achieves the highest argon coupling through adaptive parameter space sampling. System length remains consistent across gradient-free methods ($L = 56.6$--57.6~mm), indicating a well-defined optimal geometry, while Powell's method converges to a slightly longer configuration ($L = 61.5$~mm).
+The choice of optimization method produces remarkably consistent results: all gradient-free local methods converge to nearly identical geometries ($L = 56.5$--57.2~mm) with coupling efficiencies within 4\% of each other. Nelder-Mead achieves the highest argon coupling (0.488) through rapid local optimization, while differential evolution finds the best solution in air (0.415) through thorough global exploration. Bayesian optimization converges to a longer configuration ($L = 78.7$~mm) with lower coupling, suggesting this method may explore different regions of the parameter space.
 
 This 36-686 + 48-273 combination represents one of the strongest performers identified in the systematic lens catalog screening (Section 5.3), demonstrating that appropriate focal length pairing ($f_2/f_1 \approx 1.67$) can achieve high coupling efficiency in both propagation media.
 
@@ -473,22 +453,20 @@ Analysis of high-performing configurations across multiple lens pair evaluations
 
 \textbf{Air propagation at 200 nm (representative configurations from wavelength analysis, Powell's method):}
 \begin{itemize}[leftmargin=*]
-    \item \textit{Best observed in wavelength study}: 36-686 + 36-687 achieved $\eta = 0.289$ with $L = 63.2$~mm ($f_1 = 30$ mm, $f_2 = 35$ mm)
+    \item \textit{Best observed in wavelength study}: 36-686 + 48-273 achieved $\eta = 0.412$ with $L = 56.7$~mm ($f_1 = 30$ mm, $f_2 = 50$ mm)
     
-    \item \textit{Strong alternative}: 36-686 + 48-273 achieved $\eta = 0.281$ with $L = 61.5$~mm ($f_1 = 30$ mm, $f_2 = 50$ mm)
+    \item \textit{Strong alternative}: 36-686 + 36-687 achieved $\eta = 0.381$ with $L = 61.4$~mm ($f_1 = 30$ mm, $f_2 = 35$ mm)
     
-    \item \textit{Note}: Limited air optimization conducted; values shown from wavelength analysis of argon-optimized configurations. Air coupling remains 20--30\% lower than argon due to O$_2$ absorption.
+    \item \textit{Note}: Limited air optimization conducted; values shown from wavelength analysis of argon-optimized configurations. Air coupling remains 16--24\% lower than argon due to O$_2$ absorption.
 \end{itemize}
 
 \textbf{Argon propagation at 200 nm (best configurations from systematic optimization):}
 \begin{itemize}[leftmargin=*]
-    \item \textit{Highest coupling}: 36-686 + 49-961 achieved $\eta = 0.498$ with $L = 74.6$~mm ($f_1 = 30$ mm, $f_2 = 60$ mm; reaches $\eta = 0.515$ after re-optimization)
+    \item \textit{Highest coupling}: 36-686 + 48-273 achieved $\eta = 0.488$ with $L = 56.7$~mm ($f_1 = 30$ mm, $f_2 = 50$ mm)
     
-    \item \textit{Excellent alternative}: 36-686 + 48-273 achieved $\eta = 0.486$ with $L = 67.7$~mm ($f_1 = 30$ mm, $f_2 = 50$ mm)
+    \item \textit{Excellent alternative}: 36-686 + 36-687 achieved $\eta = 0.475$ with $L = 54.3$~mm ($f_1 = 30$ mm, $f_2 = 35$ mm)
     
-    \item \textit{Balanced design}: 36-686 + 36-687 achieved $\eta = 0.483$ with $L = 61.5$~mm ($f_1 = 30$ mm, $f_2 = 35$ mm)
-    
-    \item \textit{Alternative}: LA4647 + 84-277 achieved $\eta = 0.246$ with $L = 38.9$~mm ($f_1 = 20.1$ mm, $f_2 = 25$ mm)
+    \item \textit{Compact design}: 36-686 + 49-960 achieved $\eta = 0.437$ with $L = 53.7$~mm ($f_1 = 30$ mm, $f_2 = 35$ mm)
 \end{itemize}
 
 \textbf{General design principles identified:}
@@ -501,16 +479,6 @@ Analysis of high-performing configurations across multiple lens pair evaluations
     
     \item \textit{Medium independence of geometry}: Optimal lens positions differ by less than 0.5~mm between air and argon, indicating that system geometry is primarily determined by ray optics rather than medium refractive index (both $n \approx 1.0003$)
 \end{itemize}
-
-% FIGURE 5: Top Configurations Summary
-% Create a summary plot showing top 5-10 lens pairs with coupling and system length
-% Data from Section 5.3 results
-% \begin{figure}[htpb]
-%     \centering
-%     \includegraphics[width=\columnwidth]{images/top_configurations_summary.png}
-%     \caption{Top-performing lens pair configurations in argon at 200 nm (Powell's method). Bars show coupling efficiency (left axis, blue), overlaid points indicate system length (right axis, red). Focal length ratios $f_2/f_1$ are annotated above each configuration. The 36-686 series with various L2 candidates consistently achieves highest performance ($\eta > 0.45$), with 36-686+49-961 reaching $\eta = 0.498$.}
-%     \label{fig:top_configurations}
-% \end{figure}
 
 \subsection{Propagation Medium Effects}
 
@@ -526,29 +494,34 @@ Analysis of representative lens pairs optimized in argon and subsequently evalua
 \hline
 \textbf{Lens Pair} & \textbf{Air $\bm{\eta}$} & \textbf{Argon $\bm{\eta}$} & \textbf{$\bm{\Delta\eta}$ (\%)} \\
 \hline
-36-686 + 36-687 & 0.289 & 0.378 & +30.8\% \\
-36-686 + 48-273 & 0.281 & 0.346 & +23.1\% \\
-36-686 + 36-689 & 0.266 & 0.330 & +24.1\% \\
-Average & --- & --- & +26.0\% \\
+36-686 + 36-687 & 0.381 & 0.472 & +23.9\% \\
+36-686 + 48-273 & 0.412 & 0.478 & +16.0\% \\
+36-686 + 36-689 & 0.314 & 0.387 & +23.2\% \\
+Average & --- & --- & +21.0\% \\
 \hline
 \end{tabular}
 \end{table}
 
-% FIGURE 6: Air vs Argon Medium Comparison
-% Recommended file: Create a comparison plot from the table data
-% Or use wavelength plots showing both media: plots/wavelength_analyze_2025-11-07/per_lens/36-686+36-687_*_wavelength.png
-% \begin{figure}[htpb]
-%     \centering
-%     \includegraphics[width=\columnwidth]{images/air_argon_comparison.png}
-%     \caption{Coupling efficiency comparison between air and argon propagation for three representative lens pairs at 200 nm (data from Table above). Argon (dark bars) provides 20--31\% improvement over air (light bars) by eliminating O$_2$ absorption. The benefit scales with system length: longer optical paths (36-686+36-687, 63 mm) show larger improvement (+30.8\%) compared to more compact configurations.}
-%     \label{fig:medium_comparison}
-% \end{figure}
+% FIGURE 3: Air vs Argon Medium Comparison for Wavelength 150-300 nm
+\begin{figure*}[htpb]
+    \centering
+    \begin{subfigure}{0.45\textwidth}
+        \includegraphics[width=0.95\textwidth]{36-686+48-273_air_coupling_vs_wavelength_spline.png}
+        \caption{Medium: Air}
+    \end{subfigure}
+    \begin{subfigure}{0.45\textwidth}
+        \includegraphics[width=0.95\textwidth]{36-686+48-273_argon_coupling_vs_wavelength_spline.png}
+        \caption{Medium: Argon}
+    \end{subfigure}
+    \caption{Coupling efficiency comparison across six optimization methods for lens pair 36-686+48-273 for wavelength 150-300 nm.}
+    \label{fig:algorithm_comparison}
+\end{figure*}
 
 \textbf{Key observations:}
 \begin{itemize}[leftmargin=*]
-    \item \textit{Argon provides 20--31\% higher coupling efficiency} than air at 200 nm, directly attributable to elimination of O$_2$ absorption along the optical path. The benefit varies with system length and optical design, averaging $\sim$26\% across representative configurations.
+    \item \textit{Argon provides 16--24\% higher coupling efficiency} than air at 200 nm, directly attributable to elimination of O$_2$ absorption along the optical path. The benefit varies with system length and optical design, averaging $\sim$21\% across representative configurations.
     
-    \item \textit{The benefit scales with system length}: Longer optical paths experience greater atmospheric absorption. For typical 53--63 mm systems (the configurations analyzed here), atmospheric absorption causes $\sim$20--31\% coupling reduction compared to argon. The 36-686 + 36-687 pair (63.2 mm in air, 54.3 mm in argon) shows the largest improvement (+30.8\%), while more compact configurations show 23--24\% improvement.
+    \item \textit{The benefit scales with system length}: Longer optical paths experience greater atmospheric absorption. For typical 53--63 mm systems (the configurations analyzed here), atmospheric absorption causes $\sim$16--24\% coupling reduction compared to argon. The 36-686 + 36-687 pair (61.4 mm in air, 56.4 mm in argon) shows the largest improvement (+23.9\%), while more compact configurations show 16--23\% improvement.
     
     \item \textit{Optimal lens positions remain nearly identical} between media ($\Delta z < 1$ mm for most configurations). System geometry is primarily determined by lens focal lengths and ray optics, not the propagation medium refractive index (air: $n = 1.000293$, argon: $n = 1.000281$ at 200 nm).
     
@@ -557,70 +530,58 @@ Average & --- & --- & +26.0\% \\
 
 \textbf{Practical implications:}
 
-For applications requiring maximum coupling efficiency, argon purging provides substantial improvement (20--31\%). However, argon-filled systems introduce experimental complexity: continuous gas flow or sealed enclosures, purity requirements, and associated plumbing.
+For applications requiring maximum coupling efficiency, argon purging provides substantial improvement (16--24\%). However, argon-filled systems introduce experimental complexity: continuous gas flow or sealed enclosures, purity requirements, and associated plumbing.
 
 Air remains a practical and acceptable working medium when:
 \begin{itemize}[leftmargin=*]
     \item Experimental simplicity is prioritized
-    \item A 20--31\% coupling reduction is tolerable for the application
+    \item A 16--24\% coupling reduction is tolerable for the application
     \item Open-beam optical alignment and adjustments are required
 \end{itemize}
 
-The choice between air and argon represents a trade-off between optical performance and practical implementation. For typical systems ($L \approx 53$--63 mm) at 200 nm, air coupling of 0.27--0.29 versus argon coupling of 0.33--0.38 reflects this engineering balance.
+The choice between air and argon represents a trade-off between optical performance and practical implementation. For typical systems ($L \approx 53$--63 mm) at 200 nm, air coupling of 0.31--0.42 versus argon coupling of 0.39--0.49 reflects this engineering balance.
 
 \subsection{Wavelength Dependence Analysis}
 
-To evaluate chromatic performance and wavelength-dependent absorption effects, a comprehensive wavelength analysis was conducted on 19 lens pair/medium combinations (nine configurations in air, ten in argon). Each configuration was optimized across the 180--300 nm range in 10 nm increments using all six algorithms independently. Refractive indices were recalculated at each wavelength via the Sellmeier equation, and atmospheric absorption coefficients were updated via the Minschwaner parameterization. This systematic study generated over 2,000 individual optimizations, providing quantitative data on spectral performance, chromatic aberration effects, and medium-dependent absorption across the VUV-UV range.
+To evaluate chromatic performance and wavelength-dependent absorption effects, a comprehensive wavelength analysis was conducted on 16 lens pairs tested in both air and argon (32 total configurations). Each configuration was optimized across the 150--300 nm range in 10 nm increments using all six algorithms independently. Refractive indices were recalculated at each wavelength via the Sellmeier equation, and atmospheric absorption coefficients were updated via the Minschwaner parameterization. This systematic study generated over 3,000 individual optimizations, providing quantitative data on spectral performance, chromatic aberration effects, and medium-dependent absorption across the VUV-UV range.
 
 \textbf{Coupling vs wavelength characteristics (representative: 36-686 + 36-687):}
 
 \begin{itemize}[leftmargin=*]
-    \item \textit{Below 180 nm (deep VUV)}: Severe coupling degradation in air ($\eta < 10^{-6}$) due to extremely strong O$_2$ absorption ($\alpha > 0.3$ mm$^{-1}$). The Beer-Lambert transmission through a 63 mm path is $T \approx \exp(-19) \approx 10^{-8}$, rendering air propagation impractical. Argon maintains strong coupling ($\eta \approx 0.35$--0.39), enabling deep-UV applications.
+    \item \textit{Below 180 nm (deep VUV)}: Severe coupling degradation in air ($\eta < 10^{-6}$) due to extremely strong O$_2$ absorption ($\alpha > 0.3$ mm$^{-1}$). The Beer-Lambert transmission through a 61 mm path is $T \approx \exp(-18) \approx 10^{-8}$, rendering air propagation impractical. Argon maintains strong coupling ($\eta \approx 0.44$--0.47), enabling deep-UV applications.
     
-    \item \textit{180--200 nm}: Rapid coupling recovery as O$_2$ absorption coefficient decreases. Air coupling rises from $\eta \approx 10^{-7}$ at 180 nm to $\eta \approx 0.29$ at 200 nm. This sharp transition defines the practical short-wavelength limit for air-filled systems.
+    \item \textit{180--200 nm}: Rapid coupling recovery as O$_2$ absorption coefficient decreases. Air coupling rises from $\eta \approx 3 \times 10^{-7}$ at 180 nm to $\eta \approx 0.38$ at 200 nm. This sharp transition defines the practical short-wavelength limit for air-filled systems.
     
-    \item \textit{200--280 nm (plateau region)}: Peak coupling efficiency zone. Air achieves $\eta \approx 0.28$--0.35, argon $\eta \approx 0.37$--0.41. Performance is relatively insensitive to wavelength in argon ($\Delta\eta < 10\%$ across this 80 nm range), indicating broad spectral tolerance. Atmospheric absorption creates greater variability in air ($\alpha \approx 0.02$--0.06 mm$^{-1}$), though chromatic aberration remains manageable in both media.
+    \item \textit{200--280 nm (plateau region)}: Peak coupling efficiency zone. Air achieves $\eta \approx 0.38$--0.46, argon $\eta \approx 0.47$--0.47. Performance is relatively insensitive to wavelength in argon ($\Delta\eta < 2\%$ across this 80 nm range), indicating broad spectral tolerance. Atmospheric absorption creates greater variability in air ($\alpha \approx 0.02$--0.06 mm$^{-1}$), though chromatic aberration remains manageable in both media.
     
-    \item \textit{Above 280 nm}: Continued strong performance in both media. Air coupling remains at $\eta \approx 0.32$--0.35, while argon shows $\eta \approx 0.38$--0.41 at 300 nm. This indicates that the 36-686 + 36-687 configuration maintains good chromatic correction across the VUV-UV range despite atmospheric absorption effects in air.
+    \item \textit{Above 280 nm}: Continued strong performance in both media. Air coupling reaches $\eta \approx 0.46$ at 300 nm, while argon maintains $\eta \approx 0.47$ at 300 nm. This indicates that the 36-686 + 36-687 configuration maintains good chromatic correction across the VUV-UV range despite atmospheric absorption effects in air.
 \end{itemize}
-
-% FIGURE 7: Wavelength Dependence Analysis
-% Recommended file: plots/wavelength_analyze_2025-11-07/per_lens/36-686+48-273_argon_coupling_vs_wavelength.png
-% Or create dual-panel showing air vs argon on same plot
-% \begin{figure}[htpb]
-%     \centering
-%     \includegraphics[width=\columnwidth]{images/36-686+48-273_wavelength_comparison.png}
-%     \caption{Coupling efficiency vs wavelength for lens pair 36-686+48-273 optimized using differential evolution. Air propagation (blue curves, multiple methods shown) exhibits severe absorption below 180 nm ($\eta < 10^{-6}$) and recovers by 200 nm. Argon (red curves) maintains high coupling throughout the 150--300 nm VUV-UV range. Peak performance occurs at 220--260 nm with relatively flat spectral response ($\Delta\eta < 10\%$) in argon.}
-%     \label{fig:wavelength_dependence}
-% \end{figure}
 
 \textbf{Optimal operating wavelength:} The system achieves peak performance in the 220--260 nm range, where coupling is maximized and relatively flat. The design wavelength of 200 nm represents a conservative choice for VUV applications, with modest performance gains (3--5\%) achievable at 230--250 nm.
 
 \textbf{Medium selection by wavelength:}
 \begin{itemize}[leftmargin=*]
     \item \textit{$\lambda < 180$ nm}: Argon essential (air coupling $< 10^{-6}$, effectively zero)
-    \item \textit{180--200 nm}: Argon strongly recommended (20--31\% improvement at 200 nm)
-    \item \textit{200--280 nm}: Argon provides substantial benefit (20--30\% improvement), though air remains practical for less demanding applications
+    \item \textit{180--200 nm}: Argon strongly recommended (16--24\% improvement at 200 nm)
+    \item \textit{200--280 nm}: Argon provides substantial benefit (16--24\% improvement), though air remains practical for less demanding applications
     \item \textit{$\lambda > 280$ nm}: Air acceptable (minimal absorption), though argon continues to provide measurable improvement
 \end{itemize}
 
-Detailed wavelength-dependent coupling data for all 16 lens pair/medium combinations, including results from all six optimization methods, are archived in \path{results/wavelength_analyze_2025-11-07/}. Aggregated analysis reveals method-dependent performance: Powell and differential evolution consistently achieve the highest coupling across the wavelength range, while Nelder-Mead exhibits sporadic failures (low outliers) at certain wavelengths and configurations. Grid search provides reliable baseline performance but systematically underperforms gradient-free local methods by 3--8\%. Bayesian and dual annealing show intermediate performance with higher variance. These comprehensive data enable design optimization for specific wavelength requirements, provide validation for chromatic aberration models, and inform algorithm selection for wavelength-specific applications.
+Detailed wavelength-dependent coupling data for all 16 lens pair/medium combinations, including results from all six optimization methods, are archived in \path{results/wavelength_analyze_2025-11-10/}. Aggregated analysis reveals method-dependent performance: Nelder-Mead and differential evolution consistently achieve the highest coupling across the wavelength range, while Powell shows strong but slightly lower performance. Grid search provides reliable baseline performance but systematically underperforms gradient-free local methods by 3--8\%. Bayesian and dual annealing show intermediate performance with higher variance. These comprehensive data enable design optimization for specific wavelength requirements, provide validation for chromatic aberration models, and inform algorithm selection for wavelength-specific applications.
 
-% FIGURE 8: Tolerance Analysis (Optional - requires new section)
-% Add this if you create a new Section 5.7 for Tolerance Analysis
-% Recommended file: plots/2025-11-09_None_differential_evolution_argon/tolerance_36-686+48-273.png
-% \subsection{Alignment Tolerance Analysis}
-%
-% Practical implementation of optimized configurations requires understanding sensitivity to lens position perturbations. Monte Carlo tolerance analysis was performed on representative high-performing configurations by systematically varying lens positions $z_1$ and $z_2$ around their optimal values and evaluating coupling efficiency degradation.
-%
-% \begin{figure}[htpb]
-%     \centering
-%     \includegraphics[width=\columnwidth]{images/tolerance_36-686+48-273.png}
-%     \caption{Coupling efficiency sensitivity to lens position perturbations for configuration 36-686+48-273 in argon at 200 nm. Contour plot shows coupling as a function of $\Delta z_1$ and $\Delta z_2$ displacements from optimal positions ($z_1^* = 12.6$ mm, $z_2^* = 18.6$ mm). The steep gradients near the optimum indicate tight alignment tolerances: $\pm$0.5 mm displacement causes $\sim$10--15\% coupling degradation. Diagonal correlation suggests that compensatory adjustments are possible during alignment.}
-%     \label{fig:tolerance_analysis}
-% \end{figure}
-%
-% Key findings: (1) Both lens positions require sub-millimeter alignment precision to maintain $>$90\% of optimal coupling. (2) Fiber position ($z_{\text{fiber}}$) shows similar sensitivity. (3) The 36-686 series configurations exhibit moderate tolerance compared to shorter focal length systems, providing practical margin for laboratory implementation. (4) Angular misalignment tolerance analysis (not shown) indicates acceptance of $<$2$^\circ$ tilt before significant coupling loss. These results establish realistic alignment requirements and inform mechanical mount design for experimental prototypes.
+\subsection{Alignment Tolerance Analysis}
+
+Practical implementation of optimized configurations requires understanding sensitivity to lens position perturbations. Monte Carlo tolerance analysis was performed on representative high-performing configurations by systematically varying lens positions $z_1$ and $z_2$ around their optimal values and evaluating coupling efficiency degradation.
+
+% FIGURE 4: Tolerance Analysis for Configuration 36-686 + 48-273
+\begin{figure*}[htpb]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/tolerance_36-686+48-273.png}
+    \caption{Coupling efficiency sensitivity to lens position perturbations for configuration 36-686+48-273 in argon at 200 nm. Contour plot shows coupling as a function of $\Delta z_1$ and $\Delta z_2$ displacements from optimal positions ($z_1^* = 12.6$ mm, $z_2^* = 18.6$ mm). The steep gradients near the optimum indicate tight alignment tolerances: $\pm$0.5 mm displacement causes $\sim$10--15\% coupling degradation. Diagonal correlation suggests that compensatory adjustments are possible during alignment.}
+    \label{fig:tolerance_analysis}
+\end{figure*}
+
+Key findings: (1) Both lens positions require sub-millimeter alignment precision to maintain $>$90\% of optimal coupling. (2) Fiber position ($z_{\text{fiber}}$) shows similar sensitivity. (3) The 36-686 series configurations exhibit moderate tolerance compared to shorter focal length systems, providing practical margin for laboratory implementation. (4) Angular misalignment tolerance analysis (not shown) indicates acceptance of $<$2$^\circ$ tilt before significant coupling loss. These results establish realistic alignment requirements and inform mechanical mount design for experimental prototypes.
 
 \subsection{Computational Efficiency}
 
@@ -660,11 +621,11 @@ Nelder-Mead simplex can fail catastrophically in certain parameter spaces (notab
 
 The multi-objective framework successfully navigates the coupling-compactness trade-off through the tunable $\alpha$ parameter. Analysis of 3,876 strategically selected lens pair configurations (\texttt{select} mode: 68 L1 candidates $\times$ 57 L2 candidates) identifies key design principles: focal length ratios near unity, first lens positioning 9.7--12~mm from the source, and careful NA matching between the relay system and fiber. Exhaustive evaluation of all 24,336 possible combinations (\texttt{combine} mode: 156 $\times$ 156) confirms these design principles and reveals no superior configurations beyond the strategic candidate subset.
 
-\textbf{Atmospheric absorption at 200 nm}, modeled using the Minschwaner O$_2$ cross-section parameterization, represents a significant performance factor. Systematic comparison of air versus argon propagation reveals an \textbf{average $\sim$26\% coupling improvement in argon} across tested configurations (range: 20--31\%), with the benefit scaling with optical path length. For representative high-performing designs optimized in argon, Powell's method achieves coupling efficiency of $\eta = 0.289$ in air and $\eta = 0.378$ in argon at 200 nm for the 36-686 + 36-687 pair (30.8\% improvement), with system length $L \approx 54$--63 mm depending on medium. The 36-686 + 48-273 configuration ($L \approx 61$ mm) reaches $\eta = 0.346$ in argon versus $\eta = 0.281$ in air (23.1\% improvement). Optimal lens positions differ by less than 1 mm between media for most configurations, confirming that system geometry is determined by ray optics rather than medium refractive index. The choice between air and argon represents a trade-off between optical performance and experimental complexity.
+\textbf{Atmospheric absorption at 200 nm}, modeled using the Minschwaner O$_2$ cross-section parameterization, represents a significant performance factor. Systematic comparison of air versus argon propagation reveals an \textbf{average $\sim$21\% coupling improvement in argon} across tested configurations (range: 16--24\%), with the benefit scaling with optical path length. For representative high-performing designs optimized in argon, Powell's method achieves coupling efficiency of $\eta = 0.381$ in air and $\eta = 0.472$ in argon at 200 nm for the 36-686 + 36-687 pair (23.9\% improvement), with system length $L \approx 54$--61 mm depending on medium. The 36-686 + 48-273 configuration ($L \approx 57$ mm) reaches $\eta = 0.478$ in argon versus $\eta = 0.412$ in air (16.0\% improvement). Optimal lens positions differ by less than 1 mm between media for most configurations, confirming that system geometry is determined by ray optics rather than medium refractive index. The choice between air and argon represents a trade-off between optical performance and experimental complexity.
 
-\textbf{Wavelength dependence analysis} (150--300 nm) reveals critical spectral characteristics: (1) Air becomes impractical below 180 nm ($\eta < 10^{-6}$) due to extreme O$_2$ absorption, requiring argon for deep-UV applications where argon maintains strong coupling ($\eta \approx 0.35$--0.39). (2) The system achieves peak performance in the 200--280 nm range, with air reaching $\eta \approx 0.28$--0.35 and argon $\eta \approx 0.37$--0.41, demonstrating relatively flat spectral response particularly in argon ($< 10\%$ variation). (3) Performance remains strong above 280 nm, with continued high coupling at 300 nm in both media. These findings guide wavelength-specific medium selection and establish the practical operating range for two-lens VUV coupling systems.
+\textbf{Wavelength dependence analysis} (150--300 nm) reveals critical spectral characteristics: (1) Air becomes impractical below 180 nm ($\eta < 10^{-6}$) due to extreme O$_2$ absorption, requiring argon for deep-UV applications where argon maintains strong coupling ($\eta \approx 0.44$--0.47). (2) The system achieves peak performance in the 200--280 nm range, with air reaching $\eta \approx 0.38$--0.46 and argon $\eta \approx 0.46$--0.49, demonstrating relatively flat spectral response particularly in argon ($< 2\%$ variation). (3) Performance remains strong above 280 nm, with continued high coupling at 300 nm in both media. These findings guide wavelength-specific medium selection and establish the practical operating range for two-lens VUV coupling systems.
 
-Achieved coupling efficiencies of 0.27--0.29 in air and 0.33--0.50 in argon represent realistic predictions for laboratory systems at 200 nm. Experimental realization will require additional consideration of: (1) Fresnel reflection losses ($\sim$5\% per surface, $\sim$20\% total for 4 surfaces), (2) bulk absorption in UV optics, (3) alignment tolerances, and (4) actual arc lamp spatial and angular emission distributions. Incorporating Fresnel losses would reduce the predicted coupling by approximately 20\%, setting realistic experimental targets in the range of 0.22--0.23 for air systems and 0.26--0.40 for argon systems, depending on configuration.
+Achieved coupling efficiencies of 0.31--0.42 in air and 0.39--0.49 in argon represent realistic predictions for laboratory systems at 200 nm. Experimental realization will require additional consideration of: (1) Fresnel reflection losses ($\sim$5\% per surface, $\sim$20\% total for 4 surfaces), (2) bulk absorption in UV optics, (3) alignment tolerances, and (4) actual arc lamp spatial and angular emission distributions. Incorporating Fresnel losses would reduce the predicted coupling by approximately 20\%, setting realistic experimental targets in the range of 0.25--0.34 for air systems and 0.31--0.39 for argon systems, depending on configuration.
 
 The modular, extensible framework enables straightforward addition of new optimization algorithms, objective functions, or physical models. The absorption model is implemented in \path{scripts/calcs.py} and \path{scripts/hitran_data.py} using empirical cross-section parameterizations. Future enhancements could include: tolerance analysis via Monte Carlo perturbation, three-lens systems for improved aberration correction, multi-wavelength optimization for broadband sources, incorporation of Fresnel and bulk losses, and experimental validation with physical prototypes.
 
