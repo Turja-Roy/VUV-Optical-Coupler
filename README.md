@@ -1,6 +1,57 @@
 # VUV Flashlamp-to-Fiber Coupling Optimization
 
-A comprehensive ray tracing and optimization framework for designing two-lens plano-convex optical systems that efficiently couple vacuum ultraviolet (VUV) light from xenon flashlamp sources into optical fibers.
+A comprehensive ray tracing and optimization framework for designing two-lens optical systems that efficiently couple vacuum ultraviolet (VUV) light from xenon flashlamp sources into optical fibers.
+
+## Table of Contents
+
+- [Project Overview](#project-overview)
+  - [Key Results](#key-results)
+- [Features](#features)
+  - [Six Optimization Algorithms](#six-optimization-algorithms)
+  - [Multi-Objective Optimization](#multi-objective-optimization)
+  - [Additional Capabilities](#additional-capabilities)
+- [Performance](#performance)
+  - [Vectorized Ray Tracing](#vectorized-ray-tracing)
+  - [Benchmark Your System](#benchmark-your-system)
+- [Database Storage](#database-storage)
+  - [Two-Database Architecture](#two-database-architecture)
+  - [Managing the Lens Database](#managing-the-lens-database)
+  - [SQLite Backend for Results](#sqlite-backend-for-results)
+- [Web Dashboard](#web-dashboard)
+  - [Starting the Dashboard](#starting-the-dashboard)
+  - [Features](#features-1)
+  - [Usage Examples](#usage-examples)
+  - [API Endpoints](#api-endpoints)
+- [Installation](#installation)
+  - [Requirements](#requirements)
+  - [Quick Start](#quick-start)
+- [Configuration Files](#configuration-files)
+  - [Using Preset Profiles](#using-preset-profiles)
+  - [Using Custom Configuration Files](#using-custom-configuration-files)
+  - [Configuration Support by Mode](#configuration-support-by-mode)
+- [Usage Guide](#usage-guide)
+  - [Basic Commands](#basic-commands)
+  - [Command Reference](#command-reference)
+- [File Structure](#file-structure)
+- [Algorithm Details](#algorithm-details)
+- [Output Files](#output-files)
+  - [Results CSVs](#results-csvs)
+  - [Plot Files](#plot-files)
+  - [Log Files](#log-files)
+- [Physics and Implementation](#physics-and-implementation)
+  - [Ray Tracing](#ray-tracing)
+  - [Atmospheric Absorption](#atmospheric-absorption)
+  - [Multi-Objective Optimization](#multi-objective-optimization-1)
+- [Performance Recommendations](#performance-recommendations)
+- [Example Workflows](#example-workflows)
+- [Troubleshooting](#troubleshooting)
+- [Technical Background](#technical-background)
+  - [Research Context](#research-context)
+  - [Physical Constants](#physical-constants)
+  - [Optimization Implementation](#optimization-implementation)
+- [Citation](#citation)
+- [Author](#author)
+- [Contributing](#contributing)
 
 ## Project Overview
 
@@ -13,10 +64,10 @@ This project addresses the challenge of efficiently collecting 200nm light from 
 
 ### Key Results
 
-- **Coupling Efficiency**: 0.19-0.24 in air, 0.24-0.29 in argon for optimized configurations
-- **System Length**: 33-95mm depending on lens selection
-- **Atmospheric Impact**: ~8% coupling improvement in argon vs. air (200nm O₂ absorption elimination)
-- **Medium Dependence**: Argon shows measurably better performance than air due to lack of UV absorption
+- **Coupling Efficiency**: 0.31-0.42 in air, 0.39-0.49 in argon for optimized configurations
+- **System Length**: 54-63mm for high-performing configurations
+- **Atmospheric Impact**: 16-24% coupling improvement in argon vs. air (average ~21% at 200nm O₂ absorption elimination)
+- **Medium Dependence**: Argon shows significantly better performance than air due to lack of UV absorption
 
 ## Features
 
@@ -911,8 +962,8 @@ Deterministic ray tracing with quasi-random sampling:
 ### Atmospheric Absorption
 
 O₂ absorption at 200nm modeled using Minschwaner parameterization:
-- **Air (21% O₂)**: ~8% coupling loss vs. argon (measured)
-- **Argon/Helium**: Negligible absorption at 200nm, ~8% better coupling than air
+- **Air (21% O₂)**: 16-24% coupling loss vs. argon (average ~21%, measured)
+- **Argon/Helium**: Negligible absorption at 200nm, 16-24% better coupling than air
 - Temperature, pressure, and humidity dependent
 
 ### Multi-Objective Optimization
@@ -1228,8 +1279,8 @@ This project implements the optimization framework described in:
 > Turja Roy, Department of Physics, University of Texas at Arlington
 
 Key findings:
-- Coupling efficiencies of 0.19-0.24 in air, 0.24-0.29 in argon achievable with optimized configurations
-- Argon provides ~8% coupling improvement over air due to eliminated O₂ absorption
+- Coupling efficiencies of 0.31-0.42 in air, 0.39-0.49 in argon achievable with optimized configurations
+- Argon provides 16-24% coupling improvement over air (average ~21%) due to eliminated O₂ absorption
 - Powell's method is fastest (1-2s) while differential evolution is most thorough (10-17s)
 - Multi-objective optimization successfully balances efficiency and compactness
 
