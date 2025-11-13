@@ -89,6 +89,14 @@ def h2o_cross_section(wavelength_nm):
         return 0.0
 
 
+def co2_cross_section(wavelength_nm):
+    try:
+        from scripts.hitran_data import co2_cross_section_interpolated
+        return co2_cross_section_interpolated(wavelength_nm)
+    except:
+        return 0.0
+
+
 def number_density(pressure_atm, temp_k):
     P_pa = pressure_atm * 101325.0
     k_B = 1.380649e-23
@@ -108,12 +116,14 @@ def calculate_attenuation_coefficient(wavelength_nm, medium, pressure_atm=1.0, t
         n_dry = (1.0 - humidity_fraction) * n_total
         n_o2 = 0.21 * n_dry
         n_n2 = 0.78 * n_dry
+        n_co2 = 0.00042 * n_dry  # 420 ppm CO2 in standard air
         
         sigma_o2 = o2_cross_section(wavelength_nm)
         sigma_n2 = n2_cross_section_empirical(wavelength_nm)
         sigma_h2o = h2o_cross_section(wavelength_nm)
+        sigma_co2 = co2_cross_section(wavelength_nm)
         
-        alpha_cm = sigma_o2 * n_o2 + sigma_n2 * n_n2 + sigma_h2o * n_h2o
+        alpha_cm = sigma_o2 * n_o2 + sigma_n2 * n_n2 + sigma_h2o * n_h2o + sigma_co2 * n_co2
         return alpha_cm / 10.0
     
     return 0.0

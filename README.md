@@ -49,7 +49,7 @@ A comprehensive ray tracing and optimization framework for designing two-lens op
   - [Research Context](#research-context)
   - [Physical Constants](#physical-constants)
   - [Optimization Implementation](#optimization-implementation)
-- [Citation](#citation)
+<!-- - [Citation](#citation) -->
 - [Author](#author)
 - [Contributing](#contributing)
 
@@ -1307,17 +1307,17 @@ Parameter bounds:
 - `z_l2`: 9.7 - 50.0 mm (lens 2 position, constrained > z_l1 + lens thickness)
 - `z_fiber`: Automatically optimized based on focal length and magnification
 
-## Citation
-
-If you use this code in your research, please cite:
-
-```
-Turja Roy, "Optimization of Two-Lens Coupling Systems for VUV Flashlamp 
-to Fiber Applications Using Ray Tracing and Multi-Algorithm Comparison",
-University of Texas at Arlington (2025)
-```
-
-Technical report: `doc/technical_report.pdf`
+<!-- ## Citation -->
+<!---->
+<!-- If you use this code in your research, please cite: -->
+<!---->
+<!-- ``` -->
+<!-- Turja Roy, "Optimization of Two-Lens Coupling Systems for VUV Flashlamp  -->
+<!-- to Fiber Applications Using Ray Tracing and Multi-Algorithm Comparison", -->
+<!-- University of Texas at Arlington (2025) -->
+<!-- ``` -->
+<!---->
+<!-- Technical report: `doc/technical_report.pdf` -->
 
 ## Author
 
