@@ -8,12 +8,18 @@ FIBER_CORE_DIAM_MM = 1.0                    # 1000 micron
 NA = 0.22
 ACCEPTANCE_HALF_RAD = __import__("numpy").deg2rad(12.4)
 
-# Source geometry
+# Source geometry - WITH COOLING JACKET
 SOURCE_ARC_DIAM_MM = 3.0                    # Arc diameter
-WINDOW_DIAM_MM = 14.3                       # Window diameter
-WINDOW_DISTANCE_MM = 8.7                    # Distance from arc to window
-MAX_ANGLE_DEG = 33                          # Maximum ray angle at window edge
+LAMP_WINDOW_DIAM_MM = 14.3                  # Lamp window diameter (at 8.7mm from arc)
+COOLING_JACKET_THREAD_DIAM_MM = 23.0        # M23 thread inner diameter
+LAMP_WINDOW_DISTANCE_MM = 8.7               # Distance from arc to lamp window
+WINDOW_DISTANCE_MM = 26                     # Distance from arc to cooling jacket exit (23.5±1.5 + ~1mm)
+MAX_ANGLE_DEG = 22.85                       # Limited by cooling jacket: atan(11.5/26.3) = 22.85°
+GEOMETRIC_LOSS_FACTOR = 0.43                # Solid angle ratio due to cooling jacket vignetting (51.4% light loss)
 SOURCE_RADIUS_MM = SOURCE_ARC_DIAM_MM/2.0   # Source radius for ray generation
+
+# Legacy constant for backwards compatibility
+WINDOW_DIAM_MM = LAMP_WINDOW_DIAM_MM        # Deprecated: use LAMP_WINDOW_DIAM_MM
 
 # Position offset for lenses
 SOURCE_TO_LENS_OFFSET = WINDOW_DISTANCE_MM + 1  # Lenses start after the window

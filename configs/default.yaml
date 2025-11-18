@@ -10,12 +10,18 @@ rays:
 optics:
   wavelength_nm: 200.0  # VUV wavelength
 
-# Source geometry (xenon flashlamp)
+# Source geometry (xenon flashlamp with M23 cooling jacket)
 source:
-  arc_diameter_mm: 3.0      # Arc source diameter
-  window_diameter_mm: 14.3  # Window diameter
-  window_distance_mm: 8.7   # Distance from arc to window
-  max_angle_deg: 33         # Maximum ray angle at window edge
+  arc_diameter_mm: 3.0                     # Arc source diameter
+  lamp_window_diameter_mm: 14.3            # Lamp window diameter (at 8.7mm from arc)
+  cooling_jacket_thread_diameter_mm: 23.0  # M23 thread inner diameter
+  lamp_window_distance_mm: 8.7             # Distance from arc to lamp window
+  window_distance_mm: 26                   # Distance from arc to cooling jacket exit
+  max_angle_deg: 22.85                     # Limited by cooling jacket: atan(11.5/26.3)
+  geometric_loss_factor: 0.43              # Solid angle ratio (51.4% light loss from vignetting)
+  
+  # Legacy field for backwards compatibility
+  # window_diameter_mm: 14.3                 # Deprecated: use lamp_window_diameter_mm
 
 # Fiber parameters
 fiber:

@@ -623,6 +623,30 @@ def _plot_rays_on_axis(ax, lenses, result, n_plot_rays=1000):
     y = r * np.sin(t)
     ax.plot_surface(x, y, z_fiber + np.zeros_like(x), alpha=0.3, color='g')
 
+    # Draw source arc at z=0 (3D circle)
+    theta_source = np.linspace(0, 2*np.pi, 100)
+    r_source = C.SOURCE_ARC_DIAM_MM / 2.0
+    x_source = r_source * np.cos(theta_source)
+    y_source = r_source * np.sin(theta_source)
+    z_source = np.zeros_like(x_source)
+    ax.plot(x_source, y_source, z_source, 'orange', linewidth=2, alpha=0.8, label='Arc source')
+    
+    # Draw lamp window at z=8.7mm (3D circle)
+    r_lamp = C.LAMP_WINDOW_DIAM_MM / 2.0
+    z_lamp = C.LAMP_WINDOW_DISTANCE_MM
+    x_lamp = r_lamp * np.cos(theta_source)
+    y_lamp = r_lamp * np.sin(theta_source)
+    z_lamp_array = np.full_like(x_lamp, z_lamp)
+    ax.plot(x_lamp, y_lamp, z_lamp_array, 'yellow', linewidth=2, alpha=0.6, linestyle='--', label='Lamp window')
+    
+    # Draw cooling jacket aperture at z=26mm (3D circle - M23 thread)
+    r_cooling = C.COOLING_JACKET_THREAD_DIAM_MM / 2.0
+    z_cooling = C.WINDOW_DISTANCE_MM - 1.0
+    x_cooling = r_cooling * np.cos(theta_source)
+    y_cooling = r_cooling * np.sin(theta_source)
+    z_cooling_array = np.full_like(x_cooling, z_cooling)
+    ax.plot(x_cooling, y_cooling, z_cooling_array, 'red', linewidth=3, alpha=0.7, label='Cooling jacket (M23)')
+
     ax.set_box_aspect([1, 1, 1])
     ax.set_xlabel('X (mm)')
     ax.set_ylabel('Y (mm)')
@@ -798,6 +822,37 @@ def _plot_rays_2d_dual_view(fig, lenses, result, n_plot_rays=1000):
     ax2.plot(z_fiber, -fiber_half_dia, 'go', markersize=5)
     ax2.plot(z_fiber, fiber_half_dia, 'go', markersize=5)
     
+    # Draw source arc at z=0
+    source_radius = C.SOURCE_ARC_DIAM_MM / 2.0
+    ax1.plot([0, 0], [-source_radius, source_radius], 
+             'orange', linewidth=2, alpha=0.8, label='Arc source')
+    ax2.plot([0, 0], [-source_radius, source_radius], 
+             'orange', linewidth=2, alpha=0.8, label='Arc source')
+    ax1.plot(0, -source_radius, 'o', color='orange', markersize=5)
+    ax1.plot(0, source_radius, 'o', color='orange', markersize=5)
+    ax2.plot(0, -source_radius, 'o', color='orange', markersize=5)
+    ax2.plot(0, source_radius, 'o', color='orange', markersize=5)
+    
+    # Draw lamp window at z=8.7mm
+    lamp_window_radius = C.LAMP_WINDOW_DIAM_MM / 2.0
+    z_lamp_window = C.LAMP_WINDOW_DISTANCE_MM
+    ax1.plot([z_lamp_window, z_lamp_window], [-lamp_window_radius, lamp_window_radius], 
+             'yellow', linewidth=2, alpha=0.6, linestyle='--', label='Lamp window')
+    ax2.plot([z_lamp_window, z_lamp_window], [-lamp_window_radius, lamp_window_radius], 
+             'yellow', linewidth=2, alpha=0.6, linestyle='--', label='Lamp window')
+    
+    # Draw cooling jacket aperture at z=26mm (M23 thread)
+    cooling_jacket_radius = C.COOLING_JACKET_THREAD_DIAM_MM / 2.0
+    z_cooling_jacket = C.WINDOW_DISTANCE_MM - 1.0
+    ax1.plot([z_cooling_jacket, z_cooling_jacket], [-cooling_jacket_radius, cooling_jacket_radius], 
+             'red', linewidth=3, alpha=0.7, label='Cooling jacket (M23)')
+    ax2.plot([z_cooling_jacket, z_cooling_jacket], [-cooling_jacket_radius, cooling_jacket_radius], 
+             'red', linewidth=3, alpha=0.7, label='Cooling jacket (M23)')
+    ax1.plot(z_cooling_jacket, -cooling_jacket_radius, 'rs', markersize=6)
+    ax1.plot(z_cooling_jacket, cooling_jacket_radius, 'rs', markersize=6)
+    ax2.plot(z_cooling_jacket, -cooling_jacket_radius, 'rs', markersize=6)
+    ax2.plot(z_cooling_jacket, cooling_jacket_radius, 'rs', markersize=6)
+    
     # Set labels and formatting
     ax1.set_ylabel('X (mm)', fontsize=10)
     ax1.set_title('X-Z Projection (Horizontal)', fontsize=11, fontweight='bold')
@@ -815,7 +870,10 @@ def _plot_rays_2d_dual_view(fig, lenses, result, n_plot_rays=1000):
         Patch(facecolor='g', alpha=0.5, label='Accepted rays'),
         Patch(facecolor='r', alpha=0.5, label='Rejected rays'),
         Patch(facecolor='b', alpha=0.2, edgecolor='b', label='Lenses'),
-        Line2D([0], [0], color='g', linewidth=3, alpha=0.6, label='Fiber core')
+        Line2D([0], [0], color='orange', linewidth=2, alpha=0.8, label='Arc source (Ø3mm)'),
+        Line2D([0], [0], color='yellow', linewidth=2, alpha=0.6, linestyle='--', label='Lamp window (Ø14.3mm)'),
+        Line2D([0], [0], color='red', linewidth=3, alpha=0.7, label='Cooling jacket M23 (Ø23mm)'),
+        Line2D([0], [0], color='g', linewidth=3, alpha=0.6, label='Fiber core (Ø1mm)')
     ]
     ax1.legend(handles=legend_elements, loc='upper right', fontsize=8)
 
@@ -897,7 +955,7 @@ def _plot_single_2d_view(ax, lenses, result, n_plot_rays=500, projection='xz'):
         # Trace through lens1 with detailed output
         result1 = lens1.trace_ray_detailed(o, d, 1.0)
         if result1[4] is False:  # success flag is at index 4
-            Ray failed - just draw from origin toward lens1
+            # Ray failed - just draw from origin toward lens1
             t_failed = 5.0  # Draw 5mm segment
             p_failed = o + t_failed * d
             ax.plot([o[2], p_failed[2]], [o[coord_idx], p_failed[coord_idx]], 
@@ -908,8 +966,8 @@ def _plot_single_2d_view(ax, lenses, result, n_plot_rays=500, projection='xz'):
         # Trace through lens2 with detailed output
         result2 = lens2.trace_ray_detailed(p1_exit, d1_out, 1.0)
         if result2[4] is False:  # success flag is at index 4
-            Ray made it through lens1 but failed lens2
-            Draw: origin→lens1_entry, lens1_entry→lens1_exit, lens1_exit→partial
+            # Ray made it through lens1 but failed lens2
+            # Draw: origin→lens1_entry, lens1_entry→lens1_exit, lens1_exit→partial
             ax.plot([o[2], p1_entry[2]], [o[coord_idx], p1_entry[coord_idx]], 
                    'r-', alpha=0.2, linewidth=0.5)
             ax.plot([p1_entry[2], p1_exit[2]], [p1_entry[coord_idx], p1_exit[coord_idx]], 
@@ -980,6 +1038,27 @@ def _plot_single_2d_view(ax, lenses, result, n_plot_rays=500, projection='xz'):
             'g-', linewidth=2, alpha=0.6)
     ax.plot(z_fiber, -fiber_half_dia, 'go', markersize=4)
     ax.plot(z_fiber, fiber_half_dia, 'go', markersize=4)
+    
+    # Draw source arc at z=0
+    source_radius = C.SOURCE_ARC_DIAM_MM / 2.0
+    ax.plot([0, 0], [-source_radius, source_radius], 
+            'orange', linewidth=2, alpha=0.8)
+    ax.plot(0, -source_radius, 'o', color='orange', markersize=4)
+    ax.plot(0, source_radius, 'o', color='orange', markersize=4)
+    
+    # Draw lamp window at z=8.7mm
+    lamp_window_radius = C.LAMP_WINDOW_DIAM_MM / 2.0
+    z_lamp_window = C.LAMP_WINDOW_DISTANCE_MM
+    ax.plot([z_lamp_window, z_lamp_window], [-lamp_window_radius, lamp_window_radius], 
+            'yellow', linewidth=2, alpha=0.6, linestyle='--')
+    
+    # Draw cooling jacket aperture at z=26mm (M23 thread)
+    cooling_jacket_radius = C.COOLING_JACKET_THREAD_DIAM_MM / 2.0
+    z_cooling_jacket = C.WINDOW_DISTANCE_MM - 1.0
+    ax.plot([z_cooling_jacket, z_cooling_jacket], [-cooling_jacket_radius, cooling_jacket_radius], 
+            'red', linewidth=3, alpha=0.7)
+    ax.plot(z_cooling_jacket, -cooling_jacket_radius, 'rs', markersize=5)
+    ax.plot(z_cooling_jacket, cooling_jacket_radius, 'rs', markersize=5)
     
     # Set labels and formatting
     ax.set_xlabel('Z (mm)', fontsize=9)

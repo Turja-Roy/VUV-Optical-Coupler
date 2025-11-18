@@ -46,12 +46,11 @@ def evaluate_config_fast(params, d1, d2, origins, dirs, n_rays, alpha=0.7, mediu
     lens1 = create_lens(d1, z_l1, flipped=flipped1)
     lens2 = create_lens(d2, z_l2, flipped=flipped2)
     
-    accepted, transmission = trace_system(origins, dirs, lens1, lens2, z_fiber, 
+    accepted, transmission = trace_system(origins, dirs, lens1, lens2, z_fiber,
                            C.FIBER_CORE_DIAM_MM/2.0, C.ACCEPTANCE_HALF_RAD,
                            medium, C.PRESSURE_ATM, C.TEMPERATURE_K, C.HUMIDITY_FRACTION)
-    
     avg_transmission = np.mean(transmission[accepted]) if np.any(accepted) else 0.0
-    coupling = (np.count_nonzero(accepted) / n_rays) * avg_transmission
+    coupling = (np.count_nonzero(accepted) / n_rays) * avg_transmission * C.GEOMETRIC_LOSS_FACTOR
     
     return alpha * (1 - coupling) + (1 - alpha) * z_fiber / 80.0
 

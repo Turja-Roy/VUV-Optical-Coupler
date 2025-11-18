@@ -49,7 +49,7 @@ def optimize_fiber_position(lens1, lens2, z_l2, f2, origins, dirs, medium='air')
             medium, C.PRESSURE_ATM, C.TEMPERATURE_K, C.HUMIDITY_FRACTION
         )
         avg_transmission = np.mean(transmission[accepted]) if np.any(accepted) else 0.0
-        coupling = (np.count_nonzero(accepted) / n_rays) * avg_transmission
+        coupling = (np.count_nonzero(accepted) / n_rays) * avg_transmission * C.GEOMETRIC_LOSS_FACTOR
         return -coupling  # Negative because minimize_scalar minimizes
     
     # Search range: 0.5*f2 to 1.5*f2 from second lens
@@ -105,7 +105,7 @@ def evaluate_both_fiber_positions(lens1, lens2, z_l2, f2, origins, dirs, medium=
         medium, C.PRESSURE_ATM, C.TEMPERATURE_K, C.HUMIDITY_FRACTION
     )
     avg_transmission_focal = np.mean(transmission_focal[accepted_focal]) if np.any(accepted_focal) else 0.0
-    coupling_focal = (np.count_nonzero(accepted_focal) / n_rays) * avg_transmission_focal
+    coupling_focal = (np.count_nonzero(accepted_focal) / n_rays) * avg_transmission_focal * C.GEOMETRIC_LOSS_FACTOR
     
     # Method 2: Optimized position
     z_fiber_opt, coupling_opt = optimize_fiber_position(

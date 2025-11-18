@@ -32,7 +32,7 @@ def evaluate_config(z_l1, z_l2, origins, dirs, d1, d2, z_fiber, n_rays, medium='
                             C.ACCEPTANCE_HALF_RAD,
                             medium, C.PRESSURE_ATM, C.TEMPERATURE_K, C.HUMIDITY_FRACTION)
     avg_transmission = np.mean(transmission[accepted]) if np.any(accepted) else 0.0
-    coupling = (np.count_nonzero(accepted) / n_rays) * avg_transmission
+    coupling = (np.count_nonzero(accepted) / n_rays) * avg_transmission * C.GEOMETRIC_LOSS_FACTOR
 
     return coupling, accepted
 

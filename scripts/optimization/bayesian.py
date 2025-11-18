@@ -88,12 +88,12 @@ def optimize(lenses, name1, name2, n_calls=100, n_rays=1000, alpha=0.7, medium='
             lens1 = create_lens(d1, z_l1, flipped=flipped1)
             lens2 = create_lens(d2, z_l2, flipped=flipped2)
             
-            accepted, transmission = trace_system(origins, dirs, lens1, lens2, z_fiber, 
-                                   C.FIBER_CORE_DIAM_MM/2.0, C.ACCEPTANCE_HALF_RAD,
-                                   medium, C.PRESSURE_ATM, C.TEMPERATURE_K, C.HUMIDITY_FRACTION)
+            accepted, transmission = trace_system(origins, dirs, lens1, lens2, z_fiber,
+                               C.FIBER_CORE_DIAM_MM/2.0, C.ACCEPTANCE_HALF_RAD,
+                               medium, C.PRESSURE_ATM, C.TEMPERATURE_K, C.HUMIDITY_FRACTION)
             avg_transmission = np.mean(transmission[accepted]) if np.any(accepted) else 0.0
-            coupling = (np.count_nonzero(accepted) / n_rays) * avg_transmission
-            normalized_length = z_fiber / 80.0
+            coupling = (np.count_nonzero(accepted) / n_rays) * avg_transmission * C.GEOMETRIC_LOSS_FACTOR
+            
             return alpha * (1 - coupling) + (1 - alpha) * normalized_length
         
         result = gp_minimize(objective, space, n_calls=n_calls, random_state=42, 

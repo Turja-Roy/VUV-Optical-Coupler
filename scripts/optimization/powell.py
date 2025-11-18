@@ -50,7 +50,7 @@ def evaluate_config_fast(params, d1, d2, origins, dirs, n_rays, alpha=0.7, mediu
                            C.FIBER_CORE_DIAM_MM/2.0, C.ACCEPTANCE_HALF_RAD,
                            medium, C.PRESSURE_ATM, C.TEMPERATURE_K, C.HUMIDITY_FRACTION)
     avg_transmission = np.mean(transmission[accepted]) if np.any(accepted) else 0.0
-    coupling = (np.count_nonzero(accepted) / n_rays) * avg_transmission
+    coupling = (np.count_nonzero(accepted) / n_rays) * avg_transmission * C.GEOMETRIC_LOSS_FACTOR
     
     return alpha * (1 - coupling) + (1 - alpha) * z_fiber / 80.0
 
