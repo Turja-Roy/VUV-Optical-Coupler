@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, Rectangle, Patch
 from matplotlib.lines import Line2D
+from scipy.optimize import brentq
 
 from scripts.PlanoConvex import PlanoConvex
 from scripts.BiConvex import BiConvex
@@ -114,9 +115,37 @@ def _draw_biconvex_2d(ax, z_pos, lens_data, flipped, alpha=0.2):
         R_front = abs(lens_data.get('R2_mm', lens_data['R1_mm']))
         R_back = abs(lens_data['R1_mm'])
     
+    # Compute effective aperture radius based on edge thickness
+    # For biconvex lenses, we need to ensure positive thickness throughout
+    # Thickness at radius r: tc - (R_front - sqrt(R_front^2 - r^2)) - (R_back - sqrt(R_back^2 - r^2))
+    # We solve for r where thickness = te (edge thickness)
+    
+    def thickness_at_radius(r):
+        if r >= R_front or r >= R_back:
+            return -1000.0
+        sag_f = R_front - np.sqrt(R_front**2 - r**2)
+        sag_b = R_back - np.sqrt(R_back**2 - r**2)
+        return tc - sag_f - sag_b
+    
+    # Find the radius where thickness equals edge thickness
+    r_max_physical = min(R_front, R_back) * 0.99
+    effective_ap_rad: float = min(R_front, R_back, ap_rad)  # Initialize with default
+    
+    try:
+        if thickness_at_radius(r_max_physical) < te:
+            # Edge thickness constraint limits the aperture
+            result = brentq(lambda r: thickness_at_radius(r) - te, 0.1, r_max_physical)  # type: ignore
+            effective_ap_rad = float(result)  # type: ignore
+        else:
+            # No constraint from edge thickness
+            effective_ap_rad = min(R_front, R_back, ap_rad)
+    except Exception:
+        # Fallback if optimization fails
+        effective_ap_rad = min(R_front, R_back, ap_rad) * 0.85
+    
     # Generate points for curved surface profiles
     n_points = 100
-    y_curve = np.linspace(-ap_rad, ap_rad, n_points)
+    y_curve = np.linspace(-effective_ap_rad, effective_ap_rad, n_points)
     
     # Front curved surface: z = z_pos + R_front - sqrt(R_front^2 - y^2)
     z_front = z_pos + R_front - np.sqrt(np.maximum(R_front**2 - y_curve**2, 0))
@@ -151,6 +180,7 @@ def _draw_biconvex_3d(ax, z_pos, lens_data, flipped, alpha=0.3):
         Transparency for the surfaces
     """
     tc = lens_data['tc_mm']
+    te = lens_data['te_mm']
     ap_rad = lens_data['dia'] / 2.0
     
     # Get radii - swap if flipped
@@ -163,13 +193,33 @@ def _draw_biconvex_3d(ax, z_pos, lens_data, flipped, alpha=0.3):
         R_front = abs(lens_data.get('R2_mm', lens_data['R1_mm']))
         R_back = abs(lens_data['R1_mm'])
     
+    # Compute effective aperture radius based on edge thickness (same as 2D version)
+    def thickness_at_radius(r):
+        if r >= R_front or r >= R_back:
+            return -1000.0
+        sag_f = R_front - np.sqrt(R_front**2 - r**2)
+        sag_b = R_back - np.sqrt(R_back**2 - r**2)
+        return tc - sag_f - sag_b
+    
+    r_max_physical = min(R_front, R_back) * 0.99
+    effective_ap_rad: float = min(R_front, R_back, ap_rad)
+    
+    try:
+        if thickness_at_radius(r_max_physical) < te:
+            result = brentq(lambda r: thickness_at_radius(r) - te, 0.1, r_max_physical)  # type: ignore
+            effective_ap_rad = float(result)  # type: ignore
+        else:
+            effective_ap_rad = min(R_front, R_back, ap_rad)
+    except Exception:
+        effective_ap_rad = min(R_front, R_back, ap_rad) * 0.85
+    
     # Azimuthal angle (full circle)
     theta = np.linspace(0, 2*np.pi, 50)
     
     # 1. Curved front surface (spherical cap bulging outward)
     # Sphere center at (0, 0, z_pos + R_front)
-    # Polar angle range determined by aperture radius
-    phi_max_front = np.arcsin(min(ap_rad / R_front, 1.0))
+    # Polar angle range determined by effective aperture radius
+    phi_max_front = np.arcsin(min(effective_ap_rad / R_front, 1.0))
     phi_front = np.linspace(np.pi - phi_max_front, np.pi, 30)
     
     theta_grid, phi_grid = np.meshgrid(theta, phi_front)
@@ -181,7 +231,7 @@ def _draw_biconvex_3d(ax, z_pos, lens_data, flipped, alpha=0.3):
     
     # 2. Curved back surface (spherical cap bulging outward)
     # Sphere center at (0, 0, z_pos + tc - R_back)
-    phi_max_back = np.arcsin(min(ap_rad / R_back, 1.0))
+    phi_max_back = np.arcsin(min(effective_ap_rad / R_back, 1.0))
     phi_back = np.linspace(0, phi_max_back, 30)
     
     theta_grid, phi_grid = np.meshgrid(theta, phi_back)
