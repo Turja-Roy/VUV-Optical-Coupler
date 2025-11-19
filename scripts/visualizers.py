@@ -559,44 +559,59 @@ def _plot_rays_on_axis(ax, lenses, result, n_plot_rays=1000):
         lens2 = PlanoConvex(z_l2, _get_r_mm(lens2_data), lens2_data['tc_mm'],
                            lens2_data['te_mm'], lens2_data['dia']/2.0, flipped=flipped2)
 
+    # Trace rays and plot each segment separately for physical accuracy
     for i in range(n_plot_rays):
-        points = []
         o = origins[i].copy()
         d = dirs[i].copy()
-        points.append(o)
 
-        out1 = lens1.trace_ray(o, d, 1.0)
-        if out1[2] is False:
-            points = np.array(points)
-            ax.plot(points[:, 0], points[:, 1], points[:, 2], 'r-', alpha=0.2)
+        # Trace through lens1 with detailed output
+        result1 = lens1.trace_ray_detailed(o, d, 1.0)
+        if result1[4] is False:  # success flag is at index 4
+            # Ray failed - skip plotting for rejected rays at L1
             continue
-        o1, d1 = out1[0], out1[1]
-        points.append(o1)
+        p1_entry, d1_in, p1_exit, d1_out = result1[0], result1[1], result1[2], result1[3]
 
-        out2 = lens2.trace_ray(o1, d1, 1.0)
-        if out2[2] is False:
-            points = np.array(points)
-            ax.plot(points[:, 0], points[:, 1], points[:, 2], 'r-', alpha=0.2)
+        # Trace through lens2 with detailed output
+        result2 = lens2.trace_ray_detailed(p1_exit, d1_out, 1.0)
+        if result2[4] is False:  # success flag is at index 4
+            # Ray made it through lens1 but failed lens2 - skip
             continue
-        o2, d2 = out2[0], out2[1]
-        points.append(o2)
+        p2_entry, d2_in, p2_exit, d2_out = result2[0], result2[1], result2[2], result2[3]
 
-        if abs(d2[2]) < 1e-9:
+        # Calculate fiber intersection
+        if abs(d2_out[2]) < 1e-9:
             continue
-        t = (z_fiber - o2[2]) / d2[2]
+        t = (z_fiber - p2_exit[2]) / d2_out[2]
         if t < 0:
             continue
-        p_f = o2 + t * d2
-        points.append(p_f)
+        p_f = p2_exit + t * d2_out
 
+        # Check acceptance criteria for color
         r = __import__("math").hypot(p_f[0], p_f[1])
-        theta = __import__("math").acos(abs(d2[2]) / np.linalg.norm(d2))
+        theta = __import__("math").acos(abs(d2_out[2]) / np.linalg.norm(d2_out))
         color = 'g' if (r <= C.FIBER_CORE_DIAM_MM/2.0 and
                         theta <= C.ACCEPTANCE_HALF_RAD) else 'r'
 
-        points = np.array(points)
-        ax.plot(points[:, 0], points[:, 1], points[:, 2],
-                color+'-', alpha=0.5)
+        # Plot each segment separately for physical accuracy
+        # Segment 1: Origin → Lens1 entry (in air, direction d)
+        ax.plot([o[0], p1_entry[0]], [o[1], p1_entry[1]], [o[2], p1_entry[2]], 
+                color+'-', alpha=0.5, linewidth=0.5)
+        
+        # Segment 2: Lens1 entry → Lens1 exit (in glass, direction d1_in)
+        ax.plot([p1_entry[0], p1_exit[0]], [p1_entry[1], p1_exit[1]], [p1_entry[2], p1_exit[2]], 
+                color+'-', alpha=0.5, linewidth=0.5)
+        
+        # Segment 3: Lens1 exit → Lens2 entry (in air, direction d1_out)
+        ax.plot([p1_exit[0], p2_entry[0]], [p1_exit[1], p2_entry[1]], [p1_exit[2], p2_entry[2]], 
+                color+'-', alpha=0.5, linewidth=0.5)
+        
+        # Segment 4: Lens2 entry → Lens2 exit (in glass, direction d2_in)
+        ax.plot([p2_entry[0], p2_exit[0]], [p2_entry[1], p2_exit[1]], [p2_entry[2], p2_exit[2]], 
+                color+'-', alpha=0.5, linewidth=0.5)
+        
+        # Segment 5: Lens2 exit → Fiber (in air, direction d2_out)
+        ax.plot([p2_exit[0], p_f[0]], [p2_exit[1], p_f[1]], [p2_exit[2], p_f[2]], 
+                color+'-', alpha=0.5, linewidth=0.5)
 
     # Draw lenses with actual curved surfaces
     # Detect lens type for lens 1

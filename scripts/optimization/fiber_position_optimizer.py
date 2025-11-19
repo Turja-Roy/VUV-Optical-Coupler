@@ -9,6 +9,7 @@ import numpy as np
 from scipy.optimize import minimize_scalar
 from scripts import consts as C
 from scripts.raytrace_helpers_vectorized import trace_system_vectorized as trace_system
+from scripts.raytrace_helpers_vectorized import trace_system_single_lens_vectorized
 
 
 def optimize_fiber_position(lens1, lens2, z_l2, f2, origins, dirs, medium='air'):
@@ -110,6 +111,111 @@ def evaluate_both_fiber_positions(lens1, lens2, z_l2, f2, origins, dirs, medium=
     # Method 2: Optimized position
     z_fiber_opt, coupling_opt = optimize_fiber_position(
         lens1, lens2, z_l2, f2, origins, dirs, medium
+    )
+    
+    # Return the better one
+    if coupling_opt > coupling_focal:
+        return z_fiber_opt, coupling_opt, 'optimized'
+    else:
+        return z_fiber_focal, coupling_focal, 'focal_length'
+
+
+def optimize_fiber_position_single_lens(lens, z_lens, f, origins, dirs, medium='air'):
+    """
+    Find optimal fiber position for single-lens configuration by 1D optimization.
+    
+    Parameters
+    ----------
+    lens : PlanoConvex/BiConvex/Aspheric
+        Lens object
+    z_lens : float
+        Position of lens
+    f : float
+        Focal length of lens
+    origins : ndarray
+        Ray origins
+    dirs : ndarray
+        Ray directions
+    medium : str
+        Propagation medium
+    
+    Returns
+    -------
+    z_fiber_opt : float
+        Optimal fiber position
+    coupling_opt : float
+        Coupling efficiency at optimal position
+    """
+    n_rays = origins.shape[0]
+    
+    def eval_fiber_pos(z_fiber):
+        """Evaluate coupling for a given fiber position."""
+        accepted, transmission = trace_system_single_lens_vectorized(
+            origins, dirs, lens, z_fiber,
+            C.FIBER_CORE_DIAM_MM/2.0, C.ACCEPTANCE_HALF_RAD,
+            medium, C.PRESSURE_ATM, C.TEMPERATURE_K, C.HUMIDITY_FRACTION
+        )
+        avg_transmission = np.mean(transmission[accepted]) if np.any(accepted) else 0.0
+        coupling = (np.count_nonzero(accepted) / n_rays) * avg_transmission * C.GEOMETRIC_LOSS_FACTOR
+        return -coupling  # Negative because minimize_scalar minimizes
+    
+    # Search range: 0.5*f to 3.0*f from lens (wider range for single-lens)
+    bounds = (z_lens + 0.5 * f, z_lens + 3.0 * f)
+    
+    result = minimize_scalar(eval_fiber_pos, bounds=bounds, method='bounded')
+    
+    z_fiber_opt = result.x
+    coupling_opt = -result.fun  # Convert back to positive coupling
+    
+    return z_fiber_opt, coupling_opt
+
+
+def evaluate_both_fiber_positions_single_lens(lens, z_lens, f, origins, dirs, medium='air'):
+    """
+    Evaluate coupling for both hardcoded (focal length) and optimized fiber positions
+    for single-lens configuration.
+    
+    Returns the configuration with better coupling.
+    
+    Parameters
+    ----------
+    lens : PlanoConvex/BiConvex/Aspheric
+        Lens object
+    z_lens : float
+        Position of lens
+    f : float
+        Focal length of lens
+    origins : ndarray
+        Ray origins
+    dirs : ndarray
+        Ray directions
+    medium : str
+        Propagation medium
+    
+    Returns
+    -------
+    z_fiber : float
+        Best fiber position
+    coupling : float
+        Coupling efficiency at best position
+    fiber_position_method : str
+        Method used ('focal_length' or 'optimized')
+    """
+    n_rays = origins.shape[0]
+    
+    # Method 1: Hardcoded at focal length
+    z_fiber_focal = z_lens + f
+    accepted_focal, transmission_focal = trace_system_single_lens_vectorized(
+        origins, dirs, lens, z_fiber_focal,
+        C.FIBER_CORE_DIAM_MM/2.0, C.ACCEPTANCE_HALF_RAD,
+        medium, C.PRESSURE_ATM, C.TEMPERATURE_K, C.HUMIDITY_FRACTION
+    )
+    avg_transmission_focal = np.mean(transmission_focal[accepted_focal]) if np.any(accepted_focal) else 0.0
+    coupling_focal = (np.count_nonzero(accepted_focal) / n_rays) * avg_transmission_focal * C.GEOMETRIC_LOSS_FACTOR
+    
+    # Method 2: Optimized position
+    z_fiber_opt, coupling_opt = optimize_fiber_position_single_lens(
+        lens, z_lens, f, origins, dirs, medium
     )
     
     # Return the better one

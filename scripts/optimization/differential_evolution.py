@@ -295,6 +295,31 @@ def optimize_single_lens(lenses, name, n_rays=1000, alpha=0.7, medium='air', ori
         avg_transmission = np.mean(transmission[accepted]) if np.any(accepted) else 0.0
         coupling = (np.count_nonzero(accepted) / len(origins_final)) * avg_transmission * C.GEOMETRIC_LOSS_FACTOR
         
+        # If coupling is poor (<5%), test both focal-length and optimized fiber positions
+        fiber_position_method = 'optimized'
+        if coupling < 0.05:
+            from scripts.optimization.fiber_position_optimizer import evaluate_both_fiber_positions_single_lens
+            
+            # Compare focal-length vs optimized position, use the better one
+            z_fiber_best, coupling_best, fiber_method = evaluate_both_fiber_positions_single_lens(
+                lens, z_lens, d['f_mm'], origins_final, dirs_final, medium
+            )
+            
+            # If either method found better coupling, use it
+            if coupling_best > coupling:
+                z_fiber = z_fiber_best
+                coupling = coupling_best
+                fiber_position_method = fiber_method
+                
+                # Re-evaluate to get accepted rays for the best position
+                accepted, transmission = trace_system_single_lens_vectorized(
+                    origins_final, dirs_final, lens, z_fiber,
+                    C.FIBER_CORE_DIAM_MM/2.0, C.ACCEPTANCE_HALF_RAD,
+                    medium, C.PRESSURE_ATM, C.TEMPERATURE_K, C.HUMIDITY_FRACTION
+                )
+                
+                logger.info(f"  Improved coupling from initial optimization: {fiber_position_method} method selected")
+        
         results.append({
             'lens1': name, 'lens2': None,
             'f1_mm': d['f_mm'], 'f2_mm': None,
@@ -302,7 +327,7 @@ def optimize_single_lens(lenses, name, n_rays=1000, alpha=0.7, medium='air', ori
             'total_len_mm': z_fiber,
             'coupling': coupling,
             'orientation': orientation_name,
-            'fiber_position_method': 'single_lens',
+            'fiber_position_method': fiber_position_method,
             'origins': origins_final, 'dirs': dirs_final, 'accepted': accepted
         })
     
