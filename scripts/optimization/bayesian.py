@@ -94,7 +94,7 @@ def optimize(lenses, name1, name2, n_calls=100, n_rays=1000, alpha=0.7, medium='
             avg_transmission = np.mean(transmission[accepted]) if np.any(accepted) else 0.0
             coupling = (np.count_nonzero(accepted) / n_rays) * avg_transmission * C.GEOMETRIC_LOSS_FACTOR
             
-            return alpha * (1 - coupling) + (1 - alpha) * normalized_length
+            return alpha * (1 - coupling) + (1 - alpha) * 90
         
         result = gp_minimize(objective, space, n_calls=n_calls, random_state=42, 
                             verbose=False, n_initial_points=20)

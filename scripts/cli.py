@@ -15,6 +15,7 @@ Commands:
     select                        Run all L1 x L2 combinations (smart filtered)
     select-ext                    Run all L1 x L2 combinations (extended - all L2 diameters)
     combine                       Run all combinations from Combined_Lenses.csv
+    paraxial                      Evaluate all combinations using fast paraxial approximation
     analyze                       Analyze high-coupling results with all methods
     wavelength-analyze            Analyze wavelength dependence of lens combinations
     wavelength-analyze-plot       Create plots from wavelength analysis results
@@ -164,6 +165,12 @@ Examples:
     
     # Complex filtering with multiple conditions
     python raytrace.py select --use-database --query "SELECT * FROM lenses WHERE diameter_mm >= 12.7 AND focal_length_mm < 50 ORDER BY focal_length_mm"
+    
+    # Paraxial approximation (fast screening of all combinations)
+    python raytrace.py paraxial --use-database
+    
+    # Paraxial with custom medium
+    python raytrace.py paraxial --use-database --medium argon
 """)
 
 
@@ -238,6 +245,9 @@ def parse_arguments():
     elif sys.argv[1] in ['select', 'select-ext', 'combine']:
         args['mode'] = 'method'
         args['method'] = sys.argv[1].replace('-', '_')
+    
+    elif sys.argv[1] == 'paraxial':
+        args['mode'] = 'paraxial'
 
     elif sys.argv[1] == 'analyze':
         args['mode'] = 'analyze'
@@ -263,7 +273,7 @@ def parse_arguments():
         sys.exit(1)
 
     # Determine starting index for argument parsing
-    if args['mode'] in ['method', 'analyze', 'wavelength-analyze', 'wavelength-analyze-plot', 'dashboard', 'import-lenses', 'list-lenses']:
+    if args['mode'] in ['method', 'paraxial', 'analyze', 'wavelength-analyze', 'wavelength-analyze-plot', 'dashboard', 'import-lenses', 'list-lenses']:
         i = 2
     elif args['mode'] == 'tolerance' and args.get('lens1') is None:
         # Batch tolerance mode starts parsing from index 2

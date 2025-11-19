@@ -40,6 +40,8 @@ def main():
         run_id = f"compare_{args['date']}_{args['lens1']}+{args['lens2']}_{args['medium']}"
     elif args['mode'] == 'particular':
         run_id = f"particular_{args['date']}_{args['optimizer']}_{args['medium']}"
+    elif args['mode'] == 'paraxial':
+        run_id = f"paraxial_{args['date']}_{args['medium']}"
     elif args['mode'] == 'analyze':
         threshold_str = f"{args['coupling_threshold']:.2f}".replace('.', '_')
         run_id = f"analyze_{args['date']}_coupling_{threshold_str}_{args['medium']}"
@@ -508,6 +510,79 @@ def main():
         
         return
 
+    # Handle paraxial approximation mode
+    if args['mode'] == 'paraxial':
+        from scripts.paraxial_approximation import evaluate_all_combinations
+        
+        if not use_database:
+            print("Error: Paraxial mode requires --use-database flag")
+            print("Example: python raytrace.py paraxial --use-database")
+            return
+        
+        print("\n" + "="*60)
+        print("Paraxial Approximation Analysis")
+        print("="*60)
+        print(f"Run ID: {run_id}")
+        print(f"Medium: {args['medium']}")
+        print(f"Wavelength: {C.WAVELENGTH_NM} nm")
+        print(f"Database: {lens_db.db_path}")
+        print("="*60 + "\n")
+        
+        Path(f'./results/{run_id}').mkdir(parents=True, exist_ok=True)
+        
+        def progress_callback(current, total, lens_pair):
+            percent = 100 * current / total
+            print(f"Progress: {current}/{total} ({percent:.1f}%) - Evaluating {lens_pair}", end='\r')
+        
+        results = evaluate_all_combinations(
+            lens_db,
+            wavelength_nm=C.WAVELENGTH_NM,
+            medium=args['medium'],
+            min_coupling=0.01,  # Filter out very poor combinations
+            progress_callback=progress_callback
+        )
+        
+        print("\n\n" + "="*60)
+        print("Paraxial Analysis Complete!")
+        print("="*60)
+        
+        if results:
+            print(f"\nTotal qualifying combinations: {len(results)}")
+            print(f"\nTop 20 Results (by paraxial coupling):")
+            print(f"{'Rank':<6}{'Lens1':<12}{'Lens2':<12}{'Coupling':<10}{'Length':<10}{'Spot(mm)':<10}{'Angle(°)':<10}")
+            print("-" * 80)
+            for i, r in enumerate(results[:20], 1):
+                print(f"{i:<6}{r['lens1']:<12}{r['lens2']:<12}{r['coupling']:<10.4f}{r['total_length']:<10.1f}{r['spot_radius']:<10.3f}{r['output_angle']:<10.2f}")
+            
+            # Save results
+            results_df = pd.DataFrame(results)
+            results_path = f'./results/{run_id}/paraxial_results_{args["date"]}.csv'
+            results_df.to_csv(results_path, index=False)
+            print(f"\nResults saved to: {results_path}")
+            
+            # Also save to database if available
+            if opt_db:
+                print("Saving to optimization database...")
+                for r in results:
+                    result_dict = {
+                        'lens1': r['lens1'],
+                        'lens2': r['lens2'],
+                        'method': 'paraxial',
+                        'coupling': r['coupling'],
+                        'z_l1': r['z_l1'],
+                        'z_l2': r['z_l2'],
+                        'z_fiber': r['z_fiber'],
+                        'total_len_mm': r['total_length'],
+                        'f1_mm': r['f1_eff'],
+                        'f2_mm': r['f2_eff']
+                    }
+                    opt_db.insert_result(run_id=run_id, result=result_dict)
+                opt_db.conn.commit()
+        else:
+            print("\nNo qualifying combinations found.")
+        
+        return
+    
     # Handle compare mode
     if args['mode'] == 'compare':
         from scripts.optimization.optimization_runner import compare_optimizers

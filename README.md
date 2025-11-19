@@ -57,24 +57,27 @@ A comprehensive ray tracing and optimization framework for designing two-lens op
 
 This project addresses the challenge of efficiently collecting 200nm light from a xenon flashlamp arc source and coupling it into a small-core optical fiber. The system uses:
 
-- **Source**: 60W Xenon flash lamp with 3mm diameter arc and 66° divergence angle
+- **Source**: 60W Xenon flash lamp with 3mm diameter arc in water-cooled jacket
+- **Geometry**: Cooling jacket with 26mm optical path length limits beam divergence to 22.85°
 - **Target**: 1mm core optical fiber with NA=0.22 and acceptance angle of 24.8°
 - **Approach**: Two-lens plano-convex system optimization via deterministic ray tracing
-- **Physics**: Full geometric optics with atmospheric O₂ absorption modeling
+- **Physics**: Full geometric optics with atmospheric O₂ absorption modeling, geometric losses from cooling jacket vignetting (43% transmission)
 
 ### Key Results
 
-- **Coupling Efficiency**: 0.31-0.42 in air, 0.39-0.49 in argon for optimized configurations
-- **System Length**: 54-63mm for high-performing configurations
-- **Atmospheric Impact**: 16-24% coupling improvement in argon vs. air (average ~21% at 200nm O₂ absorption elimination)
+- **Coupling Efficiency**: 17-23% achievable with optimized configurations under current geometry constraints
+- **System Length**: 40-100mm for high-performing configurations
+- **Atmospheric Impact**: 16-24% coupling improvement in argon vs. air due to eliminated O₂ absorption at 200nm
 - **Medium Dependence**: Argon shows significantly better performance than air due to lack of UV absorption
+- **Constraint Impact**: Cooling jacket geometry (lenses must be positioned ≥27mm from source) significantly constrains optimization space
 
 ## Features
 
-### Six Optimization Algorithms
+### Seven Optimization Algorithms
 
 | Method | Speed | Convergence | Best For |
 |--------|-------|-------------|----------|
+| **Paraxial** ⚡⚡ | ~7ms | Fast screening | **Ultra-fast initial screening of thousands of combinations** |
 | **Powell** ⚡ | ~0.1-0.2s | Good | **Quick optimization, everyday use** |
 | **Nelder-Mead** ⚡ | ~0.1-0.2s | Good | **Fast local search** |
 | Grid Search | ~0.2-0.3s | Systematic | Baseline comparison, small grids |
@@ -82,7 +85,13 @@ This project addresses the challenge of efficiently collecting 200nm light from 
 | Bayesian | ~2-3s | Excellent | Sample-efficient exploration |
 | Dual Annealing | ~4-5s | Excellent | Escaping local minima |
 
-*Timings are per lens pair with 1000 rays using vectorized tracing on typical hardware*
+*Timings are per lens pair with 1000 rays using vectorized tracing on typical hardware. Paraxial uses analytical approximation (no ray tracing).*
+
+**⚠️ Important Note on Paraxial Approximation**: The paraxial screening mode uses thin/thick lens equations with ABCD matrix propagation for ultra-fast evaluation (~20,503 combinations in ~3 minutes). However, it has known limitations:
+- **Grid search limitations**: Uses coarse 5×5×5 grid (125 samples per pair) which may miss optimal configurations
+- **Spacing assumptions**: Assumes lenses should be separated by ≥0.5× focal length, but optimal configurations may have much closer spacing
+- **Best use case**: Initial screening to identify promising candidates, followed by full ray-trace optimization
+- **Not a replacement**: Should be used to guide full optimization, not replace it
 
 ### Multi-Objective Optimization
 
@@ -98,13 +107,15 @@ objective = α × (1 - coupling) + (1 - α) × (normalized_length)
 
 ### Additional Capabilities
 
-- **Tolerance Analysis**: Assess manufacturing sensitivity to longitudinal displacements
+- **Paraxial Approximation**: Ultra-fast screening of all 20,503 lens combinations in ~3 minutes using analytical approximations
+- **Tolerance Analysis**: Assess manufacturing sensitivity to longitudinal displacements (single-pair and batch modes)
 - **Wavelength Analysis**: Study coupling efficiency across 180-300nm range
 - **Web Dashboard**: Interactive browser-based results viewer with filtering and plotting
 - **Medium Selection**: Air, argon, or helium propagation
 - **Resume Support**: Automatic checkpoint/resume for interrupted batch runs
 - **Rich Visualization**: Ray trace diagrams, spot diagrams, wavelength plots, tolerance curves
 - **Batch Processing**: Automatic splitting and parallel processing of large lens catalogs
+- **Dual Database Architecture**: Separate lens catalog (202 lenses) and optimization results databases
 
 ## Performance
 
@@ -474,17 +485,43 @@ python raytrace.py dashboard --config my_config.yaml --port 5000
 | Mode | Config Support | Config Sections Used |
 |------|----------------|---------------------|
 | `particular`, `compare`, `select`, `combine` | ✅ Full | `rays`, `medium`, `optimization` |
+| `paraxial` | ✅ Partial | `medium` (requires `--use-database` flag) |
 | `analyze` | ✅ Full | `analyze` |
 | `wavelength-analyze` | ✅ Full | `wavelength` |
 | `tolerance` | ✅ Full | `tolerance` |
 | `dashboard` | ✅ Full | `dashboard` |
 | `wavelength-analyze-plot` | CLI only | N/A |
+| `import-lenses`, `list-lenses` | CLI only | N/A |
 
 See `configs/default.yaml` for all available configuration options and detailed documentation.
 
 ## Usage Guide
 
 ### Basic Commands
+
+#### Screen All Lens Combinations with Paraxial Approximation (Ultra-Fast)
+
+```bash
+# Screen all 20,503 combinations in ~3 minutes (requires --use-database)
+python raytrace.py paraxial --use-database --medium argon
+
+# Results are filtered to coupling ≥ 1% and sorted by predicted coupling
+# Outputs CSV with top candidates for full ray-trace optimization
+```
+
+**Note**: Paraxial approximation provides fast screening but has limitations (see warnings in Features section). Use results to guide full optimization, not as final values.
+
+**Recommended workflow:**
+```bash
+# 1. Fast paraxial screening
+python raytrace.py paraxial --use-database --medium argon
+
+# 2. Review top candidates
+head -20 results/paraxial_2025-11-19_argon/paraxial_results_2025-11-19.csv
+
+# 3. Full optimization on top candidates
+python raytrace.py particular 84-281 89-414 --opt differential_evolution --medium argon
+```
 
 #### Optimize a Specific Lens Pair (Recommended Starting Point)
 
@@ -743,11 +780,14 @@ Commands:
   compare <lens1> <lens2>       Compare all optimization methods
   select                        Optimize L1×L2 candidate combinations (924 pairs, recommended)
   combine                       Optimize all lens combinations (24,336 pairs, exhaustive)
+  paraxial                      Ultra-fast screening of all 20,503 combinations using analytical approximation (~3min)
   analyze                       Re-analyze high-coupling results
   wavelength-analyze            Study wavelength dependence
   wavelength-analyze-plot       Create plots from wavelength data
   tolerance <lens1> <lens2>     Analyze manufacturing tolerance sensitivity
   dashboard                     Start interactive web dashboard
+  import-lenses                 Import lenses from CSV files into database
+  list-lenses                   List available lenses from database or CSV
 
 Options:
   --opt <method>                Optimization method (default: powell)
@@ -791,17 +831,23 @@ raytrace-xe-flashlamp-fiber/
 │   │   ├── differential_evolution.py  # Global optimizer (thorough)
 │   │   ├── bayesian.py            # Bayesian optimization
 │   │   ├── dual_annealing.py      # Simulated annealing
-│   │   └── optimization_runner.py # Unified interface
+│   │   ├── optimization_runner.py # Unified interface
+│   │   └── fiber_position_optimizer.py  # Fiber position optimization helper
 │   │
 │   ├── analysis.py                # Analysis and wavelength studies
+│   ├── Aspheric.py                # Aspheric lens class
+│   ├── BiConvex.py                # Bi-convex lens class
 │   ├── calcs.py                   # Physics calculations (refraction, absorption)
 │   ├── cli.py                     # Command-line interface
 │   ├── config_loader.py           # YAML configuration file handler
 │   ├── consts.py                  # Physical constants and system parameters
 │   ├── data_io.py                 # File I/O and result management
-│   ├── database.py                # SQLite database backend
+│   ├── database.py                # SQLite database backend (optimization results)
 │   ├── db_query.py                # Database query CLI
 │   ├── hitran_data.py             # HITRAN absorption data handling
+│   ├── lens_database.py           # Lens catalog database management
+│   ├── lens_factory.py            # Lens object factory
+│   ├── paraxial_approximation.py  # Ultra-fast paraxial screening (~7ms/pair)
 │   ├── PlanoConvex.py             # Plano-convex lens class
 │   ├── raytrace_helpers.py        # Core ray tracing functions
 │   ├── raytrace_helpers_vectorized.py  # Vectorized ray tracing (10-15x faster)
@@ -819,10 +865,13 @@ raytrace-xe-flashlamp-fiber/
 │   └── integration_test.yaml      # Database integration testing
 │
 ├── data/                          # Lens catalogs
-│   ├── Combined_Lenses.csv        # Full lens catalog (156 lenses)
+│   ├── lenses.db                  # SQLite lens catalog database (202 lenses)
+│   ├── Combined_Lenses.csv        # Full lens catalog CSV (legacy, 156 lenses)
 │   ├── l1_candidates.csv          # Candidate L1 lenses
+│   ├── l1_candidates_ext.csv      # Extended L1 candidates
 │   ├── l2_candidates.csv          # Candidate L2 lenses
-│   └── *.csv, *.xlsx              # Vendor lens data
+│   ├── l2_candidates_ext.csv      # Extended L2 candidates
+│   └── *.csv, *.xlsx              # Vendor lens data (ThorLabs, Edmund Optics)
 │
 ├── results/                       # Output directory
 │   ├── <run_id>/                  # Results organized by run ID
@@ -983,6 +1032,13 @@ Higher alpha prioritizes coupling; lower alpha prioritizes compactness.
 
 ## Performance Recommendations
 
+### For Ultra-Fast Initial Screening
+**Use Paraxial Approximation** - Screen all 20,503 combinations in ~3 minutes:
+```bash
+python raytrace.py paraxial --use-database --medium argon
+# Then full ray-trace on top candidates
+```
+
 ### For Everyday Use
 **Use Powell's method** - Fast and reliable:
 ```bash
@@ -1001,10 +1057,26 @@ python raytrace.py combine --opt differential_evolution
 python raytrace.py compare LA4001 LA4647
 ```
 
-### For Large Catalogs
+### For Large Catalogs (Recommended Workflow)
+**Multi-stage approach for best results**:
+```bash
+# Stage 1: Ultra-fast paraxial screening (~3 min for all 20,503 pairs)
+python raytrace.py paraxial --use-database --medium argon
+
+# Stage 2: Fast ray-trace on top 100 from paraxial (~10 min with Powell)
+# Extract top lens pairs from paraxial results, then:
+python raytrace.py particular <lens1> <lens2> --opt powell --medium argon
+
+# Stage 3: Thorough optimization on top 20 (~3-5 min with DE)
+python raytrace.py particular <lens1> <lens2> --opt differential_evolution --medium argon
+
+# Total time: ~15-20 minutes vs. ~8 hours for full DE on all pairs
+```
+
+### Alternative: Traditional Approach (No Paraxial)
 **Start with Powell, verify with DE**:
 ```bash
-# 1. Fast scan with Powell
+# 1. Fast scan with Powell (~40 min for all 24,336 pairs)
 python raytrace.py combine --opt powell
 
 # 2. Re-optimize top candidates with differential evolution
@@ -1016,7 +1088,39 @@ python raytrace.py analyze \
 
 ## Example Workflows
 
-### Workflow 1: Find Best Lens Pair for Maximum Coupling
+### Workflow 1: Ultra-Fast Screening with Paraxial Approximation
+
+**Best for**: Quickly identifying promising lens pairs from full catalog
+
+```bash
+# Step 1: Fast paraxial screening of all 20,503 combinations (~3 minutes)
+python raytrace.py paraxial --use-database --medium argon
+
+# Step 2: Review top candidates
+head -30 results/paraxial_2025-11-19_argon/paraxial_results_2025-11-19.csv
+
+# Step 3: Full ray-trace optimization on top 10 candidates
+# Example: Top result is 84-281 + 89-414 with predicted 35.5% coupling
+python raytrace.py particular 84-281 89-414 --opt differential_evolution --medium argon
+
+# Step 4: Batch optimize multiple promising pairs
+for pair in "84-281 89-414" "48-278 LA4194" "84-282 89-411"; do
+    python raytrace.py particular $pair --opt differential_evolution --medium argon
+done
+
+# Step 5: Compare results
+grep "Coupling=" logs/particular_*_differential_evolution_argon.log
+
+# Step 6: Tolerance analysis on best performer
+python raytrace.py tolerance 84-281 89-414 --profile tolerance_test --medium argon
+```
+
+**Important Notes**:
+- Paraxial provides screening only - actual coupling may differ significantly
+- Some lens pairs may perform better than paraxial predicts (e.g., if optimal spacing is closer than paraxial assumes)
+- Always validate with full ray tracing before finalizing design
+
+### Workflow 2: Find Best Lens Pair for Maximum Coupling
 
 ```bash
 # Step 1: Quick scan of all combinations
@@ -1269,6 +1373,24 @@ python raytrace.py combine --opt powell continue 2025-10-18
 - Reduce rays per trace: `--n-rays 500`
 - Process smaller subsets using `particular` mode
 
+### Paraxial Results Don't Match Full Ray Tracing
+
+**Problem**: Lens pair performs well in full ray tracing but missing or poor in paraxial results  
+**Root Causes**:
+1. **Grid search limitations**: Paraxial uses 5×5×5 coarse grid (125 samples) which may miss optimal positions
+2. **Conservative spacing assumptions**: Assumes z_l2 ≥ z_l1 + tc + 0.5×f1, but optimal may be much closer
+3. **Same-lens pairs**: May require tighter spacing than paraxial grid searches
+
+**Example**: 48-274 + 48-274 achieves 17-23% in full ray tracing (z_l1=27mm, z_l2=33mm) but paraxial predicts <1% because the grid doesn't search z_l2 < 58mm
+
+**Solutions**:
+- Use paraxial for initial screening only, not final values
+- Always validate promising pairs with full ray-trace optimization
+- For specific pairs of interest, run full optimization directly with `particular` mode
+- Consider paraxial results as conservative lower bounds
+
+**Recommended workflow**: Paraxial screening → Full optimization of top 20-50 candidates → Tolerance analysis of best results
+
 ## Technical Background
 
 ### Research Context
@@ -1287,11 +1409,17 @@ Key findings:
 ### Physical Constants
 
 Defined in `scripts/consts.py`:
-- Wavelength: 200nm (VUV range)
-- Fiber: 1mm core, NA=0.22
-- Source: 3mm arc diameter, 33° maximum angle
-- Medium properties: Temperature, pressure, humidity dependent
-- Lens material: Fused silica (refractive index from Sellmeier equation)
+- **Wavelength**: 200nm (VUV range)
+- **Fiber**: 1mm core diameter, NA=0.22, acceptance angle 24.8°
+- **Source**: 3mm arc diameter at z=0
+- **Cooling Jacket**: Water-cooled quartz jacket surrounding flashlamp
+  - Inner window at 8.7mm from source
+  - Outer window at 26mm from source (cooling jacket exit)
+  - Limits maximum beam divergence to 22.85° (atan(11.5mm/26mm))
+  - Geometric vignetting factor: 43% transmission (51.4% light loss)
+- **Optical Constraint**: Lenses must be positioned ≥27mm from source (after cooling jacket exit)
+- **Medium properties**: Temperature, pressure, humidity dependent
+- **Lens material**: Fused silica (refractive index from Sellmeier equation)
 
 ### Optimization Implementation
 
@@ -1302,10 +1430,21 @@ def optimize(lenses, lens1_name, lens2_name, n_rays=1000, alpha=0.7, medium='air
     #          coupling, total_len_mm, f1_mm, f2_mm, origins, dirs, accepted
 ```
 
-Parameter bounds:
-- `z_l1`: 9.7 - 12.0 mm (lens 1 position)
-- `z_l2`: 9.7 - 50.0 mm (lens 2 position, constrained > z_l1 + lens thickness)
-- `z_fiber`: Automatically optimized based on focal length and magnification
+**Parameter bounds:**
+- `z_l1`: ≥27mm (SOURCE_TO_LENS_OFFSET - after cooling jacket exit)
+- `z_l2`: > z_l1 + lens1_thickness + minimum_gap (0.5mm)
+- `z_fiber`: Evaluated at both focal length position and optimized position; best is chosen
+
+**Physical constraints enforced:**
+- Lenses cannot overlap (minimum 0.5mm gap accounting for surface curvature)
+- First lens must clear cooling jacket window (z_l1 ≥ 27mm)
+- Second lens must clear first lens back surface
+
+**Fiber positioning:** For configurations with coupling < 5%, the optimizer automatically tests both:
+1. **Focal length method**: z_fiber = z_l2 + f2 (paraxial focal plane)
+2. **Optimized search**: 1D optimization over range [z_l2 + 0.5×f2, z_l2 + 1.5×f2]
+
+The method yielding higher coupling is selected and reported in results.
 
 <!-- ## Citation -->
 <!---->
