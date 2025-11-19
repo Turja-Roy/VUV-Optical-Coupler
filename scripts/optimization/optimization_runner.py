@@ -53,63 +53,97 @@ def run_combos(lenses, combos, run_id, method='differential_evolution',
     if method == 'grid_search':
         from scripts.optimization import grid_search as optimizer
         optimize_func = lambda l, n1, n2: optimizer.run_grid(run_id, l, n1, n2, medium=medium, orientation_mode=orientation_mode)
+        optimize_single_func = None  # Grid search for single lens not yet implemented
     elif method == 'differential_evolution':
         from scripts.optimization import differential_evolution as optimizer
         optimize_func = lambda l, n1, n2: optimizer.optimize(l, n1, n2, n_rays, alpha, medium, orientation_mode=orientation_mode)
+        # For single-lens, use alpha=1.0 (coupling only, no length penalty) to find optimal fiber position
+        optimize_single_func = lambda l, n: optimizer.optimize_single_lens(l, n, n_rays, 1.0, medium, orientation_mode='both')
     elif method == 'dual_annealing':
         from scripts.optimization import dual_annealing as optimizer
         optimize_func = lambda l, n1, n2: optimizer.optimize(l, n1, n2, n_rays, alpha, medium, orientation_mode=orientation_mode)
+        optimize_single_func = None  # Dual annealing for single lens not yet implemented
     elif method == 'nelder_mead':
         from scripts.optimization import nelder_mead as optimizer
         optimize_func = lambda l, n1, n2: optimizer.optimize(l, n1, n2, n_rays, alpha, medium, orientation_mode=orientation_mode)
+        # For single-lens, use alpha=1.0 (coupling only, no length penalty) to find optimal fiber position
+        optimize_single_func = lambda l, n: optimizer.optimize_single_lens(l, n, n_rays, 1.0, medium, orientation_mode='both')
     elif method == 'powell':
         from scripts.optimization import powell as optimizer
         optimize_func = lambda l, n1, n2: optimizer.optimize(l, n1, n2, n_rays, alpha, medium, orientation_mode=orientation_mode)
+        # For single-lens, use alpha=1.0 (coupling only, no length penalty) to find optimal fiber position
+        optimize_single_func = lambda l, n: optimizer.optimize_single_lens(l, n, n_rays, 1.0, medium, orientation_mode='both')
     elif method == 'bayesian':
         from scripts.optimization import bayesian as optimizer
         optimize_func = lambda l, n1, n2: optimizer.optimize(l, n1, n2, n_calls=50, n_rays=n_rays, alpha=alpha, medium=medium, orientation_mode=orientation_mode)
+        optimize_single_func = None  # Bayesian for single lens not yet implemented
     else:
         raise ValueError(f"Unknown optimization method: {method}")
     
     for (a, b) in tqdm(combos, desc=f"Optimizing with {method}"):
-        logger.info(f"\nOptimizing {a} + {b} using {method}...")
-        
-        try:
-            res = optimize_func(lenses, a, b)
+        # Check if this is a single-lens configuration
+        if b is None:
+            logger.info(f"\nOptimizing single lens {a} using {method}...")
             
-            if res is None:
-                logger.warning("Optimization failed or invalid configuration.")
+            # Check if single-lens optimization is available for this method
+            if optimize_single_func is None:
+                logger.warning(f"Single-lens optimization not implemented for {method}, skipping {a}")
                 continue
             
-            # Handle both single result (dict) and dual results (list of dicts)
-            results_to_process = res if isinstance(res, list) else [res]
+            try:
+                res = optimize_single_func(lenses, a)
+            except Exception as e:
+                logger.error(f"Error optimizing single lens {a}: {str(e)}")
+                import traceback
+                logger.error(traceback.format_exc())
+                continue
+        else:
+            # Two-lens configuration (existing code)
+            logger.info(f"\nOptimizing {a} + {b} using {method}...")
             
-            # Generate individual plots and save each result
-            for single_res in results_to_process:
-                plot_system_rays(lenses, single_res, run_id, plot_style=plot_style)
-                write_temp(single_res, run_id, batch_num)
-                
-                # Save to database immediately if enabled
-                if db is not None:
-                    try:
-                        result_with_method = dict(single_res, method=method)
-                        db.insert_result(run_id, result_with_method)
-                    except Exception as e:
-                        logger.error(f"Failed to write to database: {e}")
-                
+            try:
+                res = optimize_func(lenses, a, b)
+            except Exception as e:
+                logger.error(f"Error optimizing {a} + {b}: {str(e)}")
+                continue
+        
+        if res is None or (isinstance(res, list) and len(res) == 0):
+            logger.warning("Optimization failed or invalid configuration.")
+            continue
+        
+        # Handle both single result (dict) and dual results (list of dicts)
+        results_to_process = res if isinstance(res, list) else [res]
+        
+        # Generate individual plots and save each result
+        for single_res in results_to_process:
+            plot_system_rays(lenses, single_res, run_id, plot_style=plot_style)
+            write_temp(single_res, run_id, batch_num)
+            
+            # Save to database immediately if enabled
+            if db is not None:
+                try:
+                    result_with_method = dict(single_res, method=method)
+                    db.insert_result(run_id, result_with_method)
+                except Exception as e:
+                    logger.error(f"Failed to write to database: {e}")
+            
+            # Log results (handle both single-lens and two-lens cases)
+            if single_res['lens2'] is None:
+                logger.info(f"Orientation={single_res.get('orientation', 'N/A')}, "
+                           f"Coupling={single_res['coupling']:.4f}, "
+                           f"Length={single_res['total_len_mm']:.2f}mm, "
+                           f"z_lens={single_res['z_l1']:.2f}")
+            else:
                 logger.info(f"Orientation={single_res.get('orientation', 'N/A')}, "
                            f"Coupling={single_res['coupling']:.4f}, "
                            f"Length={single_res['total_len_mm']:.2f}mm, "
                            f"z_l1={single_res['z_l1']:.2f}, z_l2={single_res['z_l2']:.2f}")
-            
-            # If we have both orientations, also create a comparison plot
-            if isinstance(res, list) and len(res) == 2:
-                from scripts.visualizers import plot_dual_orientation_comparison
-                plot_dual_orientation_comparison(lenses, res[0], res[1], run_id, plot_style=plot_style)
-            
-        except Exception as e:
-            logger.error(f"Error optimizing {a} + {b}: {str(e)}")
-            continue
+        
+        # If we have both orientations, also create a comparison plot
+        # (but skip for single-lens configs, as they need different visualization)
+        if isinstance(res, list) and len(res) == 2 and res[0].get('lens2') is not None:
+            from scripts.visualizers import plot_dual_orientation_comparison
+            plot_dual_orientation_comparison(lenses, res[0], res[1], run_id, plot_style=plot_style)
     
     results = []
     filename = 'temp.json' if batch_num is None else f'temp_batch_{batch_num}.json'

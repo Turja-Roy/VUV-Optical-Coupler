@@ -878,6 +878,156 @@ def _plot_rays_2d_dual_view(fig, lenses, result, n_plot_rays=1000):
     ax1.legend(handles=legend_elements, loc='upper right', fontsize=8)
 
 
+def _plot_single_lens_2d_dual_view(fig, lenses, result, n_plot_rays=1000):
+    """
+    Plot ray traces for single-lens configuration in dual 2D side views (X-Z and Y-Z projections).
+    
+    Parameters
+    ----------
+    fig : matplotlib.figure.Figure
+        Figure object to plot on
+    lenses : dict
+        Dictionary of lens specifications
+    result : dict
+        Result dictionary containing z_l1, z_fiber, lens1, orientation
+    n_plot_rays : int
+        Number of rays to plot
+    """
+    z_lens = result['z_l1']
+    z_fiber = result['z_fiber']
+    lens_data = lenses[result['lens1']]
+    
+    # Parse orientation to determine flipped flag
+    orientation = result.get('orientation', 'ScfF')
+    flipped = (orientation == 'SffF')  # True if flat-first
+    
+    origins, dirs = sample_rays(n_plot_rays)
+    
+    # Create lens based on its type
+    from scripts.lens_factory import create_lens
+    lens = create_lens(lens_data, z_lens, flipped=flipped)
+    
+    # Create two subplots for X-Z and Y-Z views
+    ax1 = fig.add_subplot(2, 1, 1)  # X-Z view (top)
+    ax2 = fig.add_subplot(2, 1, 2)  # Y-Z view (bottom)
+    
+    # Trace rays and plot each segment
+    for i in range(n_plot_rays):
+        o = origins[i].copy()
+        d = dirs[i].copy()
+        
+        # Trace through lens with detailed output
+        result_trace = lens.trace_ray_detailed(o, d, 1.0)
+        if result_trace[4] is False:  # success flag is at index 4
+            # Ray failed - skip plotting for rejected rays
+            continue
+        p_entry, d_in, p_exit, d_out = result_trace[0], result_trace[1], result_trace[2], result_trace[3]
+        
+        # Calculate fiber intersection
+        if abs(d_out[2]) < 1e-9:
+            continue
+        t = (z_fiber - p_exit[2]) / d_out[2]
+        if t < 0:
+            continue
+        p_f = p_exit + t * d_out
+        
+        # Check acceptance criteria for color
+        r = __import__("math").hypot(p_f[0], p_f[1])
+        theta = __import__("math").acos(abs(d_out[2]) / np.linalg.norm(d_out))
+        color = 'g' if (r <= C.FIBER_CORE_DIAM_MM/2.0 and
+                        theta <= C.ACCEPTANCE_HALF_RAD) else 'r'
+        
+        # Plot segments in X-Z projection (ax1)
+        # Segment 1: Origin → Lens entry (in air, direction d)
+        ax1.plot([o[2], p_entry[2]], [o[0], p_entry[0]], 
+                color+'-', alpha=0.5, linewidth=0.5)
+        # Segment 2: Lens entry → Lens exit (in glass, direction d_in)
+        ax1.plot([p_entry[2], p_exit[2]], [p_entry[0], p_exit[0]], 
+                color+'-', alpha=0.5, linewidth=0.5)
+        # Segment 3: Lens exit → Fiber (in air, direction d_out)
+        ax1.plot([p_exit[2], p_f[2]], [p_exit[0], p_f[0]], 
+                color+'-', alpha=0.5, linewidth=0.5)
+        
+        # Plot segments in Y-Z projection (ax2)
+        ax2.plot([o[2], p_entry[2]], [o[1], p_entry[1]], 
+                color+'-', alpha=0.5, linewidth=0.5)
+        ax2.plot([p_entry[2], p_exit[2]], [p_entry[1], p_exit[1]], 
+                color+'-', alpha=0.5, linewidth=0.5)
+        ax2.plot([p_exit[2], p_f[2]], [p_exit[1], p_f[1]], 
+                color+'-', alpha=0.5, linewidth=0.5)
+    
+    # Draw lens in both views based on lens type
+    if lens_data.get('lens_type') == 'Bi-Convex':
+        _draw_biconvex_2d(ax1, z_lens, lens_data, flipped=flipped, alpha=0.2)
+        _draw_biconvex_2d(ax2, z_lens, lens_data, flipped=flipped, alpha=0.2)
+    elif lens_data.get('lens_type') == 'Aspheric':
+        _draw_aspheric_2d(ax1, z_lens, lens_data, flipped=flipped, alpha=0.2)
+        _draw_aspheric_2d(ax2, z_lens, lens_data, flipped=flipped, alpha=0.2)
+    else:
+        _draw_planoconvex_2d(ax1, z_lens, lens_data, flipped=flipped, alpha=0.2)
+        _draw_planoconvex_2d(ax2, z_lens, lens_data, flipped=flipped, alpha=0.2)
+    
+    # Draw arc source in both views
+    arc_radius = C.SOURCE_ARC_DIAM_MM / 2.0
+    ax1.plot([0, 0], [-arc_radius, arc_radius], 'o-', color='orange', 
+            linewidth=2, alpha=0.8, markersize=4)
+    ax2.plot([0, 0], [-arc_radius, arc_radius], 'o-', color='orange', 
+            linewidth=2, alpha=0.8, markersize=4)
+    
+    # Draw lamp window in both views
+    window_radius = C.LAMP_WINDOW_DIAM_MM / 2.0
+    z_window = C.LAMP_WINDOW_DISTANCE_MM
+    ax1.plot([z_window, z_window], [-window_radius, window_radius], '--', 
+            color='yellow', linewidth=2, alpha=0.6)
+    ax2.plot([z_window, z_window], [-window_radius, window_radius], '--', 
+            color='yellow', linewidth=2, alpha=0.6)
+    
+    # Draw cooling jacket in both views
+    z_cooling_jacket = C.WINDOW_DISTANCE_MM
+    cooling_jacket_radius = C.COOLING_JACKET_THREAD_DIAM_MM / 2.0
+    ax1.plot([z_cooling_jacket, z_cooling_jacket], 
+            [-cooling_jacket_radius, cooling_jacket_radius], 
+            '-', color='red', linewidth=3, alpha=0.7)
+    ax2.plot([z_cooling_jacket, z_cooling_jacket], 
+            [-cooling_jacket_radius, cooling_jacket_radius], 
+            '-', color='red', linewidth=3, alpha=0.7)
+    ax1.plot(z_cooling_jacket, -cooling_jacket_radius, 'rs', markersize=6)
+    ax1.plot(z_cooling_jacket, cooling_jacket_radius, 'rs', markersize=6)
+    ax2.plot(z_cooling_jacket, -cooling_jacket_radius, 'rs', markersize=6)
+    ax2.plot(z_cooling_jacket, cooling_jacket_radius, 'rs', markersize=6)
+    
+    # Draw fiber in both views
+    fiber_radius = C.FIBER_CORE_DIAM_MM / 2.0
+    ax1.plot([z_fiber, z_fiber], [-fiber_radius, fiber_radius], 
+            'g-', linewidth=3, alpha=0.6)
+    ax2.plot([z_fiber, z_fiber], [-fiber_radius, fiber_radius], 
+            'g-', linewidth=3, alpha=0.6)
+    
+    # Set labels and formatting
+    ax1.set_ylabel('X (mm)', fontsize=10)
+    ax1.set_title('X-Z Projection (Horizontal)', fontsize=11, fontweight='bold')
+    ax1.grid(True, alpha=0.3)
+    ax1.set_aspect('equal', adjustable='box')
+    
+    ax2.set_xlabel('Z (mm)', fontsize=10)
+    ax2.set_ylabel('Y (mm)', fontsize=10)
+    ax2.set_title('Y-Z Projection (Vertical)', fontsize=11, fontweight='bold')
+    ax2.grid(True, alpha=0.3)
+    ax2.set_aspect('equal', adjustable='box')
+    
+    # Add legend to first subplot only
+    legend_elements = [
+        Patch(facecolor='g', alpha=0.5, label='Accepted rays'),
+        Patch(facecolor='r', alpha=0.5, label='Rejected rays'),
+        Patch(facecolor='b', alpha=0.2, edgecolor='b', label='Lens'),
+        Line2D([0], [0], color='orange', linewidth=2, alpha=0.8, label='Arc source (Ø3mm)'),
+        Line2D([0], [0], color='yellow', linewidth=2, alpha=0.6, linestyle='--', label='Lamp window (Ø14.3mm)'),
+        Line2D([0], [0], color='red', linewidth=3, alpha=0.7, label='Cooling jacket M23 (Ø23mm)'),
+        Line2D([0], [0], color='g', linewidth=3, alpha=0.6, label='Fiber core (Ø1mm)')
+    ]
+    ax1.legend(handles=legend_elements, loc='upper right', fontsize=8)
+
+
 def _plot_single_2d_view(ax, lenses, result, n_plot_rays=500, projection='xz'):
     """
     Plot ray traces in a single 2D view (for combined method comparisons).
@@ -1088,24 +1238,54 @@ def plot_system_rays(lenses, best_result, run_id, n_plot_rays=1000, method=None,
     """
     orientation = best_result.get('orientation', 'ScffcF')
     
+    # Handle single-lens vs two-lens configurations
+    is_single_lens = best_result['lens2'] is None
+    
+    if is_single_lens:
+        # Single-lens visualization
+        lens_name = best_result['lens1']
+        
+        # For now, only implement 2D visualization for single-lens (3D can be added later)
+        if plot_style in ['2d', 'both']:
+            # Create 2D dual-view plot
+            fig_2d = plt.figure(figsize=(12, 10))
+            _plot_single_lens_2d_dual_view(fig_2d, lenses, best_result, n_plot_rays)
+            fig_2d.suptitle(f"Ray Trace (2D): {lens_name} (Single Lens), Coupling: {best_result['coupling']:.4f}, {orientation}", 
+                           fontsize=13, fontweight='bold', y=0.995)
+            plt.tight_layout(rect=(0, 0, 1, 0.99))
+            
+            # Save 2D plot
+            if not __import__("os").path.exists('./plots/' + run_id):
+                __import__("os").makedirs('./plots/' + run_id)
+            filename_2d = f"./plots/{run_id}/C-{best_result['coupling']:.4f}_L-{lens_name}_{orientation}_2d.png"
+            plt.savefig(filename_2d)
+            plt.close(fig_2d)
+        
+        return  # Skip 3D for single-lens for now
+    
+    lens_name = f"{best_result['lens1']} + {best_result['lens2']}"
+    
     if plot_style in ['3d', 'both']:
         # Create 3D plot
         fig_3d = plt.figure(figsize=(12, 8))
         ax = fig_3d.add_subplot(111, projection='3d')
         _plot_rays_on_axis(ax, lenses, best_result, n_plot_rays)
-        plt.title(f"Ray Trace: {best_result['lens1']} + {best_result['lens2']}, Coupling: {best_result['coupling']:.4f}, {orientation}")
+        plt.title(f"Ray Trace: {lens_name}, Coupling: {best_result['coupling']:.4f}, {orientation}")
         plt.tight_layout()
         
         # Save 3D plot
         if method:
-            plot_dir = f"./plots/{run_id}/{best_result['lens1']}+{best_result['lens2']}"
+            plot_dir = f"./plots/{run_id}/{lens_name.replace(' + ', '+')}"
             if not __import__("os").path.exists(plot_dir):
                 __import__("os").makedirs(plot_dir)
             filename_3d = f"{plot_dir}/C-{best_result['coupling']:.4f}_{method}_3d.png"
         else:
             if not __import__("os").path.exists('./plots/' + run_id):
                 __import__("os").makedirs('./plots/' + run_id)
-            filename_3d = f"./plots/{run_id}/C-{best_result['coupling']:.4f}_L1-{best_result['lens1']}_L2-{best_result['lens2']}_3d.png"
+            if is_single_lens:
+                filename_3d = f"./plots/{run_id}/C-{best_result['coupling']:.4f}_L-{best_result['lens1']}_3d.png"
+            else:
+                filename_3d = f"./plots/{run_id}/C-{best_result['coupling']:.4f}_L1-{best_result['lens1']}_L2-{best_result['lens2']}_3d.png"
         plt.savefig(filename_3d)
         plt.close(fig_3d)
     
@@ -1113,7 +1293,7 @@ def plot_system_rays(lenses, best_result, run_id, n_plot_rays=1000, method=None,
         # Create 2D dual-view plot
         fig_2d = plt.figure(figsize=(12, 10))
         _plot_rays_2d_dual_view(fig_2d, lenses, best_result, n_plot_rays)
-        fig_2d.suptitle(f"Ray Trace (2D): {best_result['lens1']} + {best_result['lens2']}, Coupling: {best_result['coupling']:.4f}, {orientation}", 
+        fig_2d.suptitle(f"Ray Trace (2D): {lens_name}, Coupling: {best_result['coupling']:.4f}, {orientation}", 
                        fontsize=13, fontweight='bold', y=0.995)
         plt.tight_layout(rect=(0, 0, 1, 0.99))
         

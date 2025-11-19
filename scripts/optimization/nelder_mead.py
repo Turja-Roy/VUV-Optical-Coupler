@@ -155,3 +155,155 @@ def optimize(lenses, name1, name2, n_rays=1000, alpha=0.7, medium='air', orienta
         return results
     else:
         return results[0]
+
+
+def evaluate_single_lens_config_fast(params, d, origins, dirs, n_rays, alpha=0.7, medium='air', flipped=False):
+    """Evaluate single-lens configuration (fast objective for optimization)."""
+    from scripts.raytrace_helpers_vectorized import trace_system_single_lens_vectorized
+    z_lens, z_fiber = params
+    
+    # Calculate physical extents accounting for surface sag
+    def calc_sag_local(R, ap_rad):
+        R_abs = abs(R)
+        if ap_rad >= R_abs:
+            return 0.0
+        return R_abs - np.sqrt(R_abs**2 - ap_rad**2)
+    
+    ap_rad = d['dia'] / 2.0
+    
+    # Check lens position constraint
+    min_gap = 0.5
+    if z_lens < C.SOURCE_TO_LENS_OFFSET:
+        return 1e6
+    
+    # Check fiber is after lens
+    lens_end = z_lens + d['tc_mm']
+    if 'R2_mm' in d and d.get('lens_type') in ['Bi-Convex', 'Aspheric']:
+        sag_back = calc_sag_local(d['R2_mm'], ap_rad)
+        lens_end += sag_back
+    
+    if z_fiber <= lens_end + min_gap:
+        return 1e6
+    
+    lens = create_lens(d, z_lens, flipped=flipped)
+    
+    accepted, transmission = trace_system_single_lens_vectorized(
+        origins, dirs, lens, z_fiber,
+        C.FIBER_CORE_DIAM_MM/2.0, C.ACCEPTANCE_HALF_RAD,
+        medium, C.PRESSURE_ATM, C.TEMPERATURE_K, C.HUMIDITY_FRACTION
+    )
+    avg_transmission = np.mean(transmission[accepted]) if np.any(accepted) else 0.0
+    coupling = (np.count_nonzero(accepted) / n_rays) * avg_transmission * C.GEOMETRIC_LOSS_FACTOR
+    
+    # For single lens: heavily penalize zero coupling with exponential penalty
+    # This encourages finding ANY coupling, even if it means longer distances
+    if coupling == 0.0:
+        coupling_penalty = 10.0  # Large penalty for zero coupling
+    else:
+        coupling_penalty = 1 - coupling
+    
+    # Normalize length by 120mm to allow longer focal distances
+    return alpha * coupling_penalty + (1 - alpha) * z_fiber / 120.0
+
+
+def optimize_single_lens(lenses, name, n_rays=1000, alpha=0.7, medium='air', orientation_mode='both', seed=None):
+    """Optimize single-lens configuration using Nelder-Mead."""
+    from scripts.raytrace_helpers_vectorized import trace_system_single_lens_vectorized
+    d = lenses[name]
+    f = d['f_mm']
+    
+    # Set seed if provided for reproducibility
+    if seed is not None:
+        np.random.seed(seed)
+    
+    origins, dirs = sample_rays(n_rays)
+    
+    # Test both orientations
+    results = []
+    orientations = [
+        (False, 'ScfF'),  # curved-first
+        (True, 'SffF')    # flat-first
+    ]
+    
+    # Filter orientations based on mode
+    if orientation_mode != 'both':
+        orientations = [o for o in orientations if o[1] == orientation_mode]
+    
+    for flipped, orientation_name in orientations:
+        # Multi-start optimization: try several initial guesses
+        # Single lenses need longer distances to achieve any coupling
+        z_lens_init = max(C.SOURCE_TO_LENS_OFFSET + 1.0, f * 0.8)
+        
+        initial_guesses = [
+            [z_lens_init, z_lens_init + f * 1.5],  # Short distance
+            [z_lens_init, z_lens_init + f * 2.5],  # Medium distance
+            [z_lens_init + 5, z_lens_init + f * 3.0],  # Longer distance
+        ]
+        
+        best_result = None
+        best_objective = float('inf')
+        
+        for x0 in initial_guesses:
+            result = minimize(
+                evaluate_single_lens_config_fast, x0,
+                args=(d, origins, dirs, n_rays, alpha, medium, flipped),
+                method='Nelder-Mead',
+                options={'maxiter': 200, 'xatol': 0.01, 'fatol': 0.001}
+            )
+            
+            # Keep the best result (lowest objective, not penalty)
+            if result.fun < best_objective and result.fun < 1e5:
+                best_objective = result.fun
+                best_result = result
+        
+        # Use the best result from all starting points
+        if best_result is None:
+            logger.error(f"All optimization attempts failed for {name} with orientation {orientation_name}")
+            continue
+        
+        result = best_result
+        
+        # Check if optimization returned a valid result (not the penalty value)
+        if result.fun >= 1e5:
+            logger.error(f"OPTIMIZATION FAILED: Returned penalty value {result.fun:.0f}")
+            logger.error(f"  No valid configuration found for single lens {name} with orientation {orientation_name}")
+            logger.error(f"  Skipping this orientation...")
+            continue
+        
+        z_lens, z_fiber = result.x
+        
+        # Use seed for final evaluation to ensure reproducibility
+        origins_final, dirs_final = sample_rays(2000, seed=seed)
+        lens = create_lens(d, z_lens, flipped=flipped)
+        
+        # Final evaluation with more rays
+        accepted, transmission = trace_system_single_lens_vectorized(
+            origins_final, dirs_final, lens, z_fiber,
+            C.FIBER_CORE_DIAM_MM/2.0, C.ACCEPTANCE_HALF_RAD,
+            medium, C.PRESSURE_ATM, C.TEMPERATURE_K, C.HUMIDITY_FRACTION
+        )
+        
+        avg_transmission = np.mean(transmission[accepted]) if np.any(accepted) else 0.0
+        coupling = (np.count_nonzero(accepted) / len(origins_final)) * avg_transmission * C.GEOMETRIC_LOSS_FACTOR
+        
+        results.append({
+            'lens1': name, 'lens2': None,
+            'f1_mm': d['f_mm'], 'f2_mm': None,
+            'z_l1': z_lens, 'z_l2': None, 'z_fiber': z_fiber,
+            'total_len_mm': z_fiber,
+            'coupling': coupling,
+            'orientation': orientation_name,
+            'fiber_position_method': 'single_lens',
+            'origins': origins_final, 'dirs': dirs_final, 'accepted': accepted
+        })
+    
+    # If no valid configurations found, return appropriate empty result
+    if not results:
+        logger.warning(f"No valid configurations found for single lens {name}")
+        return [] if orientation_mode == 'both' else None
+    
+    # Return list if 'both' mode, otherwise return single result
+    if orientation_mode == 'both':
+        return results
+    else:
+        return results[0]

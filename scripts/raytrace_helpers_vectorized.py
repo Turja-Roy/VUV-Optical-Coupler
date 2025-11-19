@@ -821,3 +821,143 @@ def trace_system_vectorized(origins, dirs, lens1, lens2,
     transmission_factors = T1 * T2 * T3
     
     return active, transmission_factors
+
+
+def trace_system_single_lens_vectorized(origins, dirs, lens,
+                                        z_fiber, fiber_rad, acceptance_half_rad, 
+                                        medium='air', pressure_atm=1.0, temp_k=293.15, humidity_fraction=0.01):
+    """
+    Vectorized ray tracing through single-lens system to fiber.
+    
+    Similar to trace_system_vectorized but with only one lens.
+    
+    Parameters
+    ----------
+    origins : ndarray, shape (n_rays, 3)
+        Ray starting points
+    dirs : ndarray, shape (n_rays, 3)
+        Ray direction vectors
+    lens : PlanoConvex, BiConvex, or Aspheric
+        Single lens object
+    z_fiber : float
+        Z-position of fiber face
+    fiber_rad : float
+        Fiber core radius
+    acceptance_half_rad : float
+        Fiber half-acceptance angle in radians
+    medium : str
+        Propagation medium ('air', 'argon', 'helium')
+    pressure_atm : float
+        Atmospheric pressure
+    temp_k : float
+        Temperature in Kelvin
+    humidity_fraction : float
+        Water vapor fraction (0.0-0.1)
+    
+    Returns
+    -------
+    accepted : ndarray, shape (n_rays,), dtype=bool
+        True for rays that coupled into fiber
+    transmission_factors : ndarray, shape (n_rays,)
+        Atmospheric transmission factors for each ray
+    """
+    n_rays = origins.shape[0]
+    n_medium = medium_refractive_index(C.WAVELENGTH_NM, medium, pressure_atm, temp_k)
+    
+    # Detect lens type and extract appropriate parameters
+    def get_lens_params_and_tracer(lens):
+        """Extract parameters and select appropriate tracer function for a lens."""
+        lens_type = type(lens).__name__
+        
+        # Common parameters for all lens types
+        params = {
+            'vertex_z_front': lens.vertex_z_front,
+            'R_front_mm': lens.R_front_mm,
+            'center_thickness_mm': lens.center_thickness_mm,
+            'ap_rad_mm': lens.ap_rad_mm,
+            'n_glass': lens.n_glass
+        }
+        
+        if lens_type == 'PlanoConvex':
+            # PlanoConvex: has edge_thickness_mm
+            params['edge_thickness_mm'] = lens.edge_thickness_mm
+            return params, trace_planoconvex_vectorized
+            
+        elif lens_type == 'BiConvex':
+            # BiConvex: has R_back_mm and sphere centers
+            params['R_back_mm'] = lens.R_back_mm
+            params['center_z_front'] = lens.center_z_front
+            params['center_z_back'] = lens.center_z_back
+            return params, trace_biconvex_vectorized
+            
+        elif lens_type == 'Aspheric':
+            # Aspheric: has R_back_mm, back surface type, and centers
+            params['R_back_mm'] = lens.R_back_mm
+            params['vertex_z_back'] = lens.vertex_z_back
+            params['center_z_front'] = lens.center_z_front
+            params['center_z_back'] = lens.center_z_back
+            params['back_surface_type'] = lens.back_surface_type
+            return params, trace_aspheric_vectorized
+            
+        else:
+            raise ValueError(f"Unsupported lens type for vectorized tracing: {lens_type}")
+    
+    # Get parameters and tracer for the lens
+    lens_params, trace_lens_func = get_lens_params_and_tracer(lens)
+    
+    # Trace through the lens
+    origins_out, dirs_out, success = trace_lens_func(
+        origins, dirs, n_medium, lens_params, flipped=lens.flipped
+    )
+    
+    # Early exit if all rays failed
+    if not np.any(success):
+        return np.zeros(n_rays, dtype=bool), np.ones(n_rays)
+    
+    # Calculate transmission to lens
+    z_lens = lens.z_center
+    d1 = z_lens - origins[:, 2]
+    T1 = transmission_through_medium_vectorized(d1, C.WAVELENGTH_NM, medium, 
+                                               pressure_atm, temp_k, humidity_fraction)
+    
+    # Propagate to fiber
+    # Check for rays not going forward
+    dz_ok = np.abs(dirs_out[:, 2]) > 1e-9
+    active = success & dz_ok
+    
+    # Calculate fiber intersection
+    t_fiber = np.full(n_rays, np.nan)
+    active_mask = active & (dirs_out[:, 2] != 0)
+    if np.any(active_mask):
+        t_fiber[active_mask] = (z_fiber - origins_out[active_mask, 2]) / dirs_out[active_mask, 2]
+    
+    # Check for forward propagation
+    forward = t_fiber > 0
+    active = active & forward
+    
+    # Calculate positions at fiber
+    p_fiber = origins_out + t_fiber[:, np.newaxis] * dirs_out
+    
+    # Calculate transmission to fiber
+    d2 = np.abs(z_fiber - origins_out[:, 2])
+    d2 = np.where(success, d2, 0.0)
+    T2 = transmission_through_medium_vectorized(d2, C.WAVELENGTH_NM, medium,
+                                               pressure_atm, temp_k, humidity_fraction)
+    
+    # Check spatial acceptance (fiber radius)
+    r_fiber = np.sqrt(p_fiber[:, 0]**2 + p_fiber[:, 1]**2)
+    spatial_ok = r_fiber <= fiber_rad
+    active = active & spatial_ok
+    
+    # Check angular acceptance (NA)
+    # Calculate angle from z-axis
+    dir_norms = np.linalg.norm(dirs_out, axis=1)
+    cos_theta = np.where(dir_norms > 0, np.abs(dirs_out[:, 2]) / dir_norms, 0.0)
+    theta = np.arccos(np.clip(cos_theta, -1.0, 1.0))
+    angular_ok = theta <= acceptance_half_rad
+    active = active & angular_ok
+    
+    # Calculate total transmission
+    transmission_factors = T1 * T2
+    
+    return active, transmission_factors

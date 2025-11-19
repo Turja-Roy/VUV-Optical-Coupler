@@ -175,9 +175,13 @@ def find_combos(method, use_database=False, db=None, **db_filters):
     else:  # method == 'combine'
         lenses = fetch_lens_data(method, use_database=use_database, db=db, **db_filters)
         combos = []
+        # Add two-lens combinations
         for a in lenses:
             for b in lenses:
                 combos.append((a, b))
+        # Add single-lens combinations (test each lens individually)
+        for a in lenses:
+            combos.append((a, None))
         return combos, lenses
 
 
