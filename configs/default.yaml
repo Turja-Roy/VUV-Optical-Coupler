@@ -89,20 +89,20 @@ database:
 tolerance:
   z_range_mm: 1.0       # Range of z-displacement to test (±mm from optimal)
   n_samples: 21         # Number of displacement samples (should be odd)
-  n_rays: 2000          # Rays per tolerance test (higher = more accurate)
+  n_rays: 5000          # Rays per tolerance test (higher = more accurate)
   test_lateral: true   # Test x/y lateral displacements (future feature)
   test_tilt: true      # Test angular tilts (future feature)
 
 # Batch tolerance analysis settings (for tolerance batch mode)
 batch_tolerance:
-  results_file: results/2025-11-07_combine_differential_evolution_argon/results_combine_2025-11-07_combine_differential_evolution_argon.csv                  # Path to optimization results CSV (null = required on CLI)
-  coupling_threshold: 0.35            # Minimum coupling efficiency to include in analysis
+  results_file: results/2025-11-19_combine_differential_evolution_argon/results_combine_2025-11-19_combine_differential_evolution_argon.csv                  # Path to optimization results CSV (null = required on CLI)
+  coupling_threshold: 0.25            # Minimum coupling efficiency to include in analysis
 
 # Analysis settings (for analyze mode - re-optimize high-coupling results)
 analyze:
-  n_rays: 1000          # Number of rays for re-optimization
-  coupling_threshold: 0.35  # Minimum coupling to analyze
-  results_file: results/2025-11-07_combine_differential_evolution_argon/results_combine_2025-11-07_combine_differential_evolution_argon.csv    # Path to results CSV file (null = required on CLI)
+  n_rays: 5000          # Number of rays for re-optimization
+  coupling_threshold: 0.25  # Minimum coupling to analyze
+  results_file: results/2025-11-19_combine_differential_evolution_argon/results_combine_2025-11-19_combine_differential_evolution_argon.csv    # Path to results CSV file (null = required on CLI)
   methods:              # Optimization methods to test on each combination
     - differential_evolution
     - dual_annealing
@@ -128,9 +128,9 @@ wavelength:
 
 # Wavelength plot settings (for wavelength-analyze-plot mode)
 wavelength_plot:
-  results_dir: results/wavelength_analyze_2025-11-10     # Path to wavelength analysis results directory (null = required on CLI)
+  results_dir: results/wavelength_analyze_2025-11-19     # Path to wavelength analysis results directory (null = required on CLI)
   fit_types: 'all'         # List of fit types: ['polynomial', 'spline'], 'all' (for no fit + polynomial + spline), or [] for no fits
-  aggregate: false      # Generate aggregated plots (per-lens, per-method)
+  aggregate: true      # Generate aggregated plots (per-lens, per-method)
 
 # Dashboard settings (for web dashboard mode)
 dashboard:
