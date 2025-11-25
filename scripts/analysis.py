@@ -203,8 +203,9 @@ def analyze_combos(results_file, coupling_threshold, lenses, run_id, alpha=0.7, 
 
 
 def evaluate_fixed_config_at_wavelength(lenses, lens1, lens2, z_l1, z_l2, z_fiber, wavelength, n_rays=2000, medium='air', orientation='ScffcF', seed=None):
-    from scripts.PlanoConvex import PlanoConvex
-    from scripts.raytrace_helpers import sample_rays, trace_system
+    from scripts.lens_factory import create_lens
+    from scripts.raytrace_helpers import sample_rays
+    from scripts.raytrace_helpers_vectorized import trace_system_vectorized as trace_system
     from scripts import consts as C
     
     d1, d2 = lenses[lens1], lenses[lens2]
@@ -222,9 +223,11 @@ def evaluate_fixed_config_at_wavelength(lenses, lens1, lens2, z_l1, z_l2, z_fibe
     
     try:
         origins, dirs = sample_rays(n_rays, seed=seed)
-        lens1_obj = PlanoConvex(z_l1, _get_r_mm(d1), d1['tc_mm'], d1['te_mm'], d1['dia']/2.0, flipped=flipped1)
-        lens2_obj = PlanoConvex(z_l2, _get_r_mm(d2), d2['tc_mm'], d2['te_mm'], d2['dia']/2.0, flipped=flipped2)
+        # Use lens_factory to create lenses (handles PlanoConvex, BiConvex, Aspheric)
+        lens1_obj = create_lens(d1, z_l1, flipped=flipped1)
+        lens2_obj = create_lens(d2, z_l2, flipped=flipped2)
         
+        # Use vectorized ray tracing (10-15x faster)
         accepted, transmission = trace_system(origins, dirs, lens1_obj, lens2_obj,
                                 z_fiber, C.FIBER_CORE_DIAM_MM/2.0, C.ACCEPTANCE_HALF_RAD,
                                 medium, C.PRESSURE_ATM, C.TEMPERATURE_K, C.HUMIDITY_FRACTION)

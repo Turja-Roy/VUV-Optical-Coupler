@@ -1,6 +1,5 @@
 import math
 import numpy as np
-from scripts.consts import N_GLASS
 from scripts.raytrace_helpers import intersect_ray_sphere, refract_vec
 
 
@@ -28,7 +27,6 @@ class BiConvex:
         self.center_thickness_mm = center_thickness_mm
         self.edge_thickness_mm = edge_thickness_mm
         self.ap_rad_mm = ap_rad_mm
-        self.n_glass = N_GLASS
         self.flipped = flipped
         self.vertex_z_back = vertex_z_front + center_thickness_mm
         self.z_center = vertex_z_front + center_thickness_mm / 2.0
@@ -46,6 +44,16 @@ class BiConvex:
         self.center_z_front = vertex_z_front + self.R_front_mm
         # Center of curvature for back surface (on -z side of back vertex)
         self.center_z_back = self.vertex_z_back - self.R_back_mm
+    
+    @property
+    def n_glass(self):
+        """
+        Glass refractive index calculated dynamically based on current wavelength.
+        This ensures wavelength-dependent refraction is handled correctly.
+        """
+        from scripts import consts as C
+        from scripts.calcs import fused_silica_n
+        return fused_silica_n(C.WAVELENGTH_NM)
 
     def trace_ray(self, o, d, n1):
         """

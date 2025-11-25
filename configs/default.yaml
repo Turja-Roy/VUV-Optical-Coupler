@@ -116,8 +116,8 @@ wavelength:
   wl_start: 150         # Starting wavelength (nm)
   wl_end: 300           # Ending wavelength (nm)
   wl_step: 10           # Wavelength step (nm)
-  n_rays: 1000          # Rays per wavelength test (higher = more accurate)
-  results_file: results/analyze_2025-11-07_coupling_0_35_air/results_analyze_combined_analyze_2025-11-07_coupling_0_35_air.csv    # Path to results CSV file (null = required on CLI)
+  n_rays: 5000          # Rays per wavelength test (higher = more accurate)
+  results_file: results/analyze_2025-11-19_coupling_0_25_argon/results_analyze_combined_analyze_2025-11-19_coupling_0_25_argon.csv    # Path to results CSV file (null = required on CLI)
   methods:              # Optimization methods for calibration at 200nm
     - differential_evolution
     - dual_annealing
@@ -130,7 +130,7 @@ wavelength:
 wavelength_plot:
   results_dir: results/wavelength_analyze_2025-11-19     # Path to wavelength analysis results directory (null = required on CLI)
   fit_types: 'all'         # List of fit types: ['polynomial', 'spline'], 'all' (for no fit + polynomial + spline), or [] for no fits
-  aggregate: true      # Generate aggregated plots (per-lens, per-method)
+  aggregate: false      # Generate aggregated plots (per-lens, per-method)
 
 # Dashboard settings (for web dashboard mode)
 dashboard:
