@@ -143,7 +143,7 @@ def optimize(lenses, name1, name2, n_rays=1000, alpha=0.7, medium='air', orienta
             'lens1': name1, 'lens2': name2,
             'f1_mm': d1['f_mm'], 'f2_mm': d2['f_mm'],
             'z_l1': z_l1, 'z_l2': z_l2, 'z_fiber': z_fiber,
-            'total_len_mm': z_fiber,
+            'total_len_mm': z_fiber - C.WINDOW_DISTANCE_MM,
             'coupling': coupling,
             'orientation': orientation_name,
             'fiber_position_method': fiber_method,

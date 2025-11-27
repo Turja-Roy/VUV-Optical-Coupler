@@ -448,7 +448,7 @@ def run_grid(name1, name2, coarse_steps=9, refine_steps=11, n_coarse=3000, n_ref
             if coupling > best['coupling']:
                 best = {'z_l1':z_l1, 'z_l2':z_l2, 'z_fiber':z_fiber, 'coupling':coupling, 'accepted':accepted, 'origins':origins_ref, 'dirs':dirs_ref}
     # attach metadata
-    best.update({'lens1':name1, 'lens2':name2, 'f1_mm':f1, 'f2_mm':f2, 'total_len_mm':best['z_fiber']})
+    best.update({'lens1':name1, 'lens2':name2, 'f1_mm':f1, 'f2_mm':f2, 'total_len_mm':best['z_fiber'] - WINDOW_DISTANCE_MM})
     
     # Visualize this combination
     plot_system_rays(best)

@@ -383,7 +383,7 @@ def evaluate_paraxial_coupling(lens1_data: Dict, lens2_data: Dict,
         'f1_bfl': lens1_cardinal['f_back'],
         'f2_bfl': lens2_cardinal['f_back'],
         'transmission': transmission,
-        'total_length': z_fiber,
+        'total_length': z_fiber - C.WINDOW_DISTANCE_MM,
         'spacing_l1_l2': d12 + tc1/2 + tc2/2,  # Center-to-center
         'A': A, 'B': B, 'C': C_matrix, 'D': D  # ABCD matrix elements
     }

@@ -149,7 +149,7 @@ def optimize(lenses, name1, name2, n_calls=100, n_rays=1000, alpha=0.7, medium='
         results.append({
             'lens1': name1, 'lens2': name2, 'f1_mm': f1, 'f2_mm': f2,
             'z_l1': z_l1_opt, 'z_l2': z_l2_opt, 'z_fiber': z_fiber,
-            'total_len_mm': z_fiber, 'coupling': coupling,
+            'total_len_mm': z_fiber - C.WINDOW_DISTANCE_MM, 'coupling': coupling,
             'orientation': orientation_name,
             'fiber_position_method': fiber_method,
             'origins': origins_final, 'dirs': dirs_final, 'accepted': accepted

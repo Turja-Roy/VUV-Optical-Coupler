@@ -127,7 +127,7 @@ def run_grid(run_id, lenses, name1, name2,
         best['accepted'] = accepted_final
 
         best.update({'lens1': name1, 'lens2': name2, 'f1_mm': f1,
-                    'f2_mm': f2, 'total_len_mm': best['z_fiber'],
+                    'f2_mm': f2, 'total_len_mm': best['z_fiber'] - C.WINDOW_DISTANCE_MM,
                     'orientation': orientation_name})
         results.append(best)
     
