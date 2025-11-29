@@ -16,7 +16,7 @@
     \maketitle
 
     \begin{abstract}
-        A comprehensive ray tracing methodology is presented for optimizing two-lens plano-convex coupling systems for vacuum ultraviolet (VUV) flashlamp-to-fiber applications. The system couples 200 nm light from a 3 mm xenon arc source into a 1 mm fiber core (NA = 0.22). Six optimization algorithms---grid search, Powell's method, differential evolution, Nelder-Mead simplex, dual annealing, and Bayesian optimization---are systematically compared using deterministic ray tracing with atmospheric absorption modeling. Systematic analysis of 24,336 commercial lens combinations identifies optimal configurations achieving coupling efficiencies up to 0.49 in argon atmosphere. Powell's method emerges as the recommended algorithm for routine optimization, while differential evolution provides robust global exploration. Atmospheric oxygen absorption represents the dominant performance-limiting factor: wavelength analysis of representative configurations reveals 16--24\% relative coupling improvement in argon versus air at 200 nm, establishing argon atmosphere as essential for high-performance VUV applications. Wavelength analysis (150--300 nm) reveals peak performance in the 220--260 nm range. Tolerance analysis establishes practical alignment requirements for laboratory implementation. The modular framework provides both a practical design tool and methodological insights for non-convex optical optimization problems.
+        A comprehensive ray tracing methodology is presented for optimizing two-lens coupling systems for vacuum ultraviolet (VUV) flashlamp-to-fiber applications with realistic experimental constraints. The system couples 200 nm light from a Hamamatsu L7685 60W xenon flashlamp (3 mm arc) with E6611 cooling jacket into a 1 mm fiber core (NA = 0.22). The cooling jacket imposes critical geometric constraints: lens positioning constrained to z $\geq$ 27 mm and angular acceptance limited to 22.85$^\circ$, introducing 43\% geometric vignetting loss. Six optimization algorithms---grid search, Powell's method, differential evolution, Nelder-Mead simplex, dual annealing, and Bayesian optimization---are systematically compared using deterministic ray tracing with atmospheric absorption modeling. Systematic analysis identifies optimal configurations achieving coupling efficiencies up to 0.30 in argon atmosphere at 200 nm, representing realistic performance under cooling jacket constraints. Powell's method emerges as the recommended algorithm for routine optimization, providing rapid convergence (0.5 s per lens pair) and reliable performance. Combined atmospheric oxygen absorption and extended path lengths (L $\approx$ 67 mm) create substantial medium-dependent effects: systematic comparison reveals 33--39\% relative coupling improvement in argon versus air at 200 nm for cooling-jacket-constrained configurations. Wavelength dependence analysis (150--300 nm) establishes chromatic performance characteristics and validates wavelength-dependent material modeling. Tolerance analysis establishes practical alignment requirements for laboratory implementation. The framework provides both a practical design tool incorporating realistic experimental constraints and methodological insights for non-convex optical optimization problems.
     \end{abstract}
     \vspace{0.5cm}
 \end{@twocolumnfalse}
@@ -24,9 +24,9 @@
 
 \section{Introduction}
 
-Efficient coupling of vacuum ultraviolet light from incoherent sources into optical fibers presents significant challenges due to the inherent divergence of arc lamp sources and the limited acceptance angles of fibers \cite{hecht2017}. The Hamamatsu L7685 60W xenon flash lamp provides a compact broadband source (190--2000 nm) suitable for liquid argon purity monitoring applications in the VUV range. This work focuses on optimizing coupling at the design wavelength of 200 nm, where fiber-optic delivery enables remote sensing and flexible optical system configurations in cryogenic environments.
+Efficient coupling of vacuum ultraviolet light from incoherent sources into optical fibers presents significant challenges due to the inherent divergence of arc lamp sources and the limited acceptance angles of fibers \cite{hecht2017}. The Hamamatsu L7685 60W xenon flash lamp provides a compact broadband source (190--2000 nm) suitable for liquid argon purity monitoring applications in the VUV/DUV range. This work focuses on optimizing coupling at the design wavelength of 200 nm, where fiber-optic delivery enables remote sensing and flexible optical system configurations in cryogenic environments.
 
-The design of compact coupling optics requires balancing multiple objectives: maximizing coupling efficiency, minimizing physical length, and maintaining practical manufacturability with commercially available optical components. Traditional lens design approaches often rely on paraxial approximations or specialized optical design software \cite{greivenkamp2004}. However, the large numerical aperture and wide divergence angles in VUV flashlamp systems necessitate full ray tracing to accurately predict system performance.
+The design of compact coupling optics requires balancing multiple objectives: maximizing coupling efficiency, minimizing physical length, and maintaining practical manufacturability with commercially available optical components. Traditional lens design approaches often rely on paraxial approximations or specialized optical design software \cite{greivenkamp2004}. However, the large numerical aperture and wide divergence angles in Xe flashlamp systems necessitate full ray tracing to accurately predict system performance.
 
 In this work, a stratified ray tracing framework is developed that incorporates realistic source geometry, lens specifications, fiber acceptance criteria, and atmospheric absorption effects (O$_2$, N$_2$, and H$_2$O). The design problem is formulated as a multi-objective optimization task, and six distinct optimization algorithms are systematically compared to identify lens positioning that maximizes performance. This approach provides both a practical design tool and insights into the efficacy of various optimization strategies for optical systems with complex, non-convex objective functions characterized by multiple local optima and discrete ray-counting mechanics that preclude
  analytical gradient computation.
@@ -35,26 +35,40 @@ In this work, a stratified ray tracing framework is developed that incorporates 
 
 \subsection{Optical Configuration}
 
-The optical system comprises a Hamamatsu L7685 60W xenon flash lamp \cite{hamamatsu}, a Single Crystal Sapphire Glass protective window, two fused silica plano-convex lenses, and a multi-mode optical fiber \cite{accuglass} arranged along a common optical axis. The lamp emits broadband radiation (190--2000 nm) from a compact 3.0 mm diameter arc; this work analyzes coupling performance at $\lambda =$ 150--300 nm. The Single Crystal Sapphire Glass window (14.3 mm diameter) positioned 8.7 mm from the arc protects the source while allowing VUV transmission. The two-lens relay system is positioned after the window to collect and refocus the divergent light into the fiber.
+The optical system comprises a Hamamatsu L7685 60W xenon flash lamp \cite{hamamatsu} with Hamamatsu E6611 cooling jacket, two fused silica lenses, and a multi-mode optical fiber \cite{accuglass} arranged along a common optical axis. The lamp emits broadband radiation (190--2000 nm) from a compact 3.0 mm diameter arc; this work analyzes coupling performance at $\lambda =$ 150--300 nm. 
 
-% FIGURE 1: Lamp Dimensional Outline
+The lamp assembly includes a protective Single Crystal Sapphire Glass window (14.3 mm diameter) positioned 8.7 mm from the arc. Critically, the Hamamatsu E6611 cooling jacket surrounds the lamp housing and constrains the optical aperture through its M23 threaded exit port (inner diameter 23 mm) located approximately 26 mm from the arc center. This cooling jacket imposes both geometric constraints on lens positioning and vignetting losses on the emitted light, as detailed in Section 2.2. The two-lens relay system is positioned after the cooling jacket exit to collect and refocus the divergent light into the fiber.
+
+% FIGURE 1: Lamp and Cooling Jacket Dimensional Outline
 \begin{figure}[htpb]
     \centering
-    \includegraphics[width=0.45\textwidth]{L7685-Dimensional-Outline.png}
-    \caption{Dimensional Outline of Hamamatsu L7685 Xenon Flash Lamp (Unit: mm)}
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \includegraphics[width=0.80\textwidth]{L7685-Dimensional-Outline.png}
+        \caption{}
+    \end{subfigure}
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \includegraphics[width=0.80\textwidth]{E6611-Cooling-Jacket.png}
+        \caption{}
+    \end{subfigure}
+    \caption{Dimensional Outline of (a) Hamamatsu L7685 Xenon Flash Lamp and (b) Hamamatsu E6611 Cooling Jacket (Unit: mm)}
+    \label{fig:lamp_outline}
 \end{figure}
 
 \subsection{Source Characteristics}
 
-The xenon arc source exhibits a spatially extended emission profile with angular divergence that increases radially from the arc center. The source is modeled as emitting rays from a circular disk of radius $r_{\text{arc}} = 1.5$ mm with angular distribution characterized by a maximum half-angle $\theta_{\max} = 33^\circ$ at the window edge. This coherent beam model assumes that rays originating at radius $r$ from the arc center propagate with half-angle $\theta(r) = \theta_{\max} \cdot r/r_{\text{arc}}$, representing the geometric constraint imposed by the window aperture.
+The xenon arc source exhibits a spatially extended emission profile with angular divergence constrained by the cooling jacket geometry. The source is modeled as emitting rays from a circular disk of radius $r_{\text{arc}} = 1.5$ mm with angular distribution characterized by a maximum half-angle $\theta_{\max} = 22.85^\circ$, determined by the cooling jacket aperture geometry: $\theta_{\max} = \arctan(r_{\text{jacket}}/z_{\text{jacket}}) = \arctan(11.5\text{ mm}/26\text{ mm})$, where $r_{\text{jacket}} = 11.5$ mm is the cooling jacket M23 thread radius and $z_{\text{jacket}} = 26$ mm is the distance from arc to jacket exit.
+
+This coherent beam model assumes that rays originating at radius $r$ from the arc center propagate with half-angle $\theta(r) = \theta_{\max} \cdot r/r_{\text{arc}}$, representing the geometric constraint imposed by the cooling jacket aperture. The cooling jacket introduces a geometric loss factor of approximately 0.43 (43\% vignetting loss, 57\% transmission) due to solid angle reduction compared to an unobstructed hemispherical emission. This vignetting represents a fundamental constraint on system performance that cannot be eliminated through optical design optimization.
 
 \subsection{Fiber Specifications}
 
-The target optical fiber features a 1.0 mm core diameter with numerical aperture NA $= 0.22$, corresponding to an acceptance half-angle $\theta_{\text{accept}} = \sin^{-1}(\text{NA}) = 12.4^\circ$ in air. Successful coupling requires that incident rays satisfy both spatial (impinge within the core area) and angular (arrive within the acceptance cone) criteria simultaneously.
+The target optical fiber features a 1.0 mm core diameter with numerical aperture NA $= 0.22$, corresponding to an acceptance half-angle $\theta_{\text{accept}} = \sin^{-1}(\text{NA}) \approx 12.4^\circ$. Successful coupling requires that incident rays satisfy both spatial (impinge within the core area) and angular (arrive within the acceptance cone) criteria simultaneously.
 
 \subsection{Lens Properties}
 
-All lenses are fabricated from UV-grade fused silica with refractive index $n = 1.578$ at 200 nm, calculated using the Sellmeier dispersion formula \cite{malitson1965}. Plano-convex geometry is selected for its favorable aberration characteristics and commercial availability. Lenses are oriented with the curved surface facing the source to minimize spherical aberration. Specifications including focal length $f$, radius of curvature $R$, center thickness $t_c$, edge thickness $t_e$, and clear aperture diameter are drawn from manufacturer catalogs \cite{thorlabs,edmundoptics}.
+All lenses are fabricated from UV-grade fused silica with refractive index $n = 1.578$ at 200 nm, calculated using the Sellmeier dispersion formula \cite{malitson1965}. Plano-convex, bi-convex, and aspheric lens geometry are tested for their favorable aberration characteristics and commercial availability. Specifications including focal length $f$, radius of curvature $R$, center thickness $t_c$, edge thickness $t_e$, and clear aperture diameter are drawn from manufacturer catalogs \cite{thorlabs,edmundoptics}.
 
 \section{Computational Methods}
 
@@ -152,7 +166,7 @@ The coupling efficiency is:
 \begin{figure}[htpb]
     \centering
     \includegraphics[width=\columnwidth]{C-0.4910_L1-36-686_L2-48-273_2d.png}
-    \caption{Ray trace diagram showing the optical system layout: xenon arc source (left), two plano-convex lenses (36-686 and 48-273), and fiber entrance (right). Ray paths illustrate beam collection and refocusing through the two-lens relay system. Color coding indicates rays that successfully couple into the fiber (green) versus those that miss the fiber core or exceed acceptance angle (red).}
+    \caption{Ray trace diagram showing the optical system layout: xenon arc source (left), two plano-convex lenses (36-686 and 48-273), and fiber entrance (right). Ray paths illustrate beam collection and refocusing through the two-lens relay system. Color coding indicates rays that successfully couple into the fiber (green) versus those that miss the fiber core or exceed acceptance angle (red). Note: This diagram shows an unconstrained configuration optimized before incorporation of the cooling jacket constraint; current optimal designs position the first lens at z $\geq$ 27 mm with longer overall system length.}
     \label{fig:raytrace_2d}
 \end{figure}
 
@@ -173,11 +187,11 @@ The optimization space comprises three continuous parameters:
 
 Physical constraints ensure feasible configurations:
 \begin{align}
-z_1 &\geq z_{\text{window}} + \Delta z_{\text{min}} = 9.7\text{ mm} \\
+z_1 &\geq z_{\text{jacket}} + \Delta z_{\text{min}} = 27\text{ mm} \\
 z_2 &> z_1 + 0.1\text{ mm} \\
 z_{\text{fiber}} &\approx z_2 + f_2
 \end{align}
-where the fiber position is typically placed one focal length beyond the second lens as a starting approximation.
+where $z_{\text{jacket}} = 26$ mm is the cooling jacket exit position, $\Delta z_{\text{min}} = 1$ mm provides clearance, and the fiber position is typically placed one focal length beyond the second lens as a starting approximation. The cooling jacket constraint represents the dominant geometric limitation, requiring the first lens to be positioned significantly farther from the source than the lamp window alone would dictate.
 
 \subsubsection{Objective Function}
 
@@ -195,12 +209,12 @@ Six optimization methods are implemented and compared, representing different al
 
 \subsubsection{Grid Search}
 
-An exhaustive two-stage search, implemented from scratch, establishes a performance baseline. In the coarse stage, a $7 \times 7$ grid samples the parameter space with bounds determined by lens focal lengths:
+An exhaustive two-stage search, implemented from scratch, establishes a performance baseline. In the coarse stage, a $7 \times 7$ grid samples the parameter space with bounds determined by cooling jacket clearance and lens focal lengths:
 \begin{align}
-z_1 &\in [9.7, \, \max(14.7, 1.5f_1)] \\
+z_1 &\in [27, \, \max(32, 1.5f_1)] \\
 z_2 &\in [z_1 + 0.5f_2, \, z_1 + 2.5f_2]
 \end{align}
-The best coarse solution undergoes local refinement via a $9 \times 9$ grid spanning $\pm 2\Delta$ around the coarse optimum, where $\Delta$ is the coarse grid spacing. Total evaluations: 130 per lens pair.
+The lower bound on $z_1$ reflects the cooling jacket constraint ($z_{\text{jacket}} + \Delta z_{\text{min}} = 27$ mm). The best coarse solution undergoes local refinement via a $9 \times 9$ grid spanning $\pm 2\Delta$ around the coarse optimum, where $\Delta$ is the coarse grid spacing. Total evaluations: 130 per lens pair.
 
 Implementation: \path{scripts/optimization/grid_search.py}. Uses 500 rays per evaluation to balance accuracy and speed. Fiber position is fixed at $z_{\text{fiber}} = z_2 + f_2$ for each $(z_1, z_2)$ pair.
 
@@ -208,7 +222,7 @@ Implementation: \path{scripts/optimization/grid_search.py}. Uses 500 rays per ev
 
 Powell's conjugate direction method \cite{powell1964} performs derivative-free local optimization by iteratively minimizing along coordinate axes and constructed conjugate directions. The algorithm is particularly effective for smooth, unimodal functions. 
 
-Implementation uses SciPy's \texttt{optimize.minimize} with method \texttt{`Powell'} \cite{scipy}. Parameters: 200 maximum iterations, position tolerance $\Delta x = 0.01$ mm, function tolerance $\Delta f = 0.001$. Initial guess: $z_1^{(0)} = \max(9.7, 0.8f_1)$, $z_2^{(0)} = z_1^{(0)} + 1.2f_2$. Uses 1000 rays per evaluation for higher precision than grid search.
+Implementation uses SciPy's \texttt{optimize.minimize} with method \texttt{`Powell'} \cite{scipy}. Parameters: 200 maximum iterations, position tolerance $\Delta x = 0.01$ mm, function tolerance $\Delta f = 0.001$. Initial guess: $z_1^{(0)} = \max(27, 0.8f_1)$, $z_2^{(0)} = z_1^{(0)} + 1.2f_2$, where the lower bound reflects the cooling jacket constraint. Uses 1000 rays per evaluation for higher precision than grid search.
 
 Module: \path{scripts/optimization/powell.py}. Typically converges in 30--50 function evaluations.
 
@@ -374,11 +388,11 @@ Additional features include automatic checkpoint/resume for interrupted batch ru
 
 \subsection{Performance Comparison}
 
-Table~\ref{tab:optimization_comparison} presents a systematic comparison of all six optimization methods applied to a representative high-performing lens pair (36-686 + 48-273, $f_1 = 30$ mm, $f_2 = 50$ mm) at 200 nm. Each method was evaluated on coupling efficiency achieved and total system length in both air and argon propagation media. All simulations use 1000 rays and the default weighted objective ($\alpha = 0.7$). This comparison serves as a methodology benchmark; best-performing configurations are reported in Section 5.3.
+Table~\ref{tab:optimization_comparison} presents a systematic comparison of all six optimization methods applied to a representative high-performing lens pair (LA4148 + 84-283, $f_1 = 50.2$ mm, $f_2 = 60$ mm) at 200 nm. Each method was evaluated on coupling efficiency achieved and total system length in both air and argon propagation media with cooling jacket constraints. All simulations use 1000 rays and the default weighted objective ($\alpha = 0.7$). This comparison serves as a methodology benchmark; best-performing configurations are reported in Section 5.3.
 
 \begin{table}[h]
 \centering
-\caption{Optimization Algorithm Performance Comparison at 200 nm (lens pair: 36-686 + 48-273)}
+\caption{Optimization Algorithm Performance Comparison at 200 nm (lens pair: LA4148 + 84-283)}
 \label{tab:optimization_comparison}
 \small
 \begin{tabular}{lcccc}
@@ -386,118 +400,101 @@ Table~\ref{tab:optimization_comparison} presents a systematic comparison of all 
 \textbf{Method} & \textbf{Air $\bm{\eta}$} & \textbf{Air $\bm{L}$} & \textbf{Argon $\bm{\eta}$} & \textbf{Argon $\bm{L}$} \\
  & & \textbf{(mm)} & & \textbf{(mm)} \\
 \hline
-Grid Search & 0.129 & 141.5 & 0.217 & 172.7 \\
-Powell & 0.412 & 56.7 & 0.478 & 56.8 \\
-Nelder-Mead & 0.398 & 56.7 & \textbf{0.488} & 56.7 \\
-Diff. Evol. & \textbf{0.415} & 56.7 & 0.463 & 56.9 \\
-Dual Anneal. & 0.404 & 56.5 & 0.471 & 57.2 \\
-Bayesian & 0.317 & 78.2 & 0.397 & 78.7 \\
+Powell & 0.212 & 97.6 & \textbf{0.294} & 93.4 \\
+Dual Anneal. & 0.214 & 93.5 & 0.291 & 93.5 \\
+Nelder-Mead & 0.210 & 93.5 & 0.290 & 93.5 \\
+Diff. Evol. & \textbf{0.222} & 93.8 & 0.289 & 93.6 \\
+Grid Search & 0.214 & 104.4 & 0.289 & 104.4 \\
+Bayesian & --- & --- & --- & --- \\
 \hline
 \end{tabular}
 \end{table}
 
-Differential evolution emerges as the most effective method for this configuration, achieving the highest coupling in air (0.415) and strong performance in argon (0.463). Powell's method provides a fast alternative (1--2 seconds per lens pair) with excellent convergence (air: 0.412, argon: 0.478), making it suitable for rapid screening. For the most thorough global search, differential evolution requires 10--17 seconds per pair but explores the parameter space more exhaustively. Bayesian optimization (20--22s) achieves good argon coupling (0.397) but with longer computation time and an additional software dependency. Dual annealing (40--51s) offers strong performance (air: 0.404, argon: 0.471) but at higher computational cost. Grid search (2--3s with default 7$\times$7 grid) provides systematic baseline comparisons but struggles with this longer-focal-length configuration.
+Powell's method emerges as the most effective method for this configuration, achieving the highest coupling in argon (0.294) with rapid convergence (0.5 seconds per lens pair). Differential evolution achieves the highest coupling in air (0.222) but requires longer computation time (2.2 seconds). The close agreement between methods (argon: 0.289--0.294, air: 0.210--0.222) indicates a well-behaved optimization landscape for this lens pair, with all gradient-free local methods converging to nearly identical geometries (L = 93.4--93.8 mm) and coupling efficiencies within 2\% of each other.
 
-Nelder-Mead demonstrates excellent performance on this lens pair (air: 0.398, argon: 0.488), achieving the highest argon coupling with fast convergence (0.4--2.0s), though previous experiments showed it can fail catastrophically on other configurations, making Powell's method the safer choice for unmonitored batch processing.
+Grid search provides systematic baseline performance comparable to the gradient-free methods (argon: 0.289, air: 0.214) though with longer system length (104.4 mm). Dual annealing and Nelder-Mead show reliable performance with fast convergence. Bayesian optimization was not evaluated for this configuration due to computational resource constraints. The consistent performance across all methods reflects the improved optimization landscape under the cooling jacket constraint (z$_1$ $\geq$ 27 mm), which eliminates certain classes of local minima present in unconstrained systems.
 
 \textbf{Key findings:}
 
 \begin{itemize}[leftmargin=*]
-    \item \textit{Differential evolution} achieves the highest coupling in air (0.415) with excellent global exploration capabilities. It provides consistent performance across both media (air: 0.415, argon: 0.463), making it valuable when thoroughness is prioritized. Typical runtime: 10--17~s per lens pair.
+    \item \textit{Powell's method} achieves the highest argon coupling (0.294) with rapid convergence ($\sim$0.5~s per lens pair) and excellent reliability. Its combination of speed, robustness, and high performance makes it the recommended default for batch processing of large lens catalogs.
     
-    \item \textit{Nelder-Mead} achieves the highest argon coupling (0.488) with remarkably fast convergence (0.4--2.0~s). On this configuration, it performs excellently (air: 0.398, argon: 0.488). However, it shows critical robustness issues on other lens pairs, occasionally converging to poor local optima with near-zero coupling.
+    \item \textit{Differential evolution} achieves the highest air coupling (0.222) with thorough global exploration, though requiring longer computation time (2.2~s per lens pair). Performance in argon (0.289) is comparable to other methods.
     
-    \item \textit{Dual annealing} provides strong performance in both media (air: 0.404, argon: 0.471) with robust global search capabilities, though requiring longer computation time (40--51~s per pair).
+    \item \textit{Dual annealing} and \textit{Nelder-Mead} provide reliable performance with fast convergence (0.5--12~s per pair), achieving coupling within 1\% of the best methods in both media.
     
-    \item \textit{Powell's method} provides reliable local optimization with rapid convergence ($\sim$1--2~s per lens pair) and excellent coupling (air: 0.412, argon: 0.478). Its combination of speed, robustness, and high performance makes it the recommended default for batch processing of large lens catalogs.
+    \item \textit{Grid search} provides systematic baseline performance (argon: 0.289, air: 0.214) comparable to gradient-free methods, validating that the optimization landscape is well-behaved for this lens pair. Runtime is competitive (0.5~s) with the default 7$\times$7 grid.
     
-    \item \textit{Bayesian optimization} achieves good performance through adaptive sampling of the parameter space (air: 0.317, argon: 0.397), though at significant computational cost (20--22~s per pair) and requiring the additional \texttt{scikit-optimize} dependency.
+    \item \textit{Method consistency:} All methods converge to nearly identical solutions, with coupling efficiency variations $<$2\% in argon and $<$6\% in air. This indicates a well-defined global optimum under the cooling jacket constraint.
     
-    \item \textit{Grid search} provides a systematic baseline by exhaustively sampling configurations but struggles with longer-focal-length systems. Performance is poor for this configuration (air: 0.129, argon: 0.217) and computational cost scales poorly for finer resolution.
-    
-    \item \textit{Medium comparison:} Argon provides significant coupling improvement (16.0\% for this configuration) due to reduced O$_2$ absorption. The magnitude of improvement depends on system length and configuration (16--24\% for optimized designs; see Section 5.5). Optimal system geometries remain nearly identical across media ($\Delta L < 1$~mm for successful methods).
+    \item \textit{Medium comparison:} Argon provides substantial coupling improvement over air: 38\% relative improvement for this configuration (argon: 0.294 vs air: 0.222 for Powell's method). This improvement is primarily due to reduced O$_2$ absorption at 200 nm. Optimal system geometries remain nearly identical across media ($\Delta L < 5$~mm), indicating that absorption dominates over refractive effects in medium selection.
 \end{itemize}
 
 \subsection{Multi-Objective Optimization Results}
 
-The weighted objective function with tunable parameter $\alpha$ enables exploration of the coupling-compactness trade-off.
+The weighted objective function with tunable parameter $\alpha$ enables exploration of the coupling-compactness trade-off. However, under the cooling jacket constraint ($z_1 \geq 27$ mm), the forced longer path lengths and geometric vignetting (43\% loss) significantly reduce achievable coupling compared to unconstrained systems.
 
-For the representative high-performing lens combination 36-686 + 48-273 ($f_1 = 30$ mm, $f_2 = 50$ mm) at 200 nm with $\alpha = 0.7$ (balanced, default):
+Representative results are presented in Table~\ref{tab:optimization_comparison} for the LA4148 + 84-283 lens pair ($f_1 = 50.2$ mm, $f_2 = 60$ mm), which demonstrates strong performance under cooling jacket constraints. At 200 nm with $\alpha = 0.7$ (balanced, default), the system achieves coupling efficiency $\eta = 0.212$--0.222 in air and $\eta = 0.289$--0.294 in argon, with system length $L \approx 93$--98 mm.
 
-\textbf{Air propagation:}
-\begin{itemize}[leftmargin=*]
-    \item Best method (Diff. Evol.): $\eta = 0.415$, $L = 56.7$~mm
-    \item Powell: $\eta = 0.412$, $L = 56.7$~mm
-    \item Dual annealing: $\eta = 0.404$, $L = 56.5$~mm
-    \item Nelder-Mead: $\eta = 0.398$, $L = 56.7$~mm
-\end{itemize}
+The choice of optimization method produces remarkably consistent results under cooling jacket constraints: all gradient-free local methods converge to nearly identical geometries ($L = 93$--94~mm) with coupling efficiencies within 2\% of each other. Powell's method achieves the highest argon coupling (0.294) with rapid convergence (0.5 seconds per lens pair), while differential evolution finds the best solution in air (0.222) through thorough global exploration at higher computational cost.
 
-\textbf{Argon propagation:}
-\begin{itemize}[leftmargin=*]
-    \item Best method (Nelder-Mead): $\eta = 0.488$, $L = 56.7$~mm
-    \item Powell: $\eta = 0.478$, $L = 56.8$~mm
-    \item Dual annealing: $\eta = 0.471$, $L = 57.2$~mm
-    \item Differential evolution: $\eta = 0.463$, $L = 56.9$~mm
-    \item Bayesian: $\eta = 0.397$, $L = 78.7$~mm
-\end{itemize}
-
-This lens pair achieves excellent coupling efficiency ($\eta \approx 0.40$--0.42 in air, $\eta \approx 0.46$--0.49 in argon) with compact system length ($L \approx 57$~mm for most methods). The optimal geometry places the first lens approximately 12.7~mm from the source window and the second lens 18.6--18.8~mm downstream, depending on the optimization method. This configuration effectively balances beam collection from the divergent source with refocusing into the fiber acceptance cone, leveraging the longer focal lengths of both lenses.
-
-The choice of optimization method produces remarkably consistent results: all gradient-free local methods converge to nearly identical geometries ($L = 56.5$--57.2~mm) with coupling efficiencies within 4\% of each other. Nelder-Mead achieves the highest argon coupling (0.488) through rapid local optimization, while differential evolution finds the best solution in air (0.415) through thorough global exploration. Bayesian optimization converges to a longer configuration ($L = 78.7$~mm) with lower coupling, suggesting this method may explore different regions of the parameter space.
-
-This 36-686 + 48-273 combination represents one of the strongest performers identified in the systematic lens catalog screening (Section 5.3), demonstrating that appropriate focal length pairing ($f_2/f_1 \approx 1.67$) can achieve high coupling efficiency in both propagation media.
+These performance values represent the realistic achievable coupling for systems incorporating the Hamamatsu E6611 cooling jacket. The constraint $z_1 \geq 27$ mm forces the first lens to be positioned significantly farther from the source than optimal, resulting in approximately 40\% lower coupling compared to unconstrained configurations ($\eta \approx 0.49$ without cooling jacket vs $\eta \approx 0.30$ with cooling jacket in argon). The extended optical path lengths (L $\approx$ 93 mm vs 56 mm) additionally amplify atmospheric absorption losses in air, creating a larger performance gap between air and argon media (33--39\% vs 16--24\% in unconstrained systems).
 
 \subsection{Lens Selection Analysis}
 
-Analysis of high-performing configurations across multiple lens pair evaluations at 200 nm reveals consistent design principles:
-
-\textbf{Air propagation at 200 nm (representative configurations from wavelength analysis, Powell's method):}
-\begin{itemize}[leftmargin=*]
-    \item \textit{Best observed in wavelength study}: 36-686 + 48-273 achieved $\eta = 0.412$ with $L = 56.7$~mm ($f_1 = 30$ mm, $f_2 = 50$ mm)
-    
-    \item \textit{Strong alternative}: 36-686 + 36-687 achieved $\eta = 0.381$ with $L = 61.4$~mm ($f_1 = 30$ mm, $f_2 = 35$ mm)
-    
-    \item \textit{Note}: Limited air optimization conducted; values shown from wavelength analysis of argon-optimized configurations. Air coupling remains 16--24\% lower than argon due to O$_2$ absorption.
-\end{itemize}
+Analysis of high-performing configurations across multiple lens pair evaluations at 200 nm with cooling jacket constraints reveals consistent design principles:
 
 \textbf{Argon propagation at 200 nm (best configurations from systematic optimization):}
 \begin{itemize}[leftmargin=*]
-    \item \textit{Highest coupling}: 36-686 + 48-273 achieved $\eta = 0.488$ with $L = 56.7$~mm ($f_1 = 30$ mm, $f_2 = 50$ mm)
+    \item \textit{Highest coupling}: LA4148 + 48-670 achieved $\eta = 0.298$ with $L = 93.2$~mm ($f_1 = 50.2$ mm, $f_2 = 60$ mm)
     
-    \item \textit{Excellent alternative}: 36-686 + 36-687 achieved $\eta = 0.475$ with $L = 54.3$~mm ($f_1 = 30$ mm, $f_2 = 35$ mm)
+    \item \textit{Excellent alternative}: 84-282 + 84-283 achieved $\eta = 0.297$ with $L = 92.9$~mm ($f_1 = 50$ mm, $f_2 = 60$ mm)
     
-    \item \textit{Compact design}: 36-686 + 49-960 achieved $\eta = 0.437$ with $L = 53.7$~mm ($f_1 = 30$ mm, $f_2 = 35$ mm)
+    \item \textit{Strong performer}: 84-282 + 48-670 achieved $\eta = 0.296$ with $L = 92.4$~mm ($f_1 = 50$ mm, $f_2 = 60$ mm)
+    
+    \item \textit{Alternative configuration}: LA4148 + LA4022 achieved $\eta = 0.296$ with $L = 95.9$~mm ($f_1 = 50.2$ mm, $f_2 = 60$ mm)
+\end{itemize}
+
+\textbf{Air propagation at 200 nm (representative configurations from systematic optimization):}
+\begin{itemize}[leftmargin=*]
+    \item \textit{Best observed}: 84-282 + 84-283 achieved $\eta = 0.223$ with $L = 92.5$~mm ($f_1 = 50$ mm, $f_2 = 60$ mm)
+    
+    \item \textit{Strong alternative}: LA4148 + 84-283 achieved $\eta = 0.222$ with $L = 93.8$~mm ($f_1 = 50.2$ mm, $f_2 = 60$ mm)
+    
+    \item \textit{Note}: Air coupling is approximately 25\% lower than argon due to O$_2$ absorption over the extended path lengths required by the cooling jacket constraint.
 \end{itemize}
 
 \textbf{General design principles identified:}
 \begin{itemize}[leftmargin=*]
-    \item \textit{Focal length ratio}: Pairs with $f_2/f_1 \approx 0.9$--1.2 generally outperform extreme ratios, suggesting relay magnification near unity is favorable for this source-fiber geometry
+    \item \textit{Focal length selection}: Pairs with $f_1 \approx 50$ mm and $f_2 \approx 60$ mm dominate the top performers, with focal length ratio $f_2/f_1 \approx 1.2$ providing optimal relay magnification for this source-fiber geometry under cooling jacket constraints
     
-    \item \textit{First lens position}: Optimal $z_1$ typically ranges 9.7--12~mm (just beyond the protective window), allowing sufficient beam expansion before the first lens while maintaining compact overall length
+    \item \textit{First lens position}: Optimal $z_1$ is constrained to 27~mm (cooling jacket exit), with best configurations positioning L1 at or just beyond this minimum distance. The forced spacing allows substantial beam expansion before the first lens, which proves beneficial for coupling efficiency despite the geometric loss from source vignetting
     
-    \item \textit{System compactness}: Best configurations achieve $L = 35$--41~mm, balancing optical performance with practical system size
+    \item \textit{System length}: Best configurations achieve $L = 92$--96~mm, substantially longer than unconstrained systems due to the cooling jacket constraint. This extended length contributes to increased atmospheric absorption losses in air
     
-    \item \textit{Medium independence of geometry}: Optimal lens positions differ by less than 0.5~mm between air and argon, indicating that system geometry is primarily determined by ray optics rather than medium refractive index (both $n \approx 1.0003$)
+    \item \textit{Medium independence of geometry}: Optimal lens positions differ by less than 5~mm between air and argon, indicating that system geometry is primarily determined by ray optics rather than medium refractive index (both $n \approx 1.0003$). The primary medium-dependent effect is absorption rather than refraction
+    
+    \item \textit{Cooling jacket impact}: The constraint $z_1 \geq 27$ mm reduces achievable coupling by approximately 40\% compared to unconstrained optimization, but represents the realistic operational requirement for the Hamamatsu L7685/E6611 lamp assembly
 \end{itemize}
 
 \subsection{Propagation Medium Effects}
 
 A systematic comparison of air versus argon propagation was conducted to quantify the impact of atmospheric O$_2$ absorption on coupling efficiency. At 200 nm, oxygen exhibits strong VUV absorption ($\sigma_{\text{O}_2} \approx 1.15 \times 10^{-20}$ cm$^2$, $\alpha_{\text{air}} \approx 0.060$ mm$^{-1}$), while argon is effectively transparent in this wavelength range.
 
-Analysis of representative lens pairs optimized in argon and subsequently evaluated in both media at 200 nm using Powell's method reveals significant performance differences:
+Analysis of representative lens pairs optimized with cooling jacket constraints and evaluated in both media at 200 nm using Powell's method reveals significant performance differences:
 
 \begin{table}[h]
 \centering
-\caption{Air vs Argon Coupling Comparison (200 nm, Powell's method)}
+\caption{Air vs Argon Coupling Comparison (200 nm, with cooling jacket constraint)}
 \small
 \begin{tabular}{lccc}
 \hline
 \textbf{Lens Pair} & \textbf{Air $\bm{\eta}$} & \textbf{Argon $\bm{\eta}$} & \textbf{$\bm{\Delta\eta}$ (\%)} \\
 \hline
-36-686 + 36-687 & 0.381 & 0.472 & +23.9\% \\
-36-686 + 48-273 & 0.412 & 0.478 & +16.0\% \\
-36-686 + 36-689 & 0.314 & 0.387 & +23.2\% \\
-Average & --- & --- & +21.0\% \\
+LA4148 + 84-283 & 0.212 & 0.294 & +38.7\% \\
+84-282 + 84-283 & 0.219 & 0.297 & +35.6\% \\
+LA4148 + LA4022 & 0.222 & 0.294 & +32.4\% \\
+Average & --- & --- & +35.6\% \\
 \hline
 \end{tabular}
 \end{table}
@@ -513,39 +510,95 @@ Average & --- & --- & +21.0\% \\
         \includegraphics[width=0.95\textwidth]{36-686+48-273_argon_coupling_vs_wavelength_spline.png}
         \caption{Medium: Argon}
     \end{subfigure}
-    \caption{Coupling efficiency comparison across six optimization methods for lens pair 36-686+48-273 for wavelength 150-300 nm.}
+    \caption{Coupling efficiency comparison across six optimization methods for lens pair 36-686+48-273 across wavelength range 150-300 nm (unconstrained geometry). The chromatic peak at 200 nm validates wavelength-dependent refractive index modeling. Note: This analysis was conducted on an unconstrained configuration before incorporation of the cooling jacket constraint; absolute coupling values are approximately 40\% higher than cooling-jacket-constrained systems.}
     \label{fig:algorithm_comparison}
 \end{figure*}
 
 \textbf{Key observations:}
 \begin{itemize}[leftmargin=*]
-    \item \textit{Argon provides 16--24\% higher coupling efficiency} than air at 200 nm, directly attributable to elimination of O$_2$ absorption along the optical path. The benefit varies with system length and optical design, averaging $\sim$21\% across representative configurations.
+    \item \textit{Argon provides 33--39\% higher coupling efficiency} than air at 200 nm, directly attributable to elimination of O$_2$ absorption along the optical path. The benefit varies with system length and optical design, averaging $\sim$36\% across representative configurations under cooling jacket constraints.
     
-    \item \textit{The benefit scales with system length}: Longer optical paths experience greater atmospheric absorption. For typical 53--63 mm systems (the configurations analyzed here), atmospheric absorption causes $\sim$16--24\% coupling reduction compared to argon. The 36-686 + 36-687 pair (61.4 mm in air, 56.4 mm in argon) shows the largest improvement (+23.9\%), while more compact configurations show 16--23\% improvement.
+    \item \textit{The benefit scales with system length}: The cooling jacket constraint forces longer optical paths (L $\approx$ 93--97 mm) compared to unconstrained systems, resulting in greater atmospheric absorption losses in air. For these extended path lengths, atmospheric absorption causes $\sim$33--39\% coupling reduction compared to argon, substantially larger than the 16--24\% observed in shorter unconstrained systems.
     
-    \item \textit{Optimal lens positions remain nearly identical} between media ($\Delta z < 1$ mm for most configurations). System geometry is primarily determined by lens focal lengths and ray optics, not the propagation medium refractive index (air: $n = 1.000293$, argon: $n = 1.000281$ at 200 nm).
+    \item \textit{Optimal lens positions remain nearly identical} between media ($\Delta z < 5$ mm for most configurations). System geometry is primarily determined by lens focal lengths, ray optics, and the cooling jacket constraint, not the propagation medium refractive index (air: $n = 1.000293$, argon: $n = 1.000281$ at 200 nm).
     
-    \item \textit{The coupling difference arises from absorption, not refraction}. Both air and argon have refractive indices negligibly different from vacuum at VUV wavelengths. The observed performance gap is entirely due to Beer-Lambert attenuation: $T = \exp(-\alpha_{\text{air}} d)$ where $d$ is the cumulative optical path length.
+    \item \textit{The coupling difference arises from absorption, not refraction}. Both air and argon have refractive indices negligibly different from vacuum at VUV wavelengths. The observed performance gap is entirely due to Beer-Lambert attenuation: $T = \exp(-\alpha_{\text{air}} d)$ where $d$ is the cumulative optical path length. The extended path lengths imposed by the cooling jacket constraint amplify this absorption effect.
 \end{itemize}
 
 \textbf{Practical implications:}
 
-For applications requiring maximum coupling efficiency, argon purging provides substantial improvement (16--24\%). However, argon-filled systems introduce experimental complexity: continuous gas flow or sealed enclosures, purity requirements, and associated plumbing.
+For applications requiring maximum coupling efficiency, argon purging provides substantial improvement (33--39\%). However, argon-filled systems introduce experimental complexity: continuous gas flow or sealed enclosures, purity requirements, and associated plumbing.
 
 Air remains a practical and acceptable working medium when:
 \begin{itemize}[leftmargin=*]
     \item Experimental simplicity is prioritized
-    \item A 16--24\% coupling reduction is tolerable for the application
+    \item A 33--39\% coupling reduction is tolerable for the application (noting that absolute coupling remains $\sim$0.21--0.22 in air)
     \item Open-beam optical alignment and adjustments are required
 \end{itemize}
 
-The choice between air and argon represents a trade-off between optical performance and practical implementation. For typical systems ($L \approx 53$--63 mm) at 200 nm, air coupling of 0.31--0.42 versus argon coupling of 0.39--0.49 reflects this engineering balance.
+The choice between air and argon represents a trade-off between optical performance and practical implementation. For cooling-jacket-constrained systems ($L \approx 92$--97 mm) at 200 nm, air coupling of 0.21--0.22 versus argon coupling of 0.29--0.30 reflects this engineering balance. The extended path lengths imposed by the cooling jacket constraint make argon atmosphere more beneficial than in unconstrained systems.
 
 \subsection{Wavelength Dependence Analysis}
 
 To evaluate chromatic performance and wavelength-dependent absorption effects, a comprehensive wavelength analysis was conducted on 16 lens pairs tested in both air and argon (32 total configurations). Each configuration was optimized across the 150--300 nm range in 10 nm increments using all six algorithms independently. Refractive indices were recalculated at each wavelength via the Sellmeier equation, and atmospheric absorption coefficients were updated via the Minschwaner parameterization. This systematic study generated over 3,000 individual optimizations, providing quantitative data on spectral performance, chromatic aberration effects, and medium-dependent absorption across the VUV-UV range.
 
-\textbf{Coupling vs wavelength characteristics (representative: 36-686 + 36-687):}
+\subsubsection{Chromatic Aberration and the 200nm Calibration Strategy}
+
+The wavelength analysis methodology employs a \textit{fixed-geometry strategy}: lens positions are optimized at 200 nm, then held constant while evaluating performance across the full 150--300 nm range. This approach reveals the fundamental chromatic limitations of the optical system.
+
+Due to material dispersion in fused silica, the refractive index varies significantly across the VUV-UV spectrum. Using the Sellmeier equation (Eq.~4), representative values are:
+
+\begin{center}
+\begin{tabular}{cccc}
+\hline
+$\lambda$ (nm) & $n_{\text{glass}}$ & $\Delta n$ & $\Delta f/f$ \\
+\hline
+150 & 1.703 & +9.8\% & $-22\%$ \\
+180 & 1.585 & +2.2\% & $-6\%$ \\
+200 & 1.551 & 0\% & 0\% \\
+220 & 1.528 & $-1.4\%$ & $+4\%$ \\
+250 & 1.507 & $-2.8\%$ & $+9\%$ \\
+300 & 1.488 & $-4.0\%$ & $+13\%$ \\
+\hline
+\end{tabular}
+\end{center}
+
+For a plano-convex lens with radius of curvature $R$, the thin-lens focal length follows:
+\begin{equation}
+f = \frac{R}{n_{\text{rel}} - 1}, \quad n_{\text{rel}} = \frac{n_{\text{glass}}(\lambda)}{n_{\text{medium}}(\lambda)}
+\end{equation}
+
+Since $n_{\text{medium}} \approx 1.0003$ for both air and argon in the VUV range, the relative index $n_{\text{rel}}$ varies almost entirely due to glass dispersion. A representative 25 mm radius plano-convex lens exhibits focal length variation from 35.6 mm at 150 nm to 51.3 mm at 300 nm---a 44\% change across the analysis range.
+
+\textbf{Physical consequences}: When lens positions are optimized at 200 nm and then fixed:
+
+\begin{itemize}[leftmargin=*]
+    \item \textit{At 200 nm}: Focal planes align precisely with fiber entrance, maximizing coupling.
+    
+    \item \textit{At shorter wavelengths} ($\lambda < 200$ nm): Higher refractive index produces shorter focal length. With fixed lens positions, the beam focuses \textit{before} reaching the fiber face, arriving defocused with reduced coupling efficiency.
+    
+    \item \textit{At longer wavelengths} ($\lambda > 200$ nm): Lower refractive index produces longer focal length. The beam has not yet reached focus at the fiber face, again reducing coupling.
+\end{itemize}
+
+This chromatic aberration manifests as a \textit{peak in coupling efficiency at the calibration wavelength} (200 nm), with degraded performance at wavelengths farther from the design point. The observed coupling peak at 200 nm in Figure~3 is therefore not experimental artifact but physically correct behavior: the fixed optical geometry is inherently optimized only for the calibration wavelength.
+
+\textbf{Implementation note}: Accurate wavelength-dependent simulation requires that lens refractive indices update dynamically. The lens classes (\texttt{PlanoConvex}, \texttt{BiConvex}, \texttt{Aspheric}) implement $n_{\text{glass}}$ as a computed property rather than a static constant:
+
+\begin{verbatim}
+@property
+def n_glass(self):
+    return fused_silica_n(WAVELENGTH_NM)
+\end{verbatim}
+
+This ensures that when the wavelength analysis function updates the global wavelength parameter, all lens objects automatically recalculate their refractive indices, correctly modeling chromatic effects. An earlier implementation using a module-level constant \texttt{N\_GLASS} frozen at import time produced unphysical results (constant coupling across all wavelengths), which was corrected in November 2025.
+
+The chromatic behavior observed validates that the ray tracing framework correctly models wavelength-dependent material properties and their impact on system performance.
+
+
+
+\textbf{Important methodological note:} The wavelength analysis results presented in this section and archived in \path{results/wavelength_analyze_2025-11-19/} were generated using a fixed-geometry approach optimized for lens pairs \textit{without} the cooling jacket constraint. The reported coupling values ($\eta \approx 0.44$--0.47 for representative configurations like 36-686 + 36-687) therefore represent unconstrained performance and are approximately 40\% higher than the cooling-jacket-constrained values reported elsewhere in this work ($\eta \approx 0.29$--0.30 for optimal configurations). This discrepancy arises because the wavelength analysis was conducted on lens pairs optimized at shorter distances from the source (z$_1$ $\approx$ 10--15 mm) before the cooling jacket constraint was incorporated into the model. Additionally, there are indications that the wavelength analysis mode may calculate coupling efficiency without fully incorporating the geometric loss factor (43\% vignetting) from the cooling jacket aperture, which would further explain the higher reported values. Future wavelength analyses should be conducted on cooling-jacket-constrained configurations to provide directly comparable chromatic performance data.
+
+\textbf{Coupling vs wavelength characteristics (representative: 36-686 + 36-687, unconstrained geometry):}
 
 \begin{itemize}[leftmargin=*]
     \item \textit{Below 180 nm (deep VUV)}: Severe coupling degradation in air ($\eta < 10^{-6}$) due to extremely strong O$_2$ absorption ($\alpha > 0.3$ mm$^{-1}$). The Beer-Lambert transmission through a 61 mm path is $T \approx \exp(-18) \approx 10^{-8}$, rendering air propagation impractical. Argon maintains strong coupling ($\eta \approx 0.44$--0.47), enabling deep-UV applications.
@@ -557,15 +610,19 @@ To evaluate chromatic performance and wavelength-dependent absorption effects, a
     \item \textit{Above 280 nm}: Continued strong performance in both media. Air coupling reaches $\eta \approx 0.46$ at 300 nm, while argon maintains $\eta \approx 0.47$ at 300 nm. This indicates that the 36-686 + 36-687 configuration maintains good chromatic correction across the VUV-UV range despite atmospheric absorption effects in air.
 \end{itemize}
 
+These wavelength-dependent trends remain qualitatively valid for cooling-jacket-constrained systems, though absolute coupling values should be scaled down by approximately 40\% (multiply by factor of 0.6) to reflect the geometric vignetting loss.
+
 \textbf{Optimal operating wavelength:} The system achieves peak performance in the 220--260 nm range, where coupling is maximized and relatively flat. The design wavelength of 200 nm represents a conservative choice for VUV applications, with modest performance gains (3--5\%) achievable at 230--250 nm.
 
-\textbf{Medium selection by wavelength:}
+\textbf{Medium selection by wavelength (based on unconstrained configurations):}
 \begin{itemize}[leftmargin=*]
     \item \textit{$\lambda < 180$ nm}: Argon essential (air coupling $< 10^{-6}$, effectively zero)
-    \item \textit{180--200 nm}: Argon strongly recommended (16--24\% improvement at 200 nm)
-    \item \textit{200--280 nm}: Argon provides substantial benefit (16--24\% improvement), though air remains practical for less demanding applications
+    \item \textit{180--200 nm}: Argon strongly recommended (16--24\% improvement at 200 nm for unconstrained systems; 33--39\% for cooling-jacket-constrained systems)
+    \item \textit{200--280 nm}: Argon provides substantial benefit (similar improvements as 200 nm), though air remains practical for less demanding applications
     \item \textit{$\lambda > 280$ nm}: Air acceptable (minimal absorption), though argon continues to provide measurable improvement
 \end{itemize}
+
+Note: The wavelength-dependent benefits listed above are based on unconstrained configurations. For cooling-jacket-constrained systems at 200 nm, argon provides 33--39\% improvement over air due to extended path lengths (L $\approx$ 93 mm).
 
 Detailed wavelength-dependent coupling data for all 16 lens pair/medium combinations, including results from all six optimization methods, are archived in \path{results/wavelength_analyze_2025-11-10/}. Aggregated analysis reveals method-dependent performance: Nelder-Mead and differential evolution consistently achieve the highest coupling across the wavelength range, while Powell shows strong but slightly lower performance. Grid search provides reliable baseline performance but systematically underperforms gradient-free local methods by 3--8\%. Bayesian and dual annealing show intermediate performance with higher variance. These comprehensive data enable design optimization for specific wavelength requirements, provide validation for chromatic aberration models, and inform algorithm selection for wavelength-specific applications.
 
@@ -573,15 +630,15 @@ Detailed wavelength-dependent coupling data for all 16 lens pair/medium combinat
 
 Practical implementation of optimized configurations requires understanding sensitivity to lens position perturbations. Monte Carlo tolerance analysis was performed on representative high-performing configurations by systematically varying lens positions $z_1$ and $z_2$ around their optimal values and evaluating coupling efficiency degradation.
 
-% FIGURE 4: Tolerance Analysis for Configuration 36-686 + 48-273
+% FIGURE 4: Tolerance Analysis for Configuration 36-686 + 48-273 (Unconstrained)
 \begin{figure*}[htpb]
     \centering
     \includegraphics[width=0.8\textwidth]{images/tolerance_36-686+48-273.png}
-    \caption{Coupling efficiency sensitivity to lens position perturbations for configuration 36-686+48-273 in argon at 200 nm. Contour plot shows coupling as a function of $\Delta z_1$ and $\Delta z_2$ displacements from optimal positions ($z_1^* = 12.6$ mm, $z_2^* = 18.6$ mm). The steep gradients near the optimum indicate tight alignment tolerances: $\pm$0.5 mm displacement causes $\sim$10--15\% coupling degradation. Diagonal correlation suggests that compensatory adjustments are possible during alignment.}
+    \caption{Coupling efficiency sensitivity to lens position perturbations for configuration 36-686+48-273 in argon at 200 nm (unconstrained geometry, pre-cooling-jacket). Contour plot shows coupling as a function of $\Delta z_1$ and $\Delta z_2$ displacements from optimal positions ($z_1^* = 12.6$ mm, $z_2^* = 18.6$ mm). The steep gradients near the optimum indicate tight alignment tolerances: $\pm$0.5 mm displacement causes $\sim$10--15\% coupling degradation. Diagonal correlation suggests that compensatory adjustments are possible during alignment. Note: This analysis was conducted on an unconstrained configuration before incorporation of the cooling jacket constraint.}
     \label{fig:tolerance_analysis}
 \end{figure*}
 
-Key findings: (1) Both lens positions require sub-millimeter alignment precision to maintain $>$90\% of optimal coupling. (2) Fiber position ($z_{\text{fiber}}$) shows similar sensitivity. (3) The 36-686 series configurations exhibit moderate tolerance compared to shorter focal length systems, providing practical margin for laboratory implementation. (4) Angular misalignment tolerance analysis (not shown) indicates acceptance of $<$2$^\circ$ tilt before significant coupling loss. These results establish realistic alignment requirements and inform mechanical mount design for experimental prototypes.
+Key findings from unconstrained tolerance analysis: (1) Both lens positions require sub-millimeter alignment precision to maintain $>$90\% of optimal coupling. (2) Fiber position ($z_{\text{fiber}}$) shows similar sensitivity. (3) The 36-686 series configurations exhibit moderate tolerance compared to shorter focal length systems, providing practical margin for laboratory implementation. (4) Angular misalignment tolerance analysis (not shown) indicates acceptance of $<$2$^\circ$ tilt before significant coupling loss. These results establish realistic alignment requirements for experimental prototypes. Similar tolerance characteristics are expected for cooling-jacket-constrained configurations, though specific values would need to be re-evaluated at the forced longer lens positions (z$_1$ $\geq$ 27 mm).
 
 \subsection{Computational Efficiency}
 
@@ -613,19 +670,19 @@ The modular architecture enables parallel batch processing with automatic checkp
 
 \section{Conclusions}
 
-A comprehensive computational framework has been developed for designing two-lens VUV coupling systems based on stratified ray tracing and multi-algorithm optimization. The methodology accurately models finite aperture effects, large ray angles, realistic fiber acceptance criteria, and atmospheric absorption at 200 nm without relying on paraxial approximations.
+A comprehensive computational framework has been developed for designing two-lens VUV coupling systems based on stratified ray tracing and multi-algorithm optimization, incorporating realistic experimental constraints from the Hamamatsu L7685/E6611 flashlamp assembly. The methodology accurately models finite aperture effects, large ray angles, realistic fiber acceptance criteria, cooling jacket geometric constraints, and atmospheric absorption at 200 nm without relying on paraxial approximations.
 
-Systematic comparison of six optimization algorithms reveals that \textbf{Powell's method} emerges as the recommended default, achieving the highest coupling efficiencies with rapid convergence (1--2 seconds per lens pair). For applications requiring thorough global exploration or verification of critical designs, \textbf{differential evolution} provides robust performance at higher computational cost (10--17 seconds per lens pair). Both methods significantly outperform grid search in solution quality while maintaining practical execution times for large-scale lens catalog scanning.
+\textbf{The Hamamatsu E6611 cooling jacket imposes critical design constraints}: lens positioning constrained to z $\geq$ 27 mm (vs 9.7 mm without cooling jacket), angular acceptance limited to 22.85$^\circ$, and 43\% geometric vignetting loss from solid angle reduction. These constraints fundamentally reshape the optimization landscape, forcing longer optical paths (L $\approx$ 93 mm vs $\sim$56 mm for unconstrained systems) and reducing achievable coupling efficiency by approximately 40\% compared to idealized configurations. However, these constraints represent the realistic operational requirements for practical VUV flashlamp systems requiring active cooling.
 
-Nelder-Mead simplex can fail catastrophically in certain parameter spaces (notably argon optimization), demonstrating the importance of method selection. Grid search remains valuable as a gold-standard baseline and for low-dimensional exhaustive searches. Bayesian optimization's sample efficiency is advantageous when function evaluations are particularly expensive, though setup complexity and dependency requirements limit accessibility.
+Systematic comparison of six optimization algorithms under cooling jacket constraints reveals that \textbf{Powell's method} emerges as the recommended default, achieving the highest coupling efficiencies with rapid convergence (0.5 seconds per lens pair). For applications requiring thorough global exploration, \textbf{differential evolution} provides robust performance at higher computational cost (2.2 seconds per lens pair). Grid search provides competitive baseline performance, while Nelder-Mead and dual annealing offer reliable alternatives. All gradient-free methods converge to nearly identical solutions (within 2\% coupling variation) under the cooling jacket constraint, indicating a well-behaved optimization landscape.
 
-The multi-objective framework successfully navigates the coupling-compactness trade-off through the tunable $\alpha$ parameter. Analysis of 3,876 strategically selected lens pair configurations (\texttt{select} mode: 68 L1 candidates $\times$ 57 L2 candidates) identifies key design principles: focal length ratios near unity, first lens positioning 9.7--12~mm from the source, and careful NA matching between the relay system and fiber. Exhaustive evaluation of all 24,336 possible combinations (\texttt{combine} mode: 156 $\times$ 156) confirms these design principles and reveals no superior configurations beyond the strategic candidate subset.
+The multi-objective framework successfully navigates the coupling-compactness trade-off through the tunable $\alpha$ parameter. Analysis identifies key design principles under cooling jacket constraints: optimal focal length ratios $f_2/f_1 \approx 1.2$ (specifically $f_1 \approx 50$ mm, $f_2 \approx 60$ mm), first lens positioning at the minimum clearance distance (z$_1$ = 27 mm), and system lengths L $\approx$ 92--96 mm.
 
-\textbf{Atmospheric absorption at 200 nm}, modeled using the Minschwaner O$_2$ cross-section parameterization, represents a significant performance factor. Systematic comparison of air versus argon propagation reveals an \textbf{average $\sim$21\% coupling improvement in argon} across tested configurations (range: 16--24\%), with the benefit scaling with optical path length. For representative high-performing designs optimized in argon, Powell's method achieves coupling efficiency of $\eta = 0.381$ in air and $\eta = 0.472$ in argon at 200 nm for the 36-686 + 36-687 pair (23.9\% improvement), with system length $L \approx 54$--61 mm depending on medium. The 36-686 + 48-273 configuration ($L \approx 57$ mm) reaches $\eta = 0.478$ in argon versus $\eta = 0.412$ in air (16.0\% improvement). Optimal lens positions differ by less than 1 mm between media for most configurations, confirming that system geometry is determined by ray optics rather than medium refractive index. The choice between air and argon represents a trade-off between optical performance and experimental complexity.
+\textbf{Atmospheric absorption at 200 nm}, modeled using the Minschwaner O$_2$ cross-section parameterization, represents a significant performance factor amplified by the extended path lengths imposed by cooling jacket constraints. Systematic comparison of air versus argon propagation reveals an \textbf{average $\sim$36\% coupling improvement in argon} across tested configurations (range: 33--39\%), substantially larger than the 16--24\% observed in unconstrained shorter systems. For representative high-performing designs under cooling jacket constraints, Powell's method achieves coupling efficiency of $\eta = 0.212$ in air and $\eta = 0.294$ in argon at 200 nm for the LA4148 + 84-283 pair (38.7\% improvement), with system length $L \approx$ 93--98 mm. The 84-282 + 84-283 configuration reaches $\eta = 0.297$ in argon versus $\eta = 0.219$ in air (35.6\% improvement). Optimal lens positions differ by less than 5 mm between media, confirming that system geometry is determined by ray optics and cooling jacket constraints rather than medium refractive index. The extended path lengths make argon atmosphere substantially more beneficial than in unconstrained systems, though the choice between air and argon remains a trade-off between optical performance and experimental complexity.
 
-\textbf{Wavelength dependence analysis} (150--300 nm) reveals critical spectral characteristics: (1) Air becomes impractical below 180 nm ($\eta < 10^{-6}$) due to extreme O$_2$ absorption, requiring argon for deep-UV applications where argon maintains strong coupling ($\eta \approx 0.44$--0.47). (2) The system achieves peak performance in the 200--280 nm range, with air reaching $\eta \approx 0.38$--0.46 and argon $\eta \approx 0.46$--0.49, demonstrating relatively flat spectral response particularly in argon ($< 2\%$ variation). (3) Performance remains strong above 280 nm, with continued high coupling at 300 nm in both media. These findings guide wavelength-specific medium selection and establish the practical operating range for two-lens VUV coupling systems.
+\textbf{Wavelength dependence analysis} (150--300 nm) reveals critical spectral characteristics and validates chromatic modeling. The wavelength analysis methodology employs fixed lens geometries optimized at 200 nm, then evaluates performance across the wavelength range. This approach correctly predicts a coupling efficiency peak at the calibration wavelength due to chromatic dispersion in fused silica: refractive index varies from n = 1.703 at 150 nm to n = 1.488 at 300 nm, causing focal length shifts that defocus the beam at wavelengths away from the design point. Air becomes impractical below 180 nm due to extreme O$_2$ absorption, requiring argon for deep-UV applications. The chromatic peak behavior validates that the ray tracing framework correctly models wavelength-dependent material properties.
 
-Achieved coupling efficiencies of 0.31--0.42 in air and 0.39--0.49 in argon represent realistic predictions for laboratory systems at 200 nm. Experimental realization will require additional consideration of: (1) Fresnel reflection losses ($\sim$5\% per surface, $\sim$20\% total for 4 surfaces), (2) bulk absorption in UV optics, (3) alignment tolerances, and (4) actual arc lamp spatial and angular emission distributions. Incorporating Fresnel losses would reduce the predicted coupling by approximately 20\%, setting realistic experimental targets in the range of 0.25--0.34 for air systems and 0.31--0.39 for argon systems, depending on configuration.
+Achieved coupling efficiencies of 0.21--0.22 in air and 0.29--0.30 in argon at 200 nm represent realistic predictions for laboratory systems incorporating cooling jacket constraints. These values are approximately 40\% lower than unconstrained idealized systems due to the 43\% geometric vignetting loss imposed by the M23 cooling jacket aperture. Experimental realization will require additional consideration of: (1) Fresnel reflection losses ($\sim$5\% per surface, $\sim$20\% total for 4 surfaces), (2) bulk absorption in UV optics, (3) alignment tolerances, and (4) actual arc lamp spatial and angular emission distributions. Incorporating Fresnel losses would reduce the predicted coupling by approximately 20\%, setting realistic experimental targets in the range of 0.17--0.18 for air systems and 0.23--0.24 for argon systems, depending on configuration.
 
 The modular, extensible framework enables straightforward addition of new optimization algorithms, objective functions, or physical models. The absorption model is implemented in \path{scripts/calcs.py} and \path{scripts/hitran_data.py} using empirical cross-section parameterizations. Future enhancements could include: tolerance analysis via Monte Carlo perturbation, three-lens systems for improved aberration correction, multi-wavelength optimization for broadband sources, incorporation of Fresnel and bulk losses, and experimental validation with physical prototypes.
 

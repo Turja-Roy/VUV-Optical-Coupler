@@ -27,13 +27,11 @@ A comprehensive ray tracing and optimization framework for designing two-lens op
   - [Quick Start](#quick-start)
 - [Configuration Files](#configuration-files)
   - [Using Preset Profiles](#using-preset-profiles)
-  - [Using Custom Configuration Files](#using-custom-configuration-files)
-  - [Configuration Support by Mode](#configuration-support-by-mode)
+  - [Using Custom Configuration Files](#custom-configuration)
 - [Usage Guide](#usage-guide)
   - [Basic Commands](#basic-commands)
   - [Command Reference](#command-reference)
 - [File Structure](#file-structure)
-- [Algorithm Details](#algorithm-details)
 - [Output Files](#output-files)
   - [Results CSVs](#results-csvs)
   - [Plot Files](#plot-files)
@@ -155,111 +153,42 @@ Speedup:         13.9x
 
 ## Database Storage
 
-### Two-Database Architecture
+The system uses two SQLite databases:
+- **Lens catalog** (`data/lenses.db`): 202 lenses from ThorLabs and Edmund Optics
+- **Optimization results** (`results/optimization.db`): Stores run metadata and results
 
-The system uses **two separate SQLite databases** for optimal organization:
+### Managing Lenses
 
-1. **Lens Catalog Database** (`./data/lenses.db`)
-   - Stores lens specifications and properties
-   - 202 lenses from ThorLabs and Edmund Optics
-   - Managed by `LensDatabase` class
-   - Read-only during optimization
-
-2. **Optimization Results Database** (`./results/optimization.db`)
-   - Stores optimization run metadata and results
-   - Tracks performance across different methods and parameters
-   - Managed by `OptimizationDatabase` class
-   - Updated with each optimization run
-
-**This separation provides:**
-- Faster lens queries (indexed catalog)
-- Independent lens library updates
-- Cleaner results database (no lens data duplication)
-- Easy lens catalog sharing between projects
-
-### Managing the Lens Database
-
-**Import lenses from CSV files:**
 ```bash
-# Import to default location (./data/lenses.db)
+# Import lenses from CSV
 python raytrace.py import-lenses
 
-# Import to custom database
-python raytrace.py import-lenses --db custom_lenses.db
-```
-
-**Add new lenses from CSV:**
-```bash
-# ThorLabs format
-python -m scripts.add_lenses_from_csv new_lenses.csv --format thorlabs
-
-# Edmund Optics format
-python -m scripts.add_lenses_from_csv new_lenses.csv --format edmund --vendor "Edmund Optics"
-
-# Dry run (preview without importing)
-python -m scripts.add_lenses_from_csv new_lenses.csv --format thorlabs --dry-run
-```
-
-**List available lenses:**
-```bash
-# From database
+# List available lenses
 python raytrace.py list-lenses --use-database
 
-# Filter by type
-python raytrace.py list-lenses --use-database --lens-type Bi-Convex
-
-# Filter by vendor
-python raytrace.py list-lenses --use-database --vendor ThorLabs
-
-# From CSV files (fallback)
-python raytrace.py list-lenses
+# Add new lenses
+python -m scripts.add_lenses_from_csv new_lenses.csv --format thorlabs
 ```
 
-### SQLite Backend for Results
+### Querying Results
 
-All optimization results can be automatically stored in an SQLite database for efficient querying and analysis:
-
-**Enable database storage** in `configs/default.yaml`:
+Enable database storage in `configs/default.yaml`:
 ```yaml
 database:
   enabled: true
   path: ./results/optimization.db
 ```
 
-**Query results** using the built-in CLI:
+Common queries:
 ```bash
 # Show all runs
 python -m scripts.db_query list-runs
 
-# Show details of a specific run
-python -m scripts.db_query show-run 2025-10-24_coupling_0_21_air
+# Find best results
+python -m scripts.db_query best --limit 20 --min-coupling 0.20
 
-# Show top results
-python -m scripts.db_query show-results 2025-10-24_coupling_0_21_air --limit 10
-
-# Find best results across all runs
-python -m scripts.db_query best --limit 20 --medium air --min-coupling 0.20
-
-# Track history of a specific lens pair
-python -m scripts.db_query lens-pair LA4001 LA4647
-
-# Export results to CSV
+# Export specific run
 python -m scripts.db_query export-run 2025-10-24_coupling_0_21_air output.csv
-
-# View overall statistics
-python -m scripts.db_query stats
-```
-
-**Benefits**:
-- Fast queries across thousands of optimization results
-- Track performance trends over time
-- Easy filtering by medium, method, coupling efficiency, etc.
-- Persistent storage independent of CSV files
-- No overhead when disabled (CSV files are always created as backup)
-
-**Test the database**:
-```bash
-python test_database.py
 ```
 
 ## Web Dashboard
@@ -339,28 +268,7 @@ python raytrace.py dashboard --port 8888
 python raytrace.py dashboard  # Auto-detects and loads CSV files
 ```
 
-### API Endpoints
 
-The dashboard provides REST API endpoints for programmatic access:
-
-- `GET /api/results?min_coupling=0.2&medium=air` - Query filtered results
-- `GET /api/stats` - Summary statistics
-- `GET /api/lens_pairs` - List unique lens combinations
-- `GET /api/plot/coupling_histogram` - Coupling distribution plot (PNG)
-- `GET /api/plot/compare/<lens1>/<lens2>` - Method comparison plots (PNG)
-- `GET /api/export?min_coupling=0.2` - Export filtered results as CSV
-
-**Example API usage**:
-```bash
-# Get results with coupling > 0.20 in JSON format
-curl "http://localhost:5000/api/results?min_coupling=0.2"
-
-# Download coupling histogram
-curl "http://localhost:5000/api/plot/coupling_histogram" -o histogram.png
-
-# Export filtered results to CSV
-curl "http://localhost:5000/api/export?min_coupling=0.22&medium=argon" -o high_coupling.csv
-```
 
 ## Installation
 
@@ -391,109 +299,51 @@ python raytrace.py particular LA4001 LA4647 --opt powell
 
 ## Configuration Files
 
-**All modes now support YAML configuration files** for easier parameter management and reproducible runs. CLI arguments always override config values.
+All modes support YAML configuration files for parameter management. CLI arguments override config values.
 
 ### Using Preset Profiles
 
 ```bash
-# Quick test with reduced rays (10x faster)
+# Quick test (100 rays, Powell, fast)
 python raytrace.py particular LA4001 LA4647 --profile quick_test
 
-# Argon medium batch processing
+# Argon batch (1000 rays, differential evolution)
 python raytrace.py combine --profile argon_batch
 
-# Wavelength study configuration
-python raytrace.py wavelength-analyze --profile wavelength_study --results-file results/...
-
-# High-resolution tolerance testing
+# Tolerance test (5000 rays, 41 samples, ±1mm)
 python raytrace.py tolerance LA4001 LA4647 --profile tolerance_test
 ```
 
-Available profiles (in `configs/`):
-- `quick_test`: 100 rays, Powell optimizer, plots disabled (fast testing)
-- `argon_batch`: 1000 rays, argon medium, differential evolution (thorough argon studies)
-- `wavelength_study`: 1000 rays, air medium, Powell optimizer (wavelength sweeps)
-- `tolerance_test`: 5000 rays, 41 samples, ±1mm range (high-resolution tolerance)
-- `integration_test`: Database testing configuration
+Available profiles in `configs/`: `quick_test`, `argon_batch`, `wavelength_study`, `tolerance_test`, `integration_test`
 
-### Using Custom Configuration Files
+### Custom Configuration
 
-Create a YAML file (e.g., `my_config.yaml`) in the `configs/` directory:
+Create `my_config.yaml`:
 
 ```yaml
 rays:
-  n_rays: 500
-
-optics:
-  wavelength_nm: 250.0
+  n_rays: 1500
 
 medium:
-  type: helium
-  pressure_atm: 1.0
-  temperature_k: 293.15
+  type: argon
 
 optimization:
   method: powell
-  powell:
-    maxiter: 500
-    ftol: 0.0001
 
 analyze:
-  n_rays: 1000
   coupling_threshold: 0.22
-  methods:
-    - differential_evolution
-    - powell
-    - dual_annealing
-
-wavelength:
-  wl_start: 190
-  wl_end: 250
-  wl_step: 5
-  n_rays: 2000
-  methods:
-    - differential_evolution
-    - powell
-
-dashboard:
-  port: 8080
-  db_path: results/optimization.db
-  auto_open: false
-
-output:
-  save_plots: true
-  save_csv: true
+  methods: [differential_evolution, powell]
 ```
 
-Then use it:
-
+Use it:
 ```bash
 python raytrace.py particular LA4001 LA4647 --config my_config.yaml
+
+# CLI overrides config
+python raytrace.py particular LA4001 LA4647 --config my_config.yaml --medium air
 ```
 
-**Note**: Command-line arguments override configuration file values. For example:
-```bash
-# Config sets medium=argon, but CLI overrides to air
-python raytrace.py particular LA4001 LA4647 --profile argon_batch --medium air
-
-# Config sets port=8080, but CLI overrides to 5000
-python raytrace.py dashboard --config my_config.yaml --port 5000
-```
-
-### Configuration Support by Mode
-
-| Mode | Config Support | Config Sections Used |
-|------|----------------|---------------------|
-| `particular`, `compare`, `select`, `combine` | ✅ Full | `rays`, `medium`, `optimization` |
-| `paraxial` | ✅ Partial | `medium` (requires `--use-database` flag) |
-| `analyze` | ✅ Full | `analyze` |
-| `wavelength-analyze` | ✅ Full | `wavelength` |
-| `tolerance` | ✅ Full | `tolerance` |
-| `dashboard` | ✅ Full | `dashboard` |
-| `wavelength-analyze-plot` | CLI only | N/A |
-| `import-lenses`, `list-lenses` | CLI only | N/A |
-
-See `configs/default.yaml` for all available configuration options and detailed documentation.
+See `configs/default.yaml` for all available options.
 
 ## Usage Guide
 
@@ -896,62 +746,7 @@ raytrace-xe-flashlamp-fiber/
     └── *.tex, *.bib               # LaTeX source files
 ```
 
-## Algorithm Details
 
-### Powell's Method (Recommended Default)
-
-**Type**: Direction-set local optimizer  
-**Speed**: 1-2 seconds per lens pair  
-**Convergence**: Good, finds local optima reliably  
-**Pros**: Very fast, no gradient needed, efficient  
-**Cons**: May miss global optimum if started far away  
-**Best for**: Everyday optimization, quick scans, general use
-
-### Nelder-Mead
-
-**Type**: Simplex-based local optimizer  
-**Speed**: 1-2 seconds per lens pair  
-**Convergence**: Good, geometric search  
-**Pros**: Very fast, robust, no gradient needed  
-**Cons**: Can be sensitive to initial conditions  
-**Best for**: Quick local refinement, alternative to Powell
-
-### Grid Search
-
-**Type**: Systematic parameter sweep  
-**Speed**: 2-3 seconds per lens pair (with default 7×7 grid)  
-**Convergence**: Systematic, guaranteed to check all grid points  
-**Pros**: Reproducible, visualizes parameter space  
-**Cons**: Fixed resolution, computationally intensive for fine grids  
-**Best for**: Baseline comparisons, parameter space visualization
-
-### Differential Evolution
-
-**Type**: Population-based global optimizer  
-**Speed**: 10-17 seconds per lens pair  
-**Convergence**: Excellent, finds global optima consistently  
-**Pros**: Robust, explores full parameter space, no gradient needed  
-**Cons**: Slower than local methods  
-**Best for**: Final optimization when thoroughness matters, difficult problems
-
-### Bayesian Optimization
-
-**Type**: Sequential model-based optimization  
-**Speed**: 20-22 seconds per lens pair  
-**Convergence**: Excellent, sample-efficient  
-**Pros**: Models uncertainty, very sample-efficient, good for expensive evaluations  
-**Cons**: Requires scikit-optimize, slower than Powell  
-**Requires**: `pip install scikit-optimize`  
-**Best for**: When function evaluations are expensive, uncertainty quantification
-
-### Dual Annealing
-
-**Type**: Hybrid simulated annealing with local search  
-**Speed**: 40-51 seconds per lens pair  
-**Convergence**: Excellent, escapes local minima  
-**Pros**: Very thorough exploration, combines global and local search  
-**Cons**: Slowest method  
-**Best for**: Complex landscapes with many local optima, research purposes
 
 ## Output Files
 
@@ -997,38 +792,7 @@ Example: `logs/2025-10-18_combine_powell_air.log`
 
 ## Physics and Implementation
 
-### Ray Tracing
-
-Deterministic ray tracing with quasi-random sampling:
-- Rays generated from finite 3mm arc source (radial positions randomly sampled)
-- Angular positions evenly distributed around circle
-- Ray angles deterministically calculated based on radial position within 33° cone
-- Full refraction at each lens surface (Snell's law)
-- Acceptance testing at fiber based on NA and position
-
-**Note**: The code uses stratified sampling rather than pure Monte Carlo. Only radial positions are randomized; angular positions and ray directions are deterministic. Historical files have been renamed from `raytrace_monte-carlo.*` to `raytrace_stratified.*` to reflect this.
-
-### Atmospheric Absorption
-
-O₂ absorption at 200nm modeled using Minschwaner parameterization:
-- **Air (21% O₂)**: 16-24% coupling loss vs. argon (average ~21%, measured)
-- **Argon/Helium**: Negligible absorption at 200nm, 16-24% better coupling than air
-- Temperature, pressure, and humidity dependent
-
-### Multi-Objective Optimization
-
-The objective function balances two competing goals:
-
-```python
-objective = alpha * (1 - coupling) + (1 - alpha) * (length / max_length)
-```
-
-Where:
-- `coupling`: Fraction of rays accepted by fiber (0-1)
-- `length`: Total optical system length (mm)
-- `alpha`: User-controlled weight (0-1)
-
-Higher alpha prioritizes coupling; lower alpha prioritizes compactness.
+Uses deterministic ray tracing with atmospheric absorption modeling (O₂ absorption in air). Multi-objective optimization balances coupling efficiency against system length using the `alpha` parameter. See `doc/technical_report.pdf` for detailed physics and implementation.
 
 ## Performance Recommendations
 
@@ -1123,91 +887,21 @@ python raytrace.py tolerance 84-281 89-414 --profile tolerance_test --medium arg
 ### Workflow 2: Find Best Lens Pair for Maximum Coupling
 
 ```bash
-# Step 1: Quick scan of all combinations
+# Step 1: Quick scan prioritizing coupling
 python raytrace.py combine --opt powell --alpha 0.9
 
-# Step 2: Check results
-head -20 results/2025-10-18_combine_powell_air/results_combine_2025-10-18.csv
-
-# Step 3: Re-optimize top candidates more thoroughly using config
+# Step 2: Re-optimize top candidates thoroughly
 python raytrace.py analyze \
-  --config analyze_config.yaml \
-  --results-file results/2025-10-18_combine_powell_air/results_combine_2025-10-18.csv
+  --results-file results/2025-10-18_combine_powell_air/results_combine_2025-10-18.csv \
+  --coupling-threshold 0.22
 
-# Step 4: Review final results
-cat results/analyze_2025-10-18_coupling_0_22_air/results_analyze_combined_*.csv
-
-# Step 5: View in dashboard
+# Step 3: View results interactively
 python raytrace.py dashboard
 ```
 
-**analyze_config.yaml:**
-```yaml
-analyze:
-  n_rays: 2000
-  coupling_threshold: 0.22
-  methods:
-    - differential_evolution
-    - dual_annealing
-```
 
-### Workflow 2: Design Compact System
 
-```bash
-# Optimize with equal weight to coupling and compactness
-python raytrace.py combine --opt powell --alpha 0.5
-
-# Find shortest systems with acceptable coupling
-python raytrace.py analyze \
-  --results-file results/2025-10-18_combine_powell_air/results_combine_2025-10-18.csv \
-  --coupling-threshold 0.18 \
-  --alpha 0.3
-```
-
-### Workflow 3: Wavelength Characterization Using Config Files
-
-```bash
-# Step 1: Find best configuration at 200nm
-python raytrace.py particular 36-681 LA4647 --opt differential_evolution
-
-# Step 2: Analyze wavelength dependence with config
-python raytrace.py wavelength-analyze \
-  --config wavelength_config.yaml \
-  --results-file results/particular_2025-10-18_differential_evolution_air/36-681+LA4647.csv
-
-# Step 3: Generate plots
-python raytrace.py wavelength-analyze-plot \
-  --results-dir results/wavelength_analyze_2025-10-18 \
-  --fit polynomial --aggregate
-```
-
-**wavelength_config.yaml:**
-```yaml
-wavelength:
-  wl_start: 180
-  wl_end: 250
-  wl_step: 5
-  n_rays: 2000
-  methods:
-    - differential_evolution
-    - powell
-```
-
-### Workflow 4: Compare Air vs. Argon
-
-```bash
-# Run in air
-python raytrace.py particular 36-681 LA4647 --opt powell --medium air
-
-# Run in argon
-python raytrace.py particular 36-681 LA4647 --opt powell --medium argon
-
-# Compare coupling efficiencies in logs
-grep "Coupling=" logs/particular_2025-10-18_powell_air.log
-grep "Coupling=" logs/particular_2025-10-18_powell_argon.log
-```
-
-### Workflow 5: Manufacturing Tolerance Assessment
+### Workflow 3: Manufacturing Tolerance Assessment
 
 ```bash
 # Step 1: Optimize a promising lens pair
@@ -1227,7 +921,7 @@ python raytrace.py tolerance LA4001 LA4647 --opt powell --medium argon \
   --z-range 1.0 --n-samples 41
 ```
 
-### Workflow 6: Interactive Results Analysis with Dashboard
+### Workflow 4: Interactive Results Analysis with Dashboard
 
 ```bash
 # Step 1: Run batch optimization with database enabled
@@ -1257,76 +951,7 @@ dashboard:
   db_path: results/optimization.db
 ```
 
-### Workflow 7: Complete Project Using Config Files
 
-Manage an entire project with a single comprehensive config file.
-
-**project_config.yaml:**
-```yaml
-rays:
-  n_rays: 1500
-  use_vectorized: true
-
-medium:
-  type: argon
-
-optimization:
-  method: powell
-
-analyze:
-  n_rays: 2000
-  coupling_threshold: 0.22
-  methods:
-    - differential_evolution
-    - dual_annealing
-
-wavelength:
-  wl_start: 190
-  wl_end: 250
-  wl_step: 5
-  n_rays: 2000
-  methods:
-    - differential_evolution
-
-tolerance:
-  z_range_mm: 1.0
-  n_samples: 41
-  n_rays: 5000
-
-dashboard:
-  port: 8080
-  db_path: results/project.db
-
-database:
-  enabled: true
-  path: results/project.db
-```
-
-**Workflow steps:**
-```bash
-# All commands use the same config file
-# 1. Initial optimization scan
-python raytrace.py select --config project_config.yaml
-
-# 2. Analyze top results
-python raytrace.py analyze \
-  --config project_config.yaml \
-  --results-file results/2025-10-25_select_powell_argon/results_*.csv
-
-# 3. Wavelength characterization of best pair
-python raytrace.py wavelength-analyze \
-  --config project_config.yaml \
-  --results-file results/analyze_*/36-681+LA4647.csv
-
-# 4. Tolerance analysis
-python raytrace.py tolerance 36-681 LA4647 --config project_config.yaml
-
-# 5. View everything in dashboard
-python raytrace.py dashboard --config project_config.yaml
-
-# CLI overrides work at any step
-python raytrace.py dashboard --config project_config.yaml --port 5000
-```
 
 ## Troubleshooting
 
@@ -1393,58 +1018,7 @@ python raytrace.py combine --opt powell continue 2025-10-18
 
 ## Technical Background
 
-### Research Context
-
-This project implements the optimization framework described in:
-
-> **"Optimization of Two-Lens Coupling Systems for VUV Flashlamp to Fiber Applications Using Ray Tracing and Multi-Algorithm Comparison"**  
-> Turja Roy, Department of Physics, University of Texas at Arlington
-
-Key findings:
-- Coupling efficiencies of 0.31-0.42 in air, 0.39-0.49 in argon achievable with optimized configurations
-- Argon provides 16-24% coupling improvement over air (average ~21%) due to eliminated O₂ absorption
-- Powell's method is fastest (1-2s) while differential evolution is most thorough (10-17s)
-- Multi-objective optimization successfully balances efficiency and compactness
-
-### Physical Constants
-
-Defined in `scripts/consts.py`:
-- **Wavelength**: 200nm (VUV range)
-- **Fiber**: 1mm core diameter, NA=0.22, acceptance angle 24.8°
-- **Source**: 3mm arc diameter at z=0
-- **Cooling Jacket**: Water-cooled quartz jacket surrounding flashlamp
-  - Inner window at 8.7mm from source
-  - Outer window at 26mm from source (cooling jacket exit)
-  - Limits maximum beam divergence to 22.85° (atan(11.5mm/26mm))
-  - Geometric vignetting factor: 43% transmission (51.4% light loss)
-- **Optical Constraint**: Lenses must be positioned ≥27mm from source (after cooling jacket exit)
-- **Medium properties**: Temperature, pressure, humidity dependent
-- **Lens material**: Fused silica (refractive index from Sellmeier equation)
-
-### Optimization Implementation
-
-Each optimizer implements:
-```python
-def optimize(lenses, lens1_name, lens2_name, n_rays=1000, alpha=0.7, medium='air'):
-    # Returns: dict with keys: lens1, lens2, z_l1, z_l2, z_fiber, 
-    #          coupling, total_len_mm, f1_mm, f2_mm, origins, dirs, accepted
-```
-
-**Parameter bounds:**
-- `z_l1`: ≥27mm (SOURCE_TO_LENS_OFFSET - after cooling jacket exit)
-- `z_l2`: > z_l1 + lens1_thickness + minimum_gap (0.5mm)
-- `z_fiber`: Evaluated at both focal length position and optimized position; best is chosen
-
-**Physical constraints enforced:**
-- Lenses cannot overlap (minimum 0.5mm gap accounting for surface curvature)
-- First lens must clear cooling jacket window (z_l1 ≥ 27mm)
-- Second lens must clear first lens back surface
-
-**Fiber positioning:** For configurations with coupling < 5%, the optimizer automatically tests both:
-1. **Focal length method**: z_fiber = z_l2 + f2 (paraxial focal plane)
-2. **Optimized search**: 1D optimization over range [z_l2 + 0.5×f2, z_l2 + 1.5×f2]
-
-The method yielding higher coupling is selected and reported in results.
+This project optimizes two-lens optical systems for coupling 200nm VUV light from xenon flashlamps into optical fibers. For research context, physical constants, optimization algorithms, and implementation details, see `doc/technical_report.pdf`.
 
 <!-- ## Citation -->
 <!---->
