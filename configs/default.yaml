@@ -8,7 +8,7 @@ rays:
 
 # Wavelength and optical properties
 optics:
-  wavelength_nm: 200.0  # VUV wavelength
+  wavelength_nm: 220.0  # VUV wavelength
 
 # Source geometry (xenon flashlamp with M23 cooling jacket)
 source:
