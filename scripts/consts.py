@@ -1,7 +1,7 @@
 from scripts.calcs import fused_silica_n
 
 
-WAVELENGTH_NM = 200.0                       # 200 nm
+WAVELENGTH_NM = 220.0                       # 220 nm
 
 # Fiber
 FIBER_CORE_DIAM_MM = 1.0                    # 1000 micron

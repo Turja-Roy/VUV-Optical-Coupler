@@ -270,9 +270,9 @@ def wavelength_analysis(results_file, run_id, wl_start=180, wl_end=300, wl_step=
     wavelengths = np.arange(wl_start, wl_end + 1, wl_step)
     
     print(f"Parameters: wavelengths={wl_start}-{wl_end}nm (step={wl_step}nm), n_rays={n_rays}, medium={medium}")
-    print(f"Strategy: Calibrate at 200nm, then test fixed geometry across wavelengths")
+    print(f"Strategy: Calibrate at 220nm, then test fixed geometry across wavelengths")
     logger.info(f"Parameters: wavelengths={wl_start}-{wl_end}nm (step={wl_step}nm), n_rays={n_rays}, medium={medium}")
-    logger.info(f"Strategy: Using fixed 200nm calibration across all wavelengths")
+    logger.info(f"Strategy: Using fixed 220nm calibration across all wavelengths")
     
     try:
         from scripts.optimization import bayesian
@@ -339,8 +339,8 @@ def wavelength_analysis(results_file, run_id, wl_start=180, wl_end=300, wl_step=
                 logger.info(f"  Skipping calibration for {method} (already done)")
                 continue
             
-            print(f"  Calibrating with {method} at 200nm...")
-            logger.info(f"  Calibrating with {method} at 200nm")
+            print(f"  Calibrating with {method} at 220nm...")
+            logger.info(f"  Calibrating with {method} at 220nm")
             
             # Calculate seed for this method+lens combination
             # This ensures calibration and evaluation use the same random ray samples
@@ -348,7 +348,7 @@ def wavelength_analysis(results_file, run_id, wl_start=180, wl_end=300, wl_step=
             
             import scripts.consts as C
             original_wavelength = C.WAVELENGTH_NM
-            C.WAVELENGTH_NM = 200.0
+            C.WAVELENGTH_NM = 220.0
             
             try:
                 res = None
@@ -384,7 +384,7 @@ def wavelength_analysis(results_file, run_id, wl_start=180, wl_end=300, wl_step=
                         'total_len_mm': res['total_len_mm'],
                         'orientation': res.get('orientation', 'ScffcF')
                     }
-                    logger.info(f"    Calibrated: z_l1={res['z_l1']:.2f}, z_l2={res['z_l2']:.2f}, z_fiber={res['z_fiber']:.2f}, coupling@200nm={res['coupling']:.4f}, orientation={res.get('orientation', 'ScffcF')}")
+                    logger.info(f"    Calibrated: z_l1={res['z_l1']:.2f}, z_l2={res['z_l2']:.2f}, z_fiber={res['z_fiber']:.2f}, coupling@220nm={res['coupling']:.4f}, orientation={res.get('orientation', 'ScffcF')}")
                 else:
                     logger.warning(f"    Calibration failed for {method}")
                 
