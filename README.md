@@ -53,7 +53,7 @@ A comprehensive ray tracing and optimization framework for designing two-lens op
 
 ## Project Overview
 
-This project addresses the challenge of efficiently collecting 200nm light from a xenon flashlamp arc source and coupling it into a small-core optical fiber. The system uses:
+This project addresses the challenge of efficiently collecting 220nm light from a xenon flashlamp arc source and coupling it into a small-core optical fiber. The system uses:
 
 - **Source**: 60W Xenon flash lamp with 3mm diameter arc in water-cooled jacket
 - **Geometry**: Cooling jacket with 26mm optical path length limits beam divergence to 22.85°
@@ -61,13 +61,25 @@ This project addresses the challenge of efficiently collecting 200nm light from 
 - **Approach**: Two-lens plano-convex system optimization via deterministic ray tracing
 - **Physics**: Full geometric optics with atmospheric O₂ absorption modeling, geometric losses from cooling jacket vignetting (43% transmission)
 
+> **📄 Technical Report**: For complete analysis, physical modeling details, and validated experimental design, see [`doc/technical_report.pdf`](doc/technical_report.pdf). The report documents the optimized LA4148+LA4022 configuration achieving 24% coupling in air and 26-27% in argon at 220nm.
+
 ### Key Results
 
-- **Coupling Efficiency**: 17-23% achievable with optimized configurations under current geometry constraints
-- **System Length**: 40-100mm for high-performing configurations
-- **Atmospheric Impact**: 16-24% coupling improvement in argon vs. air due to eliminated O₂ absorption at 200nm
+- **Coupling Efficiency**: 24-27% achievable with optimized configurations under current geometry constraints (Air: 24%, Argon: 26-27% at 220nm)
+- **System Length**: ~70mm for optimized configurations (e.g., LA4148+LA4022)
+- **Atmospheric Impact**: 8-10% coupling improvement in argon vs. air due to eliminated O₂ absorption at 220nm
 - **Medium Dependence**: Argon shows significantly better performance than air due to lack of UV absorption
 - **Constraint Impact**: Cooling jacket geometry (lenses must be positioned ≥27mm from source) significantly constrains optimization space
+
+#### Best Known Configuration
+
+**Lens Pair**: LA4148 (f=50.2mm) + LA4022 (f=60mm)
+- **Air Performance**: η = 0.24 (24%), L ≈ 70mm
+- **Argon Performance**: η = 0.26-0.27 (26-27%), L ≈ 70mm
+- **Positions**: z₁ ≈ 27mm (cooling jacket constraint), z₂ ≈ 34mm
+- **Physical Implementation**: ThorLabs SM1 optomechanics (see `Assembly/` directory)
+
+This configuration is validated through multiple optimization methods and documented in `doc/technical_report.pdf`.
 
 ## Features
 
@@ -497,7 +509,7 @@ wavelength:
     - powell
 ```
 
-The `methods` list controls which optimizers calibrate the geometry at 200nm before wavelength sweeping.
+The `methods` list controls which optimizers calibrate the geometry at 220nm before wavelength sweeping.
 
 **Plotting results:**
 ```bash
@@ -741,8 +753,14 @@ raytrace-xe-flashlamp-fiber/
 ├── logs/                          # Execution logs
 │   └── *.log                      # Detailed execution logs
 │
+├── Assembly/                      # CAD models and mechanical design
+│   ├── Assembly.FCStd             # FreeCAD assembly file (LA4148+LA4022)
+│   ├── List.md                    # Parts list (ThorLabs SM1 components)
+│   └── *.step                     # Individual component STEP files
+│
 └── doc/                           # Documentation
     ├── technical_report.pdf       # Full technical report
+    ├── images/                    # Figures and plots for report
     └── *.tex, *.bib               # LaTeX source files
 ```
 
@@ -1006,7 +1024,7 @@ python raytrace.py combine --opt powell continue 2025-10-18
 2. **Conservative spacing assumptions**: Assumes z_l2 ≥ z_l1 + tc + 0.5×f1, but optimal may be much closer
 3. **Same-lens pairs**: May require tighter spacing than paraxial grid searches
 
-**Example**: 48-274 + 48-274 achieves 17-23% in full ray tracing (z_l1=27mm, z_l2=33mm) but paraxial predicts <1% because the grid doesn't search z_l2 < 58mm
+**Example**: Some lens pairs like 48-274 + 48-274 perform well in full ray tracing (z_l1=27mm, z_l2=33mm) but paraxial predicts <1% because the grid doesn't search close lens spacing (e.g., z_l2 < 58mm). The current best configuration LA4148+LA4022 achieves 24-27% coupling and was identified through systematic full ray-trace optimization.
 
 **Solutions**:
 - Use paraxial for initial screening only, not final values
@@ -1018,7 +1036,7 @@ python raytrace.py combine --opt powell continue 2025-10-18
 
 ## Technical Background
 
-This project optimizes two-lens optical systems for coupling 200nm VUV light from xenon flashlamps into optical fibers. For research context, physical constants, optimization algorithms, and implementation details, see `doc/technical_report.pdf`.
+This project optimizes two-lens optical systems for coupling 220nm VUV light from xenon flashlamps into optical fibers. For research context, physical constants, optimization algorithms, and implementation details, see `doc/technical_report.pdf`.
 
 <!-- ## Citation -->
 <!---->
