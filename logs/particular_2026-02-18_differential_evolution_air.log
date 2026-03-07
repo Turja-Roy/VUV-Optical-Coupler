@@ -1,0 +1,6 @@
+2026-02-18 21:28:25 INFO: 
+Optimizing LA4148 + LA4022 using differential_evolution...
+2026-02-18 21:28:34 INFO: Orientation=SfccfF, Coupling=0.2446, Length=71.13mm, z_l1=29.29, z_l2=37.20
+2026-02-18 21:41:20 INFO: 
+Optimizing LA4148 + LA4022 using differential_evolution...
+2026-02-18 21:41:27 INFO: Orientation=SfccfF, Coupling=0.2424, Length=70.11mm, z_l1=29.28, z_l2=36.12

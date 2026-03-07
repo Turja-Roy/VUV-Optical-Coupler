@@ -650,6 +650,7 @@ Commands:
   dashboard                     Start interactive web dashboard
   import-lenses                 Import lenses from CSV files into database
   list-lenses                   List available lenses from database or CSV
+  experimental                  Calculate coupling for experimental setup with specified lens positions
 
 Options:
   --opt <method>                Optimization method (default: powell)
@@ -672,6 +673,7 @@ Options:
   --aggregate                   Generate aggregated plots with error bars
   --port <number>               Dashboard port (default: 5000)
   --db <path>                   Database file for dashboard
+  --fiber-z <mm>                Fiber z-position for experimental mode (optional, auto-optimized if not specified)
   --profile <name>              Use preset configuration profile
   --config <path>               Use custom YAML configuration file
   continue                      Resume incomplete batch run
@@ -706,6 +708,7 @@ raytrace-xe-flashlamp-fiber/
 │   ├── data_io.py                 # File I/O and result management
 │   ├── database.py                # SQLite database backend (optimization results)
 │   ├── db_query.py                # Database query CLI
+│   ├── experimental.py            # Experimental lens setup coupling calculation
 │   ├── hitran_data.py             # HITRAN absorption data handling
 │   ├── lens_database.py           # Lens catalog database management
 │   ├── lens_factory.py            # Lens object factory
@@ -968,6 +971,60 @@ dashboard:
   port: 8080
   db_path: results/optimization.db
 ```
+
+### Workflow 5: Testing Experimental Lens Setup
+
+**Best for**: Calculating expected coupling for a physical optical setup with known lens positions
+
+When you're building a physical optical system and want to predict the coupling efficiency, you can use the `experimental` command to specify exact lens positions and orientations:
+
+```bash
+# Calculate coupling for specific physical setup
+# Format: experimental <lens1> <orientation1> <z1> <lens2> <orientation2> <z2>
+# Orientations: 'flat' (flat face first) or 'curve' (curved face first)
+# z-position convention:
+#   - 'flat': z is the position of the flat face
+#   - 'curve': z is the position where the curve apex is
+
+# Example 1: Both lenses with curved face first, manual fiber position
+python raytrace.py experimental LA4001 curve 10.0 LA4647 curve 45.0 --fiber-z 80.0
+
+# Example 2: Mixed orientations, auto-optimize fiber position
+python raytrace.py experimental LA4001 curve 10.0 LA4647 flat 50.0 --n-rays 2000
+
+# Example 3: Test in argon environment with specified fiber position
+python raytrace.py experimental LA4001 flat 10.0 LA4647 flat 45.0 \
+  --fiber-z 90.0 --medium argon --n-rays 5000
+
+# Example 4: Compare different orientations for same lens positions
+python raytrace.py experimental LA4001 curve 30.0 LA4647 curve 60.0 --fiber-z 95.0
+python raytrace.py experimental LA4001 flat 30.0 LA4647 flat 60.0 --fiber-z 95.0
+python raytrace.py experimental LA4001 curve 30.0 LA4647 flat 60.0 --fiber-z 95.0
+python raytrace.py experimental LA4001 flat 30.0 LA4647 curve 60.0 --fiber-z 95.0
+```
+
+**Use Cases**:
+- Validate physical setup before building
+- Predict expected coupling for existing optical bench configuration
+- Understand impact of lens orientation on coupling
+- Fine-tune fiber position for maximum coupling
+
+**Output Example**:
+```
+============================================================
+Experimental Setup Results
+============================================================
+Coupling efficiency: 0.2456 (24.56%)
+Rays coupled: 491 / 2000
+Total system length: 80.00 mm
+Fiber position (z): 80.00 mm
+
+Lens positions:
+  Lens 1 (LA4001): z=13.00 mm (curve first)
+  Lens 2 (LA4647): z=47.15 mm (curve first)
+============================================================
+```
+
 
 
 

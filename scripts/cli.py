@@ -23,6 +23,7 @@ Commands:
     dashboard                     Start web dashboard for viewing results
     import-lenses                 Import lenses from CSV files into database
     list-lenses                   List available lenses from database or CSV
+    experimental                  Calculate coupling for experimental lens setup with specified positions
 
 Options:
     --config <file>               Load configuration from YAML file
@@ -57,6 +58,7 @@ Options:
     --z-range <mm>                Range for tolerance analysis z-displacement (default: 0.5)
     --n-samples <count>           Number of tolerance test samples (default: 21)
     --port <number>               Port for dashboard server (default: 5000)
+    --fiber-z <mm>                Fiber z-position for experimental mode (optional, will optimize if not specified)
     continue                      Continue incomplete batch run
     <YYYY-MM-DD>                  Specify run date
 
@@ -171,6 +173,12 @@ Examples:
     
     # Paraxial with custom medium
     python raytrace.py paraxial --use-database --medium argon
+    
+    # Experimental mode - specify lens positions manually
+    python raytrace.py experimental LA4001 flat 10.0 LA4647 curve 45.0 --fiber-z 80.0
+    
+    # Experimental mode with flipped orientations
+    python raytrace.py experimental LA4001 curve 10.0 LA4647 flat 50.0 --fiber-z 85.0 --medium argon
 """)
 
 
@@ -203,7 +211,9 @@ def parse_arguments():
         'use_database': False,
         'lens_type': None,
         'vendor': None,
-        'sql_query': None
+        'sql_query': None,
+        'experimental_lenses': [],
+        'fiber_z': None
     }
 
     if len(sys.argv) < 2:
@@ -266,15 +276,56 @@ def parse_arguments():
     
     elif sys.argv[1] == 'list-lenses':
         args['mode'] = 'list-lenses'
+    
+    elif sys.argv[1] == 'experimental':
+        args['mode'] = 'experimental'
 
     else:
         print(f"Error: Unknown command '{sys.argv[1]}'")
         print_usage()
         sys.exit(1)
 
+    # Parse experimental mode lens specifications
+    if args['mode'] == 'experimental':
+        # Format: experimental <lens1> <orientation1> <z1> <lens2> <orientation2> <z2> [options]
+        # Example: experimental LA4001 flat 10.0 LA4647 curve 45.0 --fiber-z 80.0
+        if len(sys.argv) < 8:
+            print("Error: experimental mode requires: <lens1> <orientation1> <z1> <lens2> <orientation2> <z2>")
+            print("  orientation: 'flat' (flat face first) or 'curve' (curved face first)")
+            print("  z: starting z-position in mm")
+            print("    - for 'flat': z position of the flat face")
+            print("    - for 'curve': z position where the curve apex is")
+            print_usage()
+            sys.exit(1)
+        
+        try:
+            lens1_name = sys.argv[2]
+            lens1_orientation = sys.argv[3].lower()
+            lens1_z = float(sys.argv[4])
+            lens2_name = sys.argv[5]
+            lens2_orientation = sys.argv[6].lower()
+            lens2_z = float(sys.argv[7])
+            
+            if lens1_orientation not in ['flat', 'curve']:
+                print(f"Error: orientation must be 'flat' or 'curve', got '{lens1_orientation}'")
+                sys.exit(1)
+            if lens2_orientation not in ['flat', 'curve']:
+                print(f"Error: orientation must be 'flat' or 'curve', got '{lens2_orientation}'")
+                sys.exit(1)
+            
+            args['experimental_lenses'] = [
+                {'name': lens1_name, 'orientation': lens1_orientation, 'z': lens1_z},
+                {'name': lens2_name, 'orientation': lens2_orientation, 'z': lens2_z}
+            ]
+        except ValueError as e:
+            print(f"Error: Invalid z-position value: {e}")
+            sys.exit(1)
+    
     # Determine starting index for argument parsing
     if args['mode'] in ['method', 'paraxial', 'analyze', 'wavelength-analyze', 'wavelength-analyze-plot', 'dashboard', 'import-lenses', 'list-lenses']:
         i = 2
+    elif args['mode'] == 'experimental':
+        i = 8  # Start after the lens specifications
     elif args['mode'] == 'tolerance' and args.get('lens1') is None:
         # Batch tolerance mode starts parsing from index 2
         i = 2
@@ -517,6 +568,18 @@ def parse_arguments():
             else:
                 print("Error: --query requires a SQL query string")
                 sys.exit(1)
+        
+        elif arg == '--fiber-z':
+            if i + 1 < len(sys.argv):
+                try:
+                    args['fiber_z'] = float(sys.argv[i + 1])
+                except ValueError:
+                    print("Error: --fiber-z must be a number")
+                    sys.exit(1)
+                i += 2
+            else:
+                print("Error: --fiber-z requires a value")
+                sys.exit(1)
 
         elif arg == 'continue':
             args['continue'] = True
@@ -669,5 +732,12 @@ def parse_arguments():
             print_usage()
             sys.exit(1)
         # else: both lens1 and lens2 are set - single pair mode is valid
+    
+    if args['mode'] == 'experimental':
+        # Validate experimental mode arguments
+        if len(args['experimental_lenses']) != 2:
+            print("Error: experimental mode requires exactly 2 lenses")
+            print_usage()
+            sys.exit(1)
 
     return args

@@ -121,6 +121,72 @@ def main():
         
         return
     
+    # Handle experimental mode
+    if args['mode'] == 'experimental':
+        from scripts.experimental import run_experimental_setup
+        from scripts.visualizers import plot_system_rays
+        
+        # Build run_id for experimental mode
+        lens1_name = args['experimental_lenses'][0]['name']
+        lens2_name = args['experimental_lenses'][1]['name']
+        orientation1 = args['experimental_lenses'][0]['orientation']
+        orientation2 = args['experimental_lenses'][1]['orientation']
+        run_id = f"experimental_{args['date']}_{lens1_name}+{lens2_name}_{orientation1}+{orientation2}_{args['medium']}"
+        
+        print("\n" + "="*60)
+        print("Experimental Lens Setup - Coupling Calculation")
+        print("="*60)
+        print(f"Medium: {args['medium']}")
+        print(f"Wavelength: {C.WAVELENGTH_NM} nm")
+        print(f"Number of rays: {args['n_rays']}")
+        
+        for i, lens_info in enumerate(args['experimental_lenses'], 1):
+            print(f"Lens {i}: {lens_info['name']} ({lens_info['orientation']} face first) at z={lens_info['z']:.2f} mm")
+        
+        if args['fiber_z'] is not None:
+            print(f"Fiber position: z={args['fiber_z']:.2f} mm")
+        print("="*60 + "\n")
+        
+        result = run_experimental_setup(
+            args['experimental_lenses'],
+            fiber_z=args['fiber_z'],
+            medium=args['medium'],
+            n_rays=args['n_rays'],
+            use_database=use_database,
+            lens_db=lens_db
+        )
+        
+        if result:
+            print("\n" + "="*60)
+            print("Experimental Setup Results")
+            print("="*60)
+            print(f"Coupling efficiency: {result['coupling']:.4f} ({result['coupling']*100:.2f}%)")
+            print(f"Rays coupled: {result['n_coupled']} / {result['n_rays']}")
+            print(f"Total system length: {result['total_len_mm']:.2f} mm")
+            print(f"Fiber position (z): {result['z_fiber']:.2f} mm")
+            print(f"\nLens positions:")
+            print(f"  Lens 1 ({result['lens1']}): z={result['z_l1']:.2f} mm ({result['orientation1']} first)")
+            print(f"  Lens 2 ({result['lens2']}): z={result['z_l2']:.2f} mm ({result['orientation2']} first)")
+            
+            # Generate plots
+            print(f"\nGenerating plots...")
+            from scripts.data_io import fetch_lens_data
+            lenses = fetch_lens_data('combine', use_database=use_database, db=lens_db)
+            
+            # Create plots directory
+            Path(f'./plots/{run_id}').mkdir(parents=True, exist_ok=True)
+            
+            # Generate ray trace plots (both 2D and 3D by default)
+            plot_system_rays(lenses, result, run_id, n_plot_rays=min(1000, args['n_rays']), 
+                           method='experimental', plot_style='2d')
+            
+            print(f"Plots saved to: plots/{run_id}/")
+            print("="*60 + "\n")
+        else:
+            print("\nError: Could not calculate coupling for this configuration.")
+        
+        return
+    
     # Handle list-lenses mode
     if args['mode'] == 'list-lenses':
         if args['use_database']:
